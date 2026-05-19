@@ -84,6 +84,10 @@
         <gotoDeclarationHandler
                 implementation="com.github.pablolec.play1toolkit.routes.RoutesGotoDeclarationHandler"/>
 
+        <!-- Java controller/action → conf/routes navigation -->
+        <gotoDeclarationHandler
+                implementation="com.github.pablolec.play1toolkit.lineMarker.JavaToRoutesGotoDeclarationHandler"/>
+
         <!-- Gutter icons: controller ↔ routes -->
         <codeInsight.lineMarkerProvider language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerLineMarkerProvider"/>

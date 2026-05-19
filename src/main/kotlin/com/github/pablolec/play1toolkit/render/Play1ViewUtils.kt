@@ -30,17 +30,38 @@ object Play1ViewUtils {
         return VirtualFileManager.getInstance().findFileByNioPath(Paths.get(basePath, "conf", "routes"))
     }
 
+    /**
+     * Returns routes whose controller short name matches [controllerShortName] and action equals [actionName].
+     * After the lexer fix, route controller text may be "login.LoginCtl" — we match on the last component.
+     */
     fun findRoutesForAction(
         project: Project,
-        controllerName: String,
+        controllerShortName: String,
         actionName: String
     ): List<RoutesRouteElement> {
         val routesVf = findRoutesFile(project) ?: return emptyList()
         val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return emptyList()
         return psiFile.getRoutes().filter { route ->
             route.isDynamicRoute() &&
-                route.getControllerName()?.text?.trim() == controllerName &&
+                route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName &&
                 route.getActionName()?.text?.trim() == actionName
         }
     }
+
+    /** Returns all routes whose controller short name matches [controllerShortName]. */
+    fun findAllRoutesForController(
+        project: Project,
+        controllerShortName: String
+    ): List<RoutesRouteElement> {
+        val routesVf = findRoutesFile(project) ?: return emptyList()
+        val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return emptyList()
+        return psiFile.getRoutes().filter { route ->
+            route.isDynamicRoute() &&
+                route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName
+        }
+    }
+
+    /** True if [psiClass] is a Play 1 controller — checks both inheritance and package as fallback. */
+    fun isPlayControllerClass(psiClass: PsiClass): Boolean =
+        isPlayController(psiClass) || psiClass.qualifiedName?.startsWith("controllers") == true
 }

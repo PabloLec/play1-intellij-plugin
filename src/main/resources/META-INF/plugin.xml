@@ -97,6 +97,10 @@
         <codeInsight.lineMarkerProvider language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1RoutesLineMarkerProvider"/>
 
+        <!-- Java usage search integration for code vision / find usages -->
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.routes.RoutesClassReferencesSearcher"/>
+        <methodReferencesSearch implementation="com.github.pablolec.play1toolkit.routes.RoutesMethodReferencesSearcher"/>
+
         <!-- Suppresses "unused" warning on public static Controller actions routed in conf/routes -->
         <implicitUsageProvider implementation="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerImplicitUsageProvider"/>
 

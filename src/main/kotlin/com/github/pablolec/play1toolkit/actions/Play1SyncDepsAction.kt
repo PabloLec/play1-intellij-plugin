@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.actions
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.model.RepairReport
 import com.github.pablolec.play1toolkit.project.Play1DepsRunner
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
@@ -20,6 +21,8 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import java.nio.file.Paths
+
+
 
 class Play1SyncDepsAction : AnAction("Sync Dependencies") {
 
@@ -79,9 +82,11 @@ class Play1SyncDepsAction : AnAction("Sync Dependencies") {
                     print("Play Home: $playHome")
                     print("")
 
+                    val playVersion = Play1HomeValidator.validate(Paths.get(playHome)).playVersion
                     val result = Play1DepsRunner.run(
                         projectPath = basePath,
                         playHome = playHome,
+                        playVersion = playVersion,
                         onLine = { line, isErr ->
                             ApplicationManager.getApplication().invokeLater {
                                 console.print(

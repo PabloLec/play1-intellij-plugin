@@ -14,15 +14,26 @@ object Play1DepsRunner {
 
     /**
      * Runs `play deps` for the given project.
+     * Requires Play 1.2+. Play 1.1.x has no dependency resolution command.
+     *
      * @param projectPath  absolute path to the Play 1 project root
      * @param playHome     absolute path to the Play 1 installation
-     * @param onLine       receives each output line as it arrives (called on the background thread)
+     * @param playVersion  version string extracted from the Play JAR (e.g. "1.2.7")
+     * @param onLine       receives each output line as it arrives (background thread)
      */
     fun run(
         projectPath: String,
         playHome: String,
+        playVersion: String? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
     ): DepsResult {
+        if (!supportsDepCommand(playVersion)) {
+            return DepsResult(
+                success = false, skipped = true,
+                message = "play deps requires Play 1.2+ (detected: ${playVersion ?: "unknown"})"
+            )
+        }
+
         val depsFile = Paths.get(projectPath, "conf", "dependencies.yml")
         if (!depsFile.toFile().exists()) {
             return DepsResult(success = false, skipped = true, message = "conf/dependencies.yml not found")
@@ -36,13 +47,16 @@ object Play1DepsRunner {
         }
 
         val playScript = Paths.get(playHome, "play").toFile()
-        val command = buildCommand(playScript, projectPath)
-            ?: return DepsResult(success = false, skipped = true, message = "could not find a Python interpreter for the play script")
+        val command = buildCommand(playScript)
+            ?: return DepsResult(
+                success = false, skipped = true,
+                message = "could not find a Python interpreter for the play script"
+            )
 
-        onLine("$ ${command.joinToString(" ")}", false)
+        onLine("$ ${command.joinToString(" ")} deps", false)
 
         val process = try {
-            ProcessBuilder(command)
+            ProcessBuilder(command + "deps")
                 .directory(File(projectPath))
                 .redirectErrorStream(true)
                 .start()
@@ -64,22 +78,24 @@ object Play1DepsRunner {
         }
     }
 
-    /**
-     * Builds the full command list: [interpreter?, playScript, "deps", projectPath]
-     * Using explicit project path avoids working-directory ambiguity across Play versions.
-     */
-    fun buildCommand(playScript: File, projectPath: String): List<String>? {
-        if (!playScript.exists()) return null
+    private fun supportsDepCommand(version: String?): Boolean {
+        if (version == null) return true // unknown version → attempt anyway
+        val parts = version.split(".").mapNotNull { it.toIntOrNull() }
+        if (parts.size < 2) return true
+        val major = parts[0]
+        val minor = parts[1]
+        return major > 1 || (major == 1 && minor >= 2)
+    }
 
-        val baseCmd = if (isPythonScript(playScript)) {
+    private fun buildCommand(playScript: File): List<String>? {
+        if (!playScript.exists()) return null
+        return if (isPythonScript(playScript)) {
             val interpreter = if (requiresPython2(playScript)) findPython2() else findPython3() ?: findPython()
             interpreter ?: return null
             listOf(interpreter, playScript.absolutePath)
         } else {
             listOf(playScript.absolutePath)
         }
-
-        return baseCmd + listOf("deps", projectPath)
     }
 
     private fun isPythonScript(script: File): Boolean {

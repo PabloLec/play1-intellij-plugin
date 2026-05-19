@@ -96,10 +96,9 @@ class RepairProjectSetupAction : AnAction() {
             report.ok("Play version", validation.playVersion ?: "unknown")
 
             indicator.text = "Resolving dependencies..."
-            val depsResult = Play1DepsRunner.run(basePath, playHomePath)
+            val depsResult = Play1DepsRunner.run(basePath, playHomePath, validation.playVersion)
             when {
                 depsResult.success -> report.ok("play deps", depsResult.message)
-                depsResult.skipped -> report.skipped("play deps", depsResult.message)
                 else -> report.skipped("play deps", depsResult.message)
             }
 

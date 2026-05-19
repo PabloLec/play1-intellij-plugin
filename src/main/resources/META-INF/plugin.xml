@@ -67,6 +67,13 @@
 
         <annotator language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesAnnotator"/>
+
+        <!-- Tool Window -->
+        <toolWindow id="Play 1"
+                    anchor="right"
+                    secondary="true"
+                    factoryClass="com.github.pablolec.play1toolkit.toolwindow.Play1ToolWindowFactory"
+                    icon="AllIcons.Actions.Run_anything"/>
     </extensions>
 
     <actions>

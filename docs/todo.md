@@ -139,6 +139,38 @@
 
 ---
 
+## Lot 13 — Navigation render() → vue implicite ✓ DONE
+
+- [x] `render/Play1ViewUtils.kt` (isPlayController, findViewFile, findRoutesForAction, implicitViewPath)
+- [x] `render/Play1RenderViewGotoHandler.kt` (GotoDeclarationHandler)
+- [x] `Play1ViewUtilsTest.kt` (6 tests unitaires)
+- [x] Fixtures enrichies : `app/views/Application/index.html` + `show.html`
+- [x] Enregistrement `gotoDeclarationHandler` dans `plugin.xml`
+- [x] Commit effectué
+
+---
+
+## Lot 14 — Gutter icons controller ↔ routes ✓ DONE
+
+- [x] `RoutesRouteElement.getPath()` — expose le chemin de la route
+- [x] `lineMarker/Play1ControllerLineMarkerProvider.kt` (JAVA → routes)
+- [x] `lineMarker/Play1RoutesLineMarkerProvider.kt` (Routes → controller Java)
+- [x] Enregistrement `codeInsight.lineMarkerProvider` ×2 dans `plugin.xml`
+- [x] Commit effectué
+
+---
+
+## Lot 15 — Inspections avancées ✓ DONE
+
+- [x] `inspection/Play1MissingViewInspection.kt` (WARNING sur render() sans vue)
+- [x] `inspection/CreateMissingViewQuickFix.kt` (crée la vue + ouvre l'éditeur)
+- [x] Enregistrement `localInspection` dans `plugin.xml`
+- [x] Commit effectué
+
+**Total : 52 tests, 0 échecs**
+
+---
+
 ## Points bloquants connus
 
 _Aucun pour l'instant._

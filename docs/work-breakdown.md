@@ -379,16 +379,67 @@ src/test/kotlin/.../config/Play1SettingsTest.kt
 
 ---
 
-## Lots futurs (post-MVP)
+---
+
+## Lot 13 — Navigation render() → vue implicite
+
+**Statut :** `DONE`
+
+**Objectif :** Ctrl+Click sur `render()` dans un controller Play 1 ouvre la vue implicite `app/views/{Controller}/{action}.html`.
+
+**Fichiers créés :**
+- `render/Play1ViewUtils.kt` — utilitaire partagé (isPlayController, findViewFile, findRoutesForAction, implicitViewPath)
+- `render/Play1RenderViewGotoHandler.kt` — GotoDeclarationHandler ; ajoute la vue comme cible de navigation
+
+**Critères d'acceptation :**
+- Ctrl+Click sur `render()` → popup avec "Go to Play 1 View" en plus du target Java standard
+- `renderTemplate("Application/other.html")` → navigue vers le fichier explicite
+- Fonctionne uniquement dans les classes étendant `play.mvc.Controller`
+
+---
+
+## Lot 14 — Gutter icons controller ↔ routes
+
+**Statut :** `DONE`
+
+**Objectif :** Gutter icons bidirectionnels entre méthodes actions Java et lignes de routes.
+
+**Fichiers créés/modifiés :**
+- `routes/psi/RoutesRouteElement.kt` — ajout `getPath(): String?`
+- `lineMarker/Play1ControllerLineMarkerProvider.kt` — icône sur méthodes public static → route(s) correspondante(s)
+- `lineMarker/Play1RoutesLineMarkerProvider.kt` — icône sur CONTROLLER_NAME → méthode Java
+
+**Critères d'acceptation :**
+- Action `index()` dans Application → gutter `→` avec tooltip "GET /"
+- Ligne `GET / Application.index` dans routes → gutter `←` avec tooltip "Go to Application.index()"
+
+---
+
+## Lot 15 — Inspections avancées
+
+**Statut :** `DONE`
+
+**Objectif :** Warning sur `render()` quand la vue implicite n'existe pas + quick fix de création.
+
+**Fichiers créés :**
+- `inspection/Play1MissingViewInspection.kt` — LocalInspectionTool, WARNING si vue absente
+- `inspection/CreateMissingViewQuickFix.kt` — crée `app/views/{Controller}/{action}.html` et ouvre le fichier
+
+**Critères d'acceptation :**
+- `render()` sans vue → soulignement WARNING avec message "View not found: app/views/X/Y.html"
+- Quick fix crée le répertoire + fichier HTML et ouvre l'éditeur
+
+---
+
+## Lots futurs (post-Lots 13–15)
 
 | Lot | Sujet | Priorité |
 |-----|-------|----------|
 | 10 | Support templates Play 1 (`.html`) | Moyenne |
 | 11 | Support `application.conf` (complétion, documentation clés) | Moyenne |
 | 12 | Support `dependencies.yml` + action `play deps` | Basse |
-| 13 | Navigation `render()` → vue implicite | Haute |
-| 14 | Gutter icons controller → routes | Haute |
-| 15 | Inspections avancées (vue manquante, route non résolue) | Haute |
+| 15b | Inspection `render()` + renderTemplate() avec chemin explicite | Moyenne |
+| 15c | Inspection action non routée | Moyenne |
 | 16 | Route Runner / HTTP Client intégration | Basse |
 | 17 | Services tool window intégration | Basse |
 | 18 | Onboarding mode | Basse |

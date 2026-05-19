@@ -167,6 +167,77 @@ Prioritaires : Lot 13 (navigation render() → vue), Lot 14 (gutter icons routes
 
 ---
 
+## 2026-05-19 — Lots 13–15 : Navigation render(), gutter icons, inspections
+
+### Contexte
+Reprise après audit qualité MVP (Grade A, aucun problème critique). Cette session implémente les 3 lots post-MVP haute priorité.
+
+### Audit MVP réalisé avant développement
+- 46 tests, 0 échecs, Grade A
+- Problème mineur identifié : `RoutesRouteElement` sans `getPath()` → corrigé en Lot 14
+- CRLF dans lexer : reporté (très bas risque)
+
+### Actions réalisées
+
+**Utilitaires partagés (socle commun Lots 13–15) :**
+- `render/Play1ViewUtils.kt` — objet singleton avec 5 méthodes :
+  - `isPlayController(PsiClass)` : via `InheritanceUtil.isInheritor("play.mvc.Controller")`
+  - `implicitViewPath(controller, action)` : retourne `"app/views/{Ctrl}/{action}.html"`
+  - `findViewFile(project, controller, action)` : cherche .html puis .groovy via VirtualFileManager + basePath
+  - `findRoutesFile(project)` : trouve `conf/routes` via basePath (pattern identique à `RoutesTreePanel`)
+  - `findRoutesForAction(project, controller, action)` : filtre le PSI routes pour trouver les routes dynamiques matching
+
+**Lot 13 — Navigation render() → vue implicite :**
+- `Play1RenderViewGotoHandler.kt` — `GotoDeclarationHandler`
+  - S'active sur l'identifiant `render` ou `renderTemplate` dans un `PsiMethodCallExpression`
+  - Vérifie que la classe englobante extend `play.mvc.Controller`
+  - Pour `render(...)` → vue implicite `app/views/{Class}/{method}.html`
+  - Pour `renderTemplate("path")` → vue explicite relative à `app/views/`
+  - Retourne le `PsiFile` de la vue comme target de navigation (s'ajoute au target Java existant)
+- Fixtures enrichies : `play1-standard/app/views/Application/index.html` + `show.html`
+- `Play1ViewUtilsTest.kt` : 6 tests unitaires (implicitViewPath + existence fixtures)
+
+**Lot 14 — Gutter icons controller ↔ routes :**
+- `RoutesRouteElement.getPath(): String?` ajouté
+- `Play1ControllerLineMarkerProvider.kt` — `RelatedItemLineMarkerProvider` langage JAVA
+  - Filtre : `PsiIdentifier` → parent `PsiMethod` → `public static` → classe extends Controller
+  - Trouve les routes matchantes via `Play1ViewUtils.findRoutesForAction`
+  - Gutter `AllIcons.General.ArrowRight` avec tooltip listant les routes
+- `Play1RoutesLineMarkerProvider.kt` — `RelatedItemLineMarkerProvider` langage Routes
+  - Filtre : token `CONTROLLER_NAME` dans un `RoutesRouteElement` dynamique
+  - Résout la classe + méthode Java via JavaPsiFacade / PsiShortNamesCache
+  - Gutter `AllIcons.General.ArrowLeft` pointant vers la méthode
+
+**Lot 15 — Inspections avancées :**
+- `Play1MissingViewInspection.kt` — `LocalInspectionTool` langage JAVA
+  - Visite `PsiMethodCallExpression` nommées `render` dans des controllers Play 1
+  - Si la vue implicite n'existe pas → `ProblemHighlightType.WARNING`
+- `CreateMissingViewQuickFix.kt` — `LocalQuickFix`
+  - Crée `app/views/{Controller}/` via `VfsUtil.createDirectoryIfMissing`
+  - Crée `{action}.html` avec template Play 1 basique
+  - Ouvre le fichier dans l'éditeur via `OpenFileDescriptor.navigate(true)`
+
+### Problèmes rencontrés et résolus
+1. Import `VirtualFileManager` manquant dans `Play1RenderViewGotoHandler.kt` → détecté par `compileKotlin`, corrigé immédiatement
+
+### Décisions prises
+- `Play1MissingViewInspection` utilise `LocalInspectionTool` (pas `AbstractBaseJavaLocalInspectionTool`) pour robustesse maximale
+- `renderTemplate()` avec chemin explicite : navigates vers le fichier si trouvable, sinon null (pas de navigation) — comportement safe
+- Gutter icon JAVA : filtre sur `PsiIdentifier` (leaf element) pour performance (bail-out immédiat sur tous les non-identifiers)
+- Les tests d'inspection (plateforme) sont reportés : nécessitent `BasePlatformTestCase` + infrastructure IDE complète
+
+### Tests lancés
+- `./gradlew test` → 52 tests, 0 échecs
+- `./gradlew buildPlugin` → BUILD SUCCESSFUL
+
+### État
+**Lots 13–15 DONE. Total : 52 tests, build OK, 1 nouveau commit.**
+
+### Prochaine étape
+Post-Lots 13–15 : soit Lot 15b (inspection renderTemplate explicite, action non routée), soit Lot 10/11 (templates .html, application.conf support).
+
+---
+
 _Template pour les prochaines entrées :_
 
 ```

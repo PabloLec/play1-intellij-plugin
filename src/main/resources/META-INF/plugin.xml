@@ -59,9 +59,6 @@
         <lang.parserDefinition language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesParserDefinition"/>
 
-        <psi.referenceContributor language="Routes"
-                implementation="com.github.pablolec.play1toolkit.routes.RoutesReferenceContributor"/>
-
         <completion.contributor language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesCompletionContributor"
                 order="first"/>

@@ -17,8 +17,7 @@ import com.intellij.util.QueryExecutor
  * though conf/routes references it — because IntelliJ's background scanner doesn't reliably
  * resolve custom-language PsiReferences during the usage count pass.
  *
- * ActionNameReference.resolve() intentionally returns null to avoid double-counting;
- * this searcher is the single source of truth for method usage registration.
+ * This searcher is the single source of truth for usage registration.
  */
 class RoutesReferencesSearcher : QueryExecutor<PsiReference, ReferencesSearch.SearchParameters> {
 

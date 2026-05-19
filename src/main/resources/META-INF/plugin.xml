@@ -1,0 +1,62 @@
+<idea-plugin>
+    <id>com.github.pablolec.play1toolkit</id>
+    <name>Play 1 Toolkit</name>
+    <vendor url="https://github.com/PabloLec">PabloLec</vendor>
+
+    <description><![CDATA[
+        <p>Modern IntelliJ IDEA support for legacy Play Framework 1.x applications.</p>
+        <br/>
+        <p>Features:</p>
+        <ul>
+            <li>Automatic Play 1 project detection</li>
+            <li>Play Framework library attachment (resolves <code>import play.mvc.*</code>)</li>
+            <li>Source root configuration (<code>app/</code>, <code>test/</code>, <code>conf/</code>)</li>
+            <li>Play 1 run and debug configuration</li>
+            <li>conf/routes syntax highlighting and navigation</li>
+            <li>Diagnostic report and repair action</li>
+        </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <resource-bundle>messages.Play1ToolkitBundle</resource-bundle>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Settings -->
+        <applicationService serviceImplementation="com.github.pablolec.play1toolkit.config.Play1Settings"/>
+
+        <applicationConfigurable
+                parentId="tools"
+                id="play1toolkit.settings"
+                displayName="Play 1 Toolkit"
+                instance="com.github.pablolec.play1toolkit.config.Play1SettingsConfigurable"/>
+
+        <!-- Project Service -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
+
+        <!-- Startup Activity -->
+        <postStartupActivity implementation="com.github.pablolec.play1toolkit.Play1StartupActivity"/>
+
+        <!-- Run Configuration -->
+        <configurationType implementation="com.github.pablolec.play1toolkit.run.Play1RunConfigurationType"/>
+
+        <!-- Notification Group -->
+        <notificationGroup id="Play 1 Toolkit"
+                           displayType="BALLOON"
+                           key="notification.group"/>
+    </extensions>
+
+    <actions>
+        <group id="Play1ToolkitMenu" text="Play 1" popup="true">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </group>
+
+        <action id="Play1Toolkit.RepairProjectSetup"
+                class="com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction"
+                text="Repair Project Setup"
+                description="Attach Play 1 libraries, configure source roots, and create run configuration">
+            <add-to-group group-id="Play1ToolkitMenu" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>

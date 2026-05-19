@@ -1,0 +1,24 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sandbox
+.sandbox/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IntelliJ Platform cache
+.intellijPlatform/
+
+# Local env
+local.properties
+*.local.properties

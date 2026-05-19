@@ -56,4 +56,36 @@ class RepairReportTest {
         assertTrue(text.contains("–"))
         assertTrue(text.contains("Framework sources"))
     }
+
+    @Test
+    fun `report with only skipped items is not an error`() {
+        val report = RepairReport("testapp")
+        report.skipped("Library attachment", "no module found")
+        report.skipped("Source roots", "no module found")
+
+        assertFalse("Skipped items must not trigger hasErrors", report.hasErrors)
+        assertFalse(report.toText().contains("ERRORS FOUND"))
+    }
+
+    @Test
+    fun `mixed ok and skipped does not show ERRORS FOUND`() {
+        val report = RepairReport("testapp")
+        report.ok("Play project", "detected")
+        report.skipped("Library attachment", "no module found")
+        report.ok("Run configuration", "created")
+
+        assertFalse(report.hasErrors)
+        assertTrue(report.toText().contains("Status: OK"))
+    }
+
+    @Test
+    fun `single error among ok and skipped triggers ERRORS FOUND`() {
+        val report = RepairReport("testapp")
+        report.ok("Play project", "detected")
+        report.skipped("Library attachment", "no module found")
+        report.error("Play home", "invalid path")
+
+        assertTrue(report.hasErrors)
+        assertTrue(report.toText().contains("ERRORS FOUND"))
+    }
 }

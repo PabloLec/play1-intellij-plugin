@@ -23,7 +23,7 @@ object Play1LibraryManager {
     fun attachLibraries(project: Project, playHome: Path, report: RepairReport) {
         val module = ModuleManager.getInstance(project).modules.firstOrNull()
         if (module == null) {
-            report.error("Module", "No module found in project")
+            report.skipped("Library attachment", "no IntelliJ module found — open via File > Open to create one")
             return
         }
 

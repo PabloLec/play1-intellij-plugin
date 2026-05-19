@@ -74,6 +74,24 @@
                     secondary="true"
                     factoryClass="com.github.pablolec.play1toolkit.toolwindow.Play1ToolWindowFactory"
                     icon="AllIcons.Actions.Run_anything"/>
+
+        <!-- render() → view navigation -->
+        <gotoDeclarationHandler
+                implementation="com.github.pablolec.play1toolkit.render.Play1RenderViewGotoHandler"/>
+
+        <!-- Gutter icons: controller ↔ routes -->
+        <codeInsight.lineMarkerProvider language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1RoutesLineMarkerProvider"/>
+
+        <!-- Inspections -->
+        <localInspection language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.inspection.Play1MissingViewInspection"
+                displayName="Missing Play 1 view for render() call"
+                groupName="Play 1"
+                enabledByDefault="true"
+                level="WARNING"/>
     </extensions>
 
     <actions>

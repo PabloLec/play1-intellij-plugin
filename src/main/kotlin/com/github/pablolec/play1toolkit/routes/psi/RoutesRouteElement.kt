@@ -8,6 +8,7 @@ import com.intellij.psi.PsiElement
 class RoutesRouteElement(node: ASTNode) : ASTWrapperPsiElement(node) {
 
     fun getHttpMethod(): PsiElement? = findChildByType(RoutesTokenTypes.HTTP_METHOD)
+    fun getPath(): String? = findChildByType<PsiElement>(RoutesTokenTypes.PATH)?.text
     fun getControllerName(): PsiElement? = findChildByType(RoutesTokenTypes.CONTROLLER_NAME)
     fun getDot(): PsiElement? = findChildByType(RoutesTokenTypes.DOT)
     fun getActionName(): PsiElement? = findChildByType(RoutesTokenTypes.ACTION_NAME)

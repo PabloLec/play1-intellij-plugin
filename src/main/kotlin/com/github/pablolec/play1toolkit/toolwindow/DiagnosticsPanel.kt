@@ -3,6 +3,8 @@ package com.github.pablolec.play1toolkit.toolwindow
 import com.github.pablolec.play1toolkit.routes.RoutesTokenTypes
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.JavaPsiFacade
@@ -40,6 +42,21 @@ class DiagnosticsPanel(private val project: Project) : JBPanel<DiagnosticsPanel>
 
     fun refresh() {
         issuesPanel.removeAll()
+
+        if (DumbService.isDumb(project)) {
+            countLabel.text = "Diagnostics: indexing…"
+            issuesPanel.add(JBLabel("  Waiting for index…").apply {
+                border = JBUI.Borders.empty(2, 8)
+            })
+            revalidate()
+            repaint()
+            // Re-run once the index is ready, back on the EDT
+            DumbService.getInstance(project).runWhenSmart {
+                ApplicationManager.getApplication().invokeLater { refresh() }
+            }
+            return
+        }
+
         val issues = collectIssues()
 
         if (issues.isEmpty()) {

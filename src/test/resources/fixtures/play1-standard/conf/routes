@@ -1,0 +1,4 @@
+# Routes
+GET     /           Application.index
+POST    /login      Security.authenticate
+GET     /public/    staticDir:public

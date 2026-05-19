@@ -32,8 +32,9 @@
                 displayName="Play 1 Toolkit"
                 instance="com.github.pablolec.play1toolkit.config.Play1SettingsConfigurable"/>
 
-        <!-- Project Service -->
+        <!-- Project Services -->
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1LibWatcher"/>
 
         <!-- Startup Activity -->
         <postStartupActivity implementation="com.github.pablolec.play1toolkit.Play1StartupActivity"/>
@@ -104,6 +105,13 @@
                 text="Repair Project Setup"
                 description="Attach Play 1 libraries, configure source roots, and create run configuration">
             <add-to-group group-id="Play1ToolkitMenu" anchor="first"/>
+        </action>
+
+        <action id="Play1Toolkit.SyncDependencies"
+                class="com.github.pablolec.play1toolkit.actions.Play1SyncDepsAction"
+                text="Sync Dependencies"
+                description="Run play deps to download and attach project dependencies">
+            <add-to-group group-id="Play1ToolkitMenu" anchor="after" relative-to-action="Play1Toolkit.RepairProjectSetup"/>
         </action>
     </actions>
 </idea-plugin>

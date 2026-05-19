@@ -18,7 +18,7 @@ import java.nio.file.Paths
 
 object Play1LibraryManager {
 
-    private const val LIBRARY_NAME = "Play 1 Framework"
+    internal const val LIBRARY_NAME = "Play 1 Framework"
 
     fun attachLibraries(project: Project, playHome: Path, report: RepairReport) {
         val module = ModuleManager.getInstance(project).modules.firstOrNull()
@@ -88,6 +88,8 @@ object Play1LibraryManager {
             }
 
             val libModel = library.modifiableModel
+            libModel.getUrls(OrderRootType.CLASSES).forEach { libModel.removeRoot(it, OrderRootType.CLASSES) }
+            libModel.getUrls(OrderRootType.SOURCES).forEach { libModel.removeRoot(it, OrderRootType.SOURCES) }
             for (url in jarRoots) {
                 libModel.addRoot(url, OrderRootType.CLASSES)
             }

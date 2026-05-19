@@ -45,6 +45,28 @@
         <notificationGroup id="Play 1 Toolkit"
                            displayType="BALLOON"
                            key="notification.group"/>
+
+        <!-- Routes Custom Language -->
+        <fileType name="Routes"
+                  language="Routes"
+                  implementationClass="com.github.pablolec.play1toolkit.routes.RoutesFileType"
+                  fileNames="routes"/>
+
+        <lang.syntaxHighlighterFactory language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.RoutesSyntaxHighlighterFactory"/>
+
+        <lang.parserDefinition language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.RoutesParserDefinition"/>
+
+        <psi.referenceContributor language="Routes"
+                implementation="com.github.pablolec.play1toolkit.routes.RoutesReferenceContributor"/>
+
+        <completion.contributor language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.RoutesCompletionContributor"
+                order="first"/>
+
+        <annotator language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.RoutesAnnotator"/>
     </extensions>
 
     <actions>

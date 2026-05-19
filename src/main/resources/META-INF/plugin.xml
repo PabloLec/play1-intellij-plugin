@@ -94,8 +94,8 @@
         <codeInsight.lineMarkerProvider language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1RoutesLineMarkerProvider"/>
 
-        <!-- Route references count as Java usages -->
-        <referencesSearch implementation="com.github.pablolec.play1toolkit.routes.RoutesReferencesSearcher"/>
+        <!-- Suppresses "unused" warning on public static Controller actions routed in conf/routes -->
+        <lang.implicitUsageProvider implementation="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerImplicitUsageProvider"/>
 
         <!-- Inspections -->
         <localInspection language="JAVA"

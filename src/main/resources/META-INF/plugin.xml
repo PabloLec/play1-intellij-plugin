@@ -59,6 +59,9 @@
         <lang.parserDefinition language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesParserDefinition"/>
 
+        <lang.findUsagesProvider language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.RoutesFindUsagesProvider"/>
+
         <completion.contributor language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesCompletionContributor"
                 order="first"/>

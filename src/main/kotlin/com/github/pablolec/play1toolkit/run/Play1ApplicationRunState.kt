@@ -6,12 +6,15 @@ import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.JavaCommandLineState
 import com.intellij.execution.configurations.JavaParameters
+import com.intellij.execution.configurations.RemoteConnection
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.module.Module
 import java.nio.file.Paths
 
 class Play1ApplicationRunState(
     environment: ExecutionEnvironment,
-    private val config: Play1ApplicationRunConfiguration
+    private val config: Play1ApplicationRunConfiguration,
+    private val targetModule: Module?
 ) : JavaCommandLineState(environment) {
 
     override fun createJavaParameters(): JavaParameters {
@@ -27,6 +30,10 @@ class Play1ApplicationRunState(
         val params = JavaParameters()
         params.mainClass = "play.server.Server"
         params.workingDirectory = config.applicationPath
+        params.jdk = Play1RunConfigurationSupport.resolveSdk(config.project, targetModule)
+            ?: throw ExecutionException(
+                "No Java SDK configured for Play 1 App. Configure a module SDK or a project SDK."
+            )
 
         // Add play jar first, then project lib/*.jar, then remaining framework libs.
         // This lets project overrides (e.g. slf4j-api 1.7.x) win over Play's bundled jars.
@@ -39,21 +46,24 @@ class Play1ApplicationRunState(
         params.vmParametersList.add("-Dapplication.path=${config.applicationPath}")
         params.vmParametersList.add("-Dplay.id=${config.playId}")
         params.vmParametersList.add("-Dhttp.port=${config.httpPort}")
+        params.env = config.envVars
 
         if (config.jvmOptions.isNotBlank()) {
-            config.jvmOptions.split(" ").filter { it.isNotBlank() }.forEach {
-                params.vmParametersList.add(it)
-            }
+            Play1RunConfigurationSupport.applyJvmOptions(params, config.jvmOptions)
         }
 
-        // Debug mode
-        val executor = environment.executor
-        if (executor.id == "Debug") {
-            params.vmParametersList.add(
-                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${config.debugPort}"
-            )
+        if (Play1RunConfigurationSupport.isDebugExecutor(environment)) {
+            Play1RunConfigurationSupport.configureDebugRunnerSettings(environment.runnerSettings, config.debugPort)
         }
 
         return params
+    }
+
+    override fun createRemoteConnection(environment: ExecutionEnvironment): RemoteConnection? {
+        return if (Play1RunConfigurationSupport.isDebugExecutor(environment)) {
+            Play1RunConfigurationSupport.createDebugRemoteConnection(config.debugPort)
+        } else {
+            super.createRemoteConnection(environment)
+        }
     }
 }

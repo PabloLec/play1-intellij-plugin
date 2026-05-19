@@ -24,6 +24,7 @@ import java.nio.file.Paths
 
 
 
+
 class Play1SyncDepsAction : AnAction("Sync Dependencies") {
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -102,6 +103,25 @@ class Play1SyncDepsAction : AnAction("Sync Dependencies") {
                     when {
                         result.skipped -> {
                             print("⚠  Skipped: ${result.message}", ConsoleViewContentType.LOG_WARNING_OUTPUT)
+                            if (result.message.contains("Play 1.2+")) {
+                                ApplicationManager.getApplication().invokeLater {
+                                    NotificationGroupManager.getInstance()
+                                        .getNotificationGroup("Play 1 Toolkit")
+                                        ?.createNotification(
+                                            "Play 1 Toolkit",
+                                            "Dependency resolution unavailable — project Play version < 1.2. " +
+                                                "Configure a Play 1.2+ installation in Settings to enable it.",
+                                            NotificationType.WARNING
+                                        )
+                                        ?.addAction(object : AnAction("Open Settings") {
+                                            override fun actionPerformed(e: AnActionEvent) {
+                                                ShowSettingsUtil.getInstance()
+                                                    .showSettingsDialog(project, "play1toolkit.settings")
+                                            }
+                                        })
+                                        ?.notify(project)
+                                }
+                            }
                         }
                         result.success -> {
                             print("✓  ${result.message}", ConsoleViewContentType.LOG_INFO_OUTPUT)

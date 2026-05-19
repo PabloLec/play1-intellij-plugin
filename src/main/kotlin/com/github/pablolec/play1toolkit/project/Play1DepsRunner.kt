@@ -1,5 +1,7 @@
 package com.github.pablolec.play1toolkit.project
 
+import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -27,11 +29,30 @@ object Play1DepsRunner {
         playVersion: String? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
     ): DepsResult {
-        if (!supportsDepCommand(playVersion)) {
-            return DepsResult(
-                success = false, skipped = true,
-                message = "play deps requires Play 1.2+ (detected: ${playVersion ?: "unknown"})"
-            )
+        val effectivePlayHome: String = if (!supportsDepCommand(playVersion)) {
+            val depsHome = Play1Settings.getInstance().depsPlayHome
+            if (depsHome.isNotBlank()) {
+                val v = Play1HomeValidator.validate(Paths.get(depsHome))
+                if (v.valid && supportsDepCommand(v.playVersion)) {
+                    onLine("⚠  Project Play ${playVersion ?: "unknown"} doesn't support 'play deps'.", true)
+                    onLine("→  Using $depsHome (Play ${v.playVersion}) for dependency resolution.", false)
+                    depsHome
+                } else {
+                    return DepsResult(
+                        success = false, skipped = true,
+                        message = "play deps requires Play 1.2+ (project: ${playVersion ?: "unknown"}). " +
+                                  "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution."
+                    )
+                }
+            } else {
+                return DepsResult(
+                    success = false, skipped = true,
+                    message = "play deps requires Play 1.2+ (project: ${playVersion ?: "unknown"}). " +
+                              "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution."
+                )
+            }
+        } else {
+            playHome
         }
 
         val depsFile = Paths.get(projectPath, "conf", "dependencies.yml")
@@ -46,6 +67,14 @@ object Play1DepsRunner {
             return DepsResult(success = false, skipped = true, message = "lib/ already contains JARs — skipping")
         }
 
+        return executePlay(projectPath, effectivePlayHome, onLine)
+    }
+
+    private fun executePlay(
+        projectPath: String,
+        playHome: String,
+        onLine: (line: String, isError: Boolean) -> Unit,
+    ): DepsResult {
         val playScript = Paths.get(playHome, "play").toFile()
         val command = buildCommand(playScript)
             ?: return DepsResult(

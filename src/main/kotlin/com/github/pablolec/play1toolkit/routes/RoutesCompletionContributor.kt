@@ -5,7 +5,6 @@ import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.patterns.PlatformPatterns
-import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiModifier
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiShortNamesCache
@@ -62,12 +61,8 @@ private object ActionCompletionProvider : CompletionProvider<CompletionParameter
         if (controllerName.contains('{')) return
 
         val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiFacade = JavaPsiFacade.getInstance(project)
 
-        val psiClass = psiFacade.findClass(controllerName, scope)
-            ?: PsiShortNamesCache.getInstance(project).getClassesByName(controllerName, scope).firstOrNull()
-            ?: return
+        val psiClass = RoutesControllerResolver.resolveClass(project, controllerName) ?: return
 
         psiClass.methods
             .filter { it.hasModifierProperty(PsiModifier.PUBLIC) && it.hasModifierProperty(PsiModifier.STATIC) }

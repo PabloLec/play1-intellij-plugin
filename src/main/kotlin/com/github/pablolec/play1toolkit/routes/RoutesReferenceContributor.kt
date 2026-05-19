@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.routes
 
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
+import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.*
@@ -41,12 +42,7 @@ class ControllerNameReference(element: PsiElement) :
 
     override fun resolve(): PsiElement? {
         val name = element.text.trim()
-        if (name.isEmpty() || name.contains('{')) return null
-        val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiFacade = com.intellij.psi.JavaPsiFacade.getInstance(project)
-        return psiFacade.findClass(name, scope)
-            ?: PsiShortNamesCache.getInstance(project).getClassesByName(name, scope).firstOrNull()
+        return RoutesControllerResolver.resolveClass(element.project, name)
     }
 
     override fun getVariants(): Array<Any> {
@@ -54,14 +50,16 @@ class ControllerNameReference(element: PsiElement) :
         val scope = GlobalSearchScope.projectScope(project)
         return PsiShortNamesCache.getInstance(project).getAllClassNames()
             .flatMap { name ->
-                PsiShortNamesCache.getInstance(project).getClassesByName(name, scope).toList()
+                PsiShortNamesCache.getInstance(project).getClassesByName(name, scope)
+                    .filter { it.qualifiedName?.startsWith("controllers.") == true }
+                    .toList()
             }
             .mapNotNull { psiClass ->
-                psiClass.name?.let { name ->
-                    com.intellij.codeInsight.lookup.LookupElementBuilder.create(name)
-                        .withIcon(psiClass.getIcon(0))
-                        .withTypeText("Controller")
-                }
+                val fqn = psiClass.qualifiedName ?: return@mapNotNull null
+                val routesName = if (fqn.startsWith("controllers.")) fqn.removePrefix("controllers.") else fqn
+                LookupElementBuilder.create(routesName)
+                    .withIcon(psiClass.getIcon(0))
+                    .withTypeText(fqn)
             }
             .toTypedArray()
     }
@@ -75,17 +73,7 @@ class ActionNameReference(element: PsiElement) :
         if (actionName.isEmpty()) return null
         val routeElement = element.parent as? RoutesRouteElement ?: return null
         val controllerName = routeElement.getControllerName()?.text?.trim() ?: return null
-        if (controllerName.contains('{')) return null
-
-        val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiFacade = com.intellij.psi.JavaPsiFacade.getInstance(project)
-
-        val psiClass = psiFacade.findClass(controllerName, scope)
-            ?: PsiShortNamesCache.getInstance(project).getClassesByName(controllerName, scope).firstOrNull()
-            ?: return null
-
-        return psiClass.findMethodsByName(actionName, true).firstOrNull()
+        return RoutesControllerResolver.resolveMethod(element.project, controllerName, actionName)
     }
 
     override fun getVariants(): Array<Any> {
@@ -93,18 +81,13 @@ class ActionNameReference(element: PsiElement) :
         val controllerName = routeElement.getControllerName()?.text?.trim() ?: return emptyArray()
         if (controllerName.contains('{')) return emptyArray()
 
-        val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiFacade = com.intellij.psi.JavaPsiFacade.getInstance(project)
-
-        val psiClass = psiFacade.findClass(controllerName, scope)
-            ?: PsiShortNamesCache.getInstance(project).getClassesByName(controllerName, scope).firstOrNull()
+        val psiClass = RoutesControllerResolver.resolveClass(element.project, controllerName)
             ?: return emptyArray()
 
         return psiClass.methods
             .filter { it.hasModifierProperty(PsiModifier.PUBLIC) && it.hasModifierProperty(PsiModifier.STATIC) }
             .map { method ->
-                com.intellij.codeInsight.lookup.LookupElementBuilder.create(method.name)
+                LookupElementBuilder.create(method.name)
                     .withTypeText(controllerName)
                     .withIcon(method.getIcon(0))
             }

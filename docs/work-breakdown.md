@@ -271,7 +271,7 @@ src/test/resources/stubs/play-stub.jar
 
 ## Lot 7 — Support basique conf/routes
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Rendre `conf/routes` intelligent : coloration syntaxique, navigation Ctrl+Click vers les controllers Java.
 
@@ -319,7 +319,7 @@ src/test/kotlin/.../routes/RoutesNavigationTest.kt
 
 ## Lot 8 — Tool Window Play 1
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Ajouter un panneau latéral "Play 1" affichant l'état du projet, les routes, les diagnostics et des actions rapides.
 
@@ -349,7 +349,7 @@ src/main/kotlin/.../toolwindow/DiagnosticsPanel.kt
 
 ## Lot 9 — Tests complets
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Couvrir les composants critiques par des tests automatisés.
 

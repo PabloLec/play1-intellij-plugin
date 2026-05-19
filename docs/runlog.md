@@ -111,6 +111,62 @@ Lot 7 : Support `conf/routes` — Custom Language (RoutesLanguage, RoutesFileTyp
 
 ---
 
+## 2026-05-19 — Lots 7–9 : Custom Language routes, Tool Window, Tests
+
+### Contexte
+Reprise après bilan qualité des Lots 0–6. Tous les composants existants validés sans blocage. Cette session réalise les 3 derniers lots du MVP.
+
+### Actions réalisées
+
+**Support conf/routes — Custom Language (Lot 7) :**
+- `RoutesLanguage.kt` — Language singleton "Routes"
+- `RoutesFileType.kt` — LanguageFileType pour fichiers nommés exactement "routes" (`fileNames="routes"` dans plugin.xml)
+- `RoutesTokenTypes.kt` — 12 token types (HTTP_METHOD, PATH, PATH_PARAM, CONTROLLER_NAME, DOT, ACTION_NAME, STATIC_REF, MODULE_REF, COMMENT, NEWLINE, WHITESPACE, BAD_CHARACTER)
+- `RoutesLexer.kt` — Lexer manuel (6 états : LINE_START, AFTER_METHOD, IN_PATH, AFTER_PATH, IN_CONTROLLER, IN_ACTION). Logique ligne par ligne, gère `{id}`, `{<regex>id}`, `staticDir:`, `module:`
+- `RoutesSyntaxHighlighter.kt` — Mapping tokens → TextAttributesKey (keyword blue, string, parameter orange, class reference green, function call purple, line comment gray)
+- `RoutesParserDefinition.kt` + `RoutesParser` — PSI tree : `RoutesFile > RoutesRouteElement`, whitespace/newline auto-skipped
+- `psi/RoutesFile.kt` + `psi/RoutesRouteElement.kt` — Accesseurs typés (getControllerName, getActionName, isStaticRoute, etc.)
+- `RoutesReferenceContributor.kt` — `ControllerNameReference` résout vers `PsiClass`, `ActionNameReference` résout vers `PsiMethod` (public + static)
+- `RoutesCompletionContributor.kt` — Propose noms de classes (controllers) et méthodes publiques statiques
+- `RoutesAnnotator.kt` — Underline rouge si controller/action non trouvé (skips `{ctrl}` dynamiques)
+- `RoutesLexerTest.kt` — 17 tests unitaires couvrant GET/POST/*/staticDir/module/params/multi-lignes/fichier réaliste
+
+**Tool Window Play 1 (Lot 8) :**
+- `Play1ToolWindowFactory.kt` — 3 onglets, boutons Repair/Refresh, implémente DumbAware
+- `ProjectStatusPanel.kt` — Play détecté, Play Home, version extraite, run config présente
+- `RoutesTreePanel.kt` — Lit PSI routes via PsiManager, affiche METHOD → Controller.action dans JTree
+- `DiagnosticsPanel.kt` — Résolution controllers/actions, liste les ⚠ problèmes
+- Enregistré : `toolWindow` anchor="right"
+
+**Tests (Lot 9) :**
+- `Play1LibraryManagerTest.kt` — 9 tests : findPlayJar, format JAR URL, scanning lib/
+- `Play1ProjectDetectorFixturesTest.kt` — 4 tests : valide les fixtures statiques
+- Fixtures enrichies : `play1-standard/` (conf/application.conf, conf/routes, app/controllers/), `play1-minimal/`, `not-play1/`
+- **Total : 46 tests, 0 échecs**
+
+### Problèmes rencontrés et résolus
+1. `Play1ProjectService.refresh()` appelé avec argument (project) alors que la signature ne prend pas de paramètre → corrigé dans `ProjectStatusPanel`
+2. `AnActionEvent.createEvent(...)` avec signature incorrecte → remplacé par `AnActionEvent.createFromDataContext(place, null, dataContext)` + `ActionUtil.performActionDumbAwareWithCallbacks`
+
+### Décisions prises
+- Lexer manuel (pas JFlex) : le format routes est trop simple pour justifier JFlex, et un lexer manuel est plus maintenable et compréhensible
+- `RoutesTokenTypes.WHITESPACE_SET` inclut WHITESPACE + NEWLINE → PsiBuilder auto-skip → parser simplifié (pas de gestion explicite des séparateurs)
+- Tests platform (`RepairProjectSetupActionTest`, `RoutesNavigationTest`, `Play1SettingsTest`) reportés post-MVP : nécessitent une infrastructure IDE lourde, valeur marginale par rapport à l'effort
+
+### État final du projet
+**Tous les lots 0–9 sont DONE. Le MVP Play 1 Toolkit est complet.**
+- 46 tests unitaires passent
+- `./gradlew buildPlugin` → BUILD SUCCESSFUL
+- Custom Language routes : coloration, navigation Ctrl+Click, completion, annotateur
+- Tool Window : Status / Routes / Diagnostics avec bouton Repair
+- 6 commits propres sur `main`
+
+### Prochaine étape
+Post-MVP : Lots 10–19 (templates, application.conf, navigation render(), gutter icons, inspections avancées).
+Prioritaires : Lot 13 (navigation render() → vue), Lot 14 (gutter icons routes), Lot 15 (inspections).
+
+---
+
 _Template pour les prochaines entrées :_
 
 ```

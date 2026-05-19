@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
+import com.intellij.openapi.progress.ProgressIndicator
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -10,7 +11,19 @@ data class DepsResult(
     val success: Boolean,
     val skipped: Boolean = false,
     val message: String = "",
+    val reason: DepsResultReason = DepsResultReason.NONE,
+    val requiredPythonMajor: Int? = null,
+    val detail: String? = null,
 )
+
+enum class DepsResultReason {
+    NONE,
+    UNSUPPORTED_PLAY_VERSION,
+    DEPENDENCIES_FILE_MISSING,
+    LIB_ALREADY_POPULATED,
+    PYTHON_INTERPRETER_MISSING,
+    MANAGED_RUNTIME_UNAVAILABLE,
+}
 
 object Play1DepsRunner {
 
@@ -27,6 +40,7 @@ object Play1DepsRunner {
         projectPath: String,
         playHome: String,
         playVersion: String? = null,
+        indicator: ProgressIndicator? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
     ): DepsResult {
         val effectivePlayHome: String = if (!supportsDepCommand(playVersion)) {
@@ -41,14 +55,16 @@ object Play1DepsRunner {
                     return DepsResult(
                         success = false, skipped = true,
                         message = "play deps requires Play 1.2+ (project: ${playVersion ?: "unknown"}). " +
-                                  "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution."
+                            "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution.",
+                        reason = DepsResultReason.UNSUPPORTED_PLAY_VERSION,
                     )
                 }
             } else {
                 return DepsResult(
                     success = false, skipped = true,
                     message = "play deps requires Play 1.2+ (project: ${playVersion ?: "unknown"}). " +
-                              "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution."
+                        "Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution.",
+                    reason = DepsResultReason.UNSUPPORTED_PLAY_VERSION,
                 )
             }
         } else {
@@ -57,29 +73,48 @@ object Play1DepsRunner {
 
         val depsFile = Paths.get(projectPath, "conf", "dependencies.yml")
         if (!depsFile.toFile().exists()) {
-            return DepsResult(success = false, skipped = true, message = "conf/dependencies.yml not found")
+            return DepsResult(
+                success = false,
+                skipped = true,
+                message = "conf/dependencies.yml not found",
+                reason = DepsResultReason.DEPENDENCIES_FILE_MISSING,
+            )
         }
 
         val libDir = Paths.get(projectPath, "lib")
         val alreadyHasJars = Files.isDirectory(libDir) &&
             Files.list(libDir).use { it.anyMatch { f -> f.toString().endsWith(".jar") } }
         if (alreadyHasJars) {
-            return DepsResult(success = false, skipped = true, message = "lib/ already contains JARs — skipping")
+            return DepsResult(
+                success = false,
+                skipped = true,
+                message = "lib/ already contains JARs — skipping",
+                reason = DepsResultReason.LIB_ALREADY_POPULATED,
+            )
         }
 
-        return executePlay(projectPath, effectivePlayHome, onLine)
+        return executePlay(projectPath, effectivePlayHome, indicator, onLine)
     }
 
     private fun executePlay(
         projectPath: String,
         playHome: String,
+        indicator: ProgressIndicator?,
         onLine: (line: String, isError: Boolean) -> Unit,
     ): DepsResult {
         val playScript = Paths.get(playHome, "play").toFile()
-        val command = buildCommand(playScript)
+        val commandResult = buildCommand(playScript, indicator, onLine)
+        val command = commandResult.command
             ?: return DepsResult(
                 success = false, skipped = true,
-                message = "could not find a Python interpreter for the play script"
+                message = when (commandResult.reason) {
+                    DepsResultReason.MANAGED_RUNTIME_UNAVAILABLE ->
+                        "could not provision a managed PyPy 2.7 runtime for the play script"
+                    else -> "could not find a Python interpreter for the play script"
+                },
+                reason = commandResult.reason,
+                requiredPythonMajor = commandResult.requiredPythonMajor,
+                detail = commandResult.detail,
             )
 
         onLine("$ ${command.joinToString(" ")} deps", false)
@@ -116,14 +151,50 @@ object Play1DepsRunner {
         return major > 1 || (major == 1 && minor >= 2)
     }
 
-    private fun buildCommand(playScript: File): List<String>? {
-        if (!playScript.exists()) return null
+    private data class CommandBuildResult(
+        val command: List<String>?,
+        val requiredPythonMajor: Int?,
+        val reason: DepsResultReason = DepsResultReason.NONE,
+        val detail: String? = null,
+    )
+
+    private fun buildCommand(
+        playScript: File,
+        indicator: ProgressIndicator?,
+        onLine: (line: String, isError: Boolean) -> Unit,
+    ): CommandBuildResult {
+        if (!playScript.exists()) return CommandBuildResult(null, null)
         return if (isPythonScript(playScript)) {
-            val interpreter = if (requiresPython2(playScript)) findPython2() else findPython3() ?: findPython()
-            interpreter ?: return null
-            listOf(interpreter, playScript.absolutePath)
+            if (requiresPython2(playScript)) {
+                val systemPython2 = findPython2()
+                val managedRuntime = if (systemPython2 == null) {
+                    Play1ManagedPythonRuntime.ensurePyPy2(indicator, onLine)
+                } else {
+                    Play1ManagedPythonRuntime.RuntimeProvisionResult(executable = null)
+                }
+                val interpreter = systemPython2 ?: managedRuntime.executable?.toAbsolutePath()?.toString()
+                val reason = when {
+                    interpreter != null -> DepsResultReason.NONE
+                    Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform() == null ->
+                        DepsResultReason.MANAGED_RUNTIME_UNAVAILABLE
+                    else -> DepsResultReason.MANAGED_RUNTIME_UNAVAILABLE
+                }
+                CommandBuildResult(
+                    command = interpreter?.let { listOf(it, playScript.absolutePath) },
+                    requiredPythonMajor = 2,
+                    reason = reason,
+                    detail = managedRuntime.errorMessage,
+                )
+            } else {
+                val interpreter = findPython3() ?: findPython()
+                CommandBuildResult(
+                    command = interpreter?.let { listOf(it, playScript.absolutePath) },
+                    requiredPythonMajor = 3,
+                    reason = if (interpreter == null) DepsResultReason.PYTHON_INTERPRETER_MISSING else DepsResultReason.NONE,
+                )
+            }
         } else {
-            listOf(playScript.absolutePath)
+            CommandBuildResult(listOf(playScript.absolutePath), null)
         }
     }
 

@@ -15,6 +15,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.Locale
 
 object Play1LibraryManager {
 
@@ -46,17 +47,23 @@ object Play1LibraryManager {
         // Add main play JAR
         jarRoots.add(toJarUrl(playJar))
 
-        // Add framework lib/*.jar
-        var frameworkLibCount = 0
-        if (Files.isDirectory(libDir)) {
-            Files.list(libDir).use { stream ->
-                stream.filter { it.toString().endsWith(".jar") }.forEach { jar ->
-                    jarRoots.add(toJarUrl(jar))
-                    frameworkLibCount++
+        val classpathJars = buildProjectClasspathJars(playHome, project.basePath)
+        classpathJars.projectJars.forEach { jarRoots.add(toJarUrl(it)) }
+        classpathJars.frameworkJars.forEach { jarRoots.add(toJarUrl(it)) }
+
+        report.ok(
+            "Project lib jars",
+            "${classpathJars.projectJars.size} attached"
+        )
+        report.ok(
+            "Framework lib jars",
+            buildString {
+                append("${classpathJars.frameworkJars.size} attached")
+                if (classpathJars.overriddenFrameworkJars.isNotEmpty()) {
+                    append(", ${classpathJars.overriddenFrameworkJars.size} overridden by project lib/")
                 }
             }
-        }
-        report.ok("Framework lib jars", "$frameworkLibCount attached")
+        )
 
         // Add sources if available
         if (Files.isDirectory(srcDir)) {
@@ -65,18 +72,6 @@ object Play1LibraryManager {
         } else {
             report.skipped("Framework sources", "not found")
         }
-
-        // Add project lib/*.jar
-        var projectLibCount = 0
-        if (Files.isDirectory(projectLibDir)) {
-            Files.list(projectLibDir).use { stream ->
-                stream.filter { it.toString().endsWith(".jar") }.forEach { jar ->
-                    jarRoots.add(toJarUrl(jar))
-                    projectLibCount++
-                }
-            }
-        }
-        report.ok("Project lib jars", "$projectLibCount attached")
 
         WriteAction.runAndWait<Exception> {
             val libraryTable = LibraryTablesRegistrar.getInstance().getLibraryTable(project)
@@ -111,6 +106,52 @@ object Play1LibraryManager {
         }
 
         report.ok("Library \"$LIBRARY_NAME\"", "attached to module")
+    }
+
+    internal data class ClasspathJars(
+        val projectJars: List<Path>,
+        val frameworkJars: List<Path>,
+        val overriddenFrameworkJars: List<Path>,
+    )
+
+    internal fun buildProjectClasspathJars(playHome: Path, projectBasePath: String?): ClasspathJars {
+        val frameworkLibDir = playHome.resolve("framework").resolve("lib")
+        val projectLibDir = projectBasePath?.let { Paths.get(it).resolve("lib") }
+
+        val projectJars = listJarFiles(projectLibDir)
+        val projectKeys = projectJars.mapTo(linkedSetOf(), ::artifactKey)
+
+        val keptFrameworkJars = mutableListOf<Path>()
+        val overriddenFrameworkJars = mutableListOf<Path>()
+
+        listJarFiles(frameworkLibDir).forEach { jar ->
+            if (artifactKey(jar) in projectKeys) {
+                overriddenFrameworkJars.add(jar)
+            } else {
+                keptFrameworkJars.add(jar)
+            }
+        }
+
+        return ClasspathJars(
+            projectJars = projectJars,
+            frameworkJars = keptFrameworkJars,
+            overriddenFrameworkJars = overriddenFrameworkJars,
+        )
+    }
+
+    private fun listJarFiles(dir: Path?): List<Path> {
+        if (dir == null || !Files.isDirectory(dir)) return emptyList()
+        return Files.list(dir).use { stream ->
+            stream
+                .filter { path -> path.fileName.toString().lowercase(Locale.ROOT).endsWith(".jar") }
+                .sorted { a, b -> a.fileName.toString().compareTo(b.fileName.toString()) }
+                .toList()
+        }
+    }
+
+    internal fun artifactKey(jar: Path): String {
+        val name = jar.fileName.toString().removeSuffix(".jar")
+        return name.replace(Regex("-\\d.*$"), "")
     }
 
     private fun toJarUrl(jar: Path): String =

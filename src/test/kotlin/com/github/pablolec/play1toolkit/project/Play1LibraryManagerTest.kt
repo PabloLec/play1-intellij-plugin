@@ -112,4 +112,40 @@ class Play1LibraryManagerTest {
         val jarCount = projectLibDir.listFiles()!!.count { it.name.endsWith(".jar") }
         assertEquals(5, jarCount)
     }
+
+    @Test
+    fun `artifact key strips trailing version from jar name`() {
+        assertEquals("slf4j-api", Play1LibraryManager.artifactKey(tempDir.newFile("slf4j-api-1.7.36.jar").toPath()))
+        assertEquals("kafka_2.13", Play1LibraryManager.artifactKey(tempDir.newFile("kafka_2.13-8.1.1.jar").toPath()))
+        assertEquals("asm", Play1LibraryManager.artifactKey(tempDir.newFile("asm-7.0.jar").toPath()))
+    }
+
+    @Test
+    fun `project lib jars override framework jars with same artifact`() {
+        val frameworkLibDir = tempDir.newFolder("play-home", "framework", "lib")
+        val projectLibDir = tempDir.newFolder("project", "lib")
+
+        File(frameworkLibDir, "slf4j-api-1.6.1.jar").createNewFile()
+        File(frameworkLibDir, "commons-io-1.4.jar").createNewFile()
+        File(projectLibDir, "slf4j-api-1.7.36.jar").createNewFile()
+        File(projectLibDir, "okio-1.13.0.jar").createNewFile()
+
+        val result = Play1LibraryManager.buildProjectClasspathJars(
+            tempDir.root.toPath().resolve("play-home"),
+            tempDir.root.toPath().resolve("project").toString()
+        )
+
+        assertEquals(
+            listOf("okio-1.13.0.jar", "slf4j-api-1.7.36.jar"),
+            result.projectJars.map { it.fileName.toString() }
+        )
+        assertEquals(
+            listOf("commons-io-1.4.jar"),
+            result.frameworkJars.map { it.fileName.toString() }
+        )
+        assertEquals(
+            listOf("slf4j-api-1.6.1.jar"),
+            result.overriddenFrameworkJars.map { it.fileName.toString() }
+        )
+    }
 }

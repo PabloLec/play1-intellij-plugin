@@ -96,10 +96,19 @@ class RepairProjectSetupAction : AnAction() {
             report.ok("Play version", validation.playVersion ?: "unknown")
 
             indicator.text = "Resolving dependencies..."
-            val depsResult = Play1DepsRunner.run(basePath, playHomePath, validation.playVersion)
+            val depsResult = Play1DepsRunner.run(
+                projectPath = basePath,
+                playHome = playHomePath,
+                playVersion = validation.playVersion,
+                indicator = indicator,
+            )
+
             when {
                 depsResult.success -> report.ok("play deps", depsResult.message)
-                else -> report.skipped("play deps", depsResult.message)
+                else -> report.skipped(
+                    "play deps",
+                    listOfNotNull(depsResult.message, depsResult.detail).joinToString(" — ").ifBlank { depsResult.message }
+                )
             }
 
             indicator.text = "Configuring Project SDK..."

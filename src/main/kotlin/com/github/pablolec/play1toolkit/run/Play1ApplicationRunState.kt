@@ -2,11 +2,11 @@ package com.github.pablolec.play1toolkit.run
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
+import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.JavaCommandLineState
 import com.intellij.execution.configurations.JavaParameters
 import com.intellij.execution.runners.ExecutionEnvironment
-import java.nio.file.Files
 import java.nio.file.Paths
 
 class Play1ApplicationRunState(
@@ -28,27 +28,12 @@ class Play1ApplicationRunState(
         params.mainClass = "play.server.Server"
         params.workingDirectory = config.applicationPath
 
-        // Add play jar and framework libs to classpath
+        // Add play jar first, then project lib/*.jar, then remaining framework libs.
+        // This lets project overrides (e.g. slf4j-api 1.7.x) win over Play's bundled jars.
         params.classPath.add(playJar.toAbsolutePath().toString())
-
-        val libDir = frameworkDir.resolve("lib")
-        if (Files.isDirectory(libDir)) {
-            Files.list(libDir).use { stream ->
-                stream.filter { it.toString().endsWith(".jar") }.forEach { jar ->
-                    params.classPath.add(jar.toAbsolutePath().toString())
-                }
-            }
-        }
-
-        // Add project lib/*.jar
-        val projectLibDir = Paths.get(config.applicationPath, "lib")
-        if (Files.isDirectory(projectLibDir)) {
-            Files.list(projectLibDir).use { stream ->
-                stream.filter { it.toString().endsWith(".jar") }.forEach { jar ->
-                    params.classPath.add(jar.toAbsolutePath().toString())
-                }
-            }
-        }
+        val classpathJars = Play1LibraryManager.buildProjectClasspathJars(playHomePath, config.applicationPath)
+        classpathJars.projectJars.forEach { params.classPath.add(it.toAbsolutePath().toString()) }
+        classpathJars.frameworkJars.forEach { params.classPath.add(it.toAbsolutePath().toString()) }
 
         // VM options
         params.vmParametersList.add("-Dapplication.path=${config.applicationPath}")

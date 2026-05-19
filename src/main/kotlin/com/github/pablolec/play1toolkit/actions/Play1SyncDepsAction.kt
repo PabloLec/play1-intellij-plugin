@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.model.RepairReport
 import com.github.pablolec.play1toolkit.project.Play1DepsRunner
+import com.github.pablolec.play1toolkit.project.DepsResultReason
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleViewContentType
@@ -88,6 +89,7 @@ class Play1SyncDepsAction : AnAction("Sync Dependencies") {
                         projectPath = basePath,
                         playHome = playHome,
                         playVersion = playVersion,
+                        indicator = indicator,
                         onLine = { line, isErr ->
                             ApplicationManager.getApplication().invokeLater {
                                 console.print(
@@ -103,24 +105,57 @@ class Play1SyncDepsAction : AnAction("Sync Dependencies") {
                     when {
                         result.skipped -> {
                             print("⚠  Skipped: ${result.message}", ConsoleViewContentType.LOG_WARNING_OUTPUT)
-                            if (result.message.contains("Play 1.2+")) {
-                                ApplicationManager.getApplication().invokeLater {
-                                    NotificationGroupManager.getInstance()
-                                        .getNotificationGroup("Play 1 Toolkit")
-                                        ?.createNotification(
-                                            "Play 1 Toolkit",
-                                            "Dependency resolution unavailable — project Play version < 1.2. " +
-                                                "Configure a Play 1.2+ installation in Settings to enable it.",
-                                            NotificationType.WARNING
-                                        )
-                                        ?.addAction(object : AnAction("Open Settings") {
-                                            override fun actionPerformed(e: AnActionEvent) {
-                                                ShowSettingsUtil.getInstance()
-                                                    .showSettingsDialog(project, "play1toolkit.settings")
-                                            }
-                                        })
-                                        ?.notify(project)
+                            result.detail?.takeIf { it.isNotBlank() }?.let { detail ->
+                                print("↳  Cause: $detail", ConsoleViewContentType.LOG_WARNING_OUTPUT)
+                            }
+                            when (result.reason) {
+                                DepsResultReason.UNSUPPORTED_PLAY_VERSION -> {
+                                    ApplicationManager.getApplication().invokeLater {
+                                        NotificationGroupManager.getInstance()
+                                            .getNotificationGroup("Play 1 Toolkit")
+                                            ?.createNotification(
+                                                "Play 1 Toolkit",
+                                                "Dependency resolution unavailable — project Play version < 1.2. " +
+                                                    "Configure a Play 1.2+ installation in Settings to enable it.",
+                                                NotificationType.WARNING
+                                            )
+                                            ?.addAction(object : AnAction("Open Settings") {
+                                                override fun actionPerformed(e: AnActionEvent) {
+                                                    ShowSettingsUtil.getInstance()
+                                                        .showSettingsDialog(project, "play1toolkit.settings")
+                                                }
+                                            })
+                                            ?.notify(project)
+                                    }
                                 }
+                                DepsResultReason.PYTHON_INTERPRETER_MISSING -> {
+                                    ApplicationManager.getApplication().invokeLater {
+                                        NotificationGroupManager.getInstance()
+                                            .getNotificationGroup("Play 1 Toolkit")
+                                            ?.createNotification(
+                                                "Play 1 Toolkit",
+                                                "Dependency sync failed — Python ${result.requiredPythonMajor ?: ""} is not available.",
+                                                NotificationType.ERROR
+                                            )
+                                            ?.notify(project)
+                                    }
+                                }
+                                DepsResultReason.MANAGED_RUNTIME_UNAVAILABLE -> {
+                                    ApplicationManager.getApplication().invokeLater {
+                                        NotificationGroupManager.getInstance()
+                                            .getNotificationGroup("Play 1 Toolkit")
+                                            ?.createNotification(
+                                                "Play 1 Toolkit",
+                                                buildString {
+                                                    append("Dependency sync failed — could not provision the managed PyPy 2.7 runtime.")
+                                                    result.detail?.takeIf { it.isNotBlank() }?.let { append(" Cause: $it") }
+                                                },
+                                                NotificationType.ERROR
+                                            )
+                                            ?.notify(project)
+                                    }
+                                }
+                                else -> Unit
                             }
                         }
                         result.success -> {
@@ -144,6 +179,9 @@ class Play1SyncDepsAction : AnAction("Sync Dependencies") {
                         }
                         else -> {
                             print("✗  ${result.message}", ConsoleViewContentType.ERROR_OUTPUT)
+                            result.detail?.takeIf { it.isNotBlank() }?.let { detail ->
+                                print("↳  Cause: $detail", ConsoleViewContentType.ERROR_OUTPUT)
+                            }
                             ApplicationManager.getApplication().invokeLater {
                                 NotificationGroupManager.getInstance()
                                     .getNotificationGroup("Play 1 Toolkit")

@@ -21,10 +21,13 @@ object Play1SourceRootManager {
             val rootModel = ModuleRootManager.getInstance(module).modifiableModel
             try {
                 val contentEntry = rootModel.contentEntries.firstOrNull()
-                if (contentEntry == null) {
-                    report.error("Source roots", "No content entry found in module")
-                    return@runAndWait
-                }
+                    ?: run {
+                        val projectRoot = LocalFileSystem.getInstance().findFileByPath(basePath)
+                            ?: return@runAndWait Unit.also {
+                                report.error("Source roots", "Cannot locate project root on disk")
+                            }
+                        rootModel.addContentEntry(projectRoot)
+                    }
 
                 configureRoot(contentEntry, "$basePath/app", JavaSourceRootType.SOURCE, report, "Source root app/")
                 configureRoot(contentEntry, "$basePath/test", JavaSourceRootType.TEST_SOURCE, report, "Test root test/")

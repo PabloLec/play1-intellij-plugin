@@ -4,18 +4,22 @@ import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.detection.Play1ProjectDetector
 import com.github.pablolec.play1toolkit.model.RepairReport
-import com.github.pablolec.play1toolkit.model.ReportStatus
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.project.Play1RunConfigManager
 import com.github.pablolec.play1toolkit.project.Play1SourceRootManager
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
+import com.intellij.openapi.projectRoots.JavaSdk
+import com.intellij.openapi.projectRoots.ProjectJdkTable
+import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.ui.Messages
+import java.io.File
 import java.nio.file.Paths
 
 class RepairProjectSetupAction : AnAction() {
@@ -66,6 +70,9 @@ class RepairProjectSetupAction : AnAction() {
 
                 report.ok("Play home", playHomePath)
                 report.ok("Play version", validation.playVersion ?: "unknown")
+
+                indicator.text = "Configuring Project SDK..."
+                configureProjectSdk(project, report)
 
                 indicator.text = "Attaching Play libraries..."
                 Play1LibraryManager.attachLibraries(project, playHome, report)
@@ -121,6 +128,45 @@ class RepairProjectSetupAction : AnAction() {
                 ShowSettingsUtil.getInstance().showSettingsDialog(project, "play1toolkit.settings")
             }
         }
+    }
+
+    private fun configureProjectSdk(project: com.intellij.openapi.project.Project, report: RepairReport) {
+        val rootManager = ProjectRootManager.getInstance(project)
+        if (rootManager.projectSdk != null) {
+            report.skipped("Project SDK", "already configured (${rootManager.projectSdk?.name})")
+            return
+        }
+
+        val javaSdkType = JavaSdk.getInstance()
+
+        // Use any already-registered JDK first
+        val existingJdk = ProjectJdkTable.getInstance().allJdks.firstOrNull { it.sdkType is JavaSdk }
+        if (existingJdk != null) {
+            WriteAction.runAndWait<Exception> { rootManager.projectSdk = existingJdk }
+            report.ok("Project SDK", existingJdk.name)
+            return
+        }
+
+        // Fall back to the JVM running the IDE
+        val rawHome = System.getProperty("java.home")
+        val javaHome = rawHome?.let {
+            val f = File(it)
+            // If inside a jre/ subdirectory, step up to the JDK root
+            if (f.name == "jre") f.parentFile?.absolutePath ?: it else it
+        }
+
+        if (javaHome == null || !javaSdkType.isValidSdkHome(javaHome)) {
+            report.error("Project SDK", "No JDK found — please configure manually via File > Project Structure")
+            return
+        }
+
+        val sdkName = javaSdkType.suggestSdkName(null, javaHome)
+        val newJdk = javaSdkType.createJdk(sdkName, javaHome)
+        WriteAction.runAndWait<Exception> {
+            ProjectJdkTable.getInstance().addJdk(newJdk)
+            rootManager.projectSdk = newJdk
+        }
+        report.ok("Project SDK", sdkName)
     }
 
     override fun update(e: AnActionEvent) {

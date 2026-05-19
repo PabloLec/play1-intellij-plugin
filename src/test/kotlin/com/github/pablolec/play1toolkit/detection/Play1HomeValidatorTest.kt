@@ -31,7 +31,22 @@ class Play1HomeValidatorTest {
         tempDir.newFolder("framework")
         val result = Play1HomeValidator.validate(tempDir.root.toPath())
         assertFalse(result.valid)
-        assertTrue(result.error?.contains("play-*.jar") == true || result.error?.contains("Not found") == true)
+        assertTrue("Error should mention Play JAR: ${result.error}", result.error?.contains("Play JAR") == true)
+    }
+
+    @Test
+    fun `finds play jar named play-dot-jar (Play 1 1 x style)`() {
+        val frameworkDir = tempDir.newFolder("framework")
+        val stubJarSrc = Play1HomeValidatorTest::class.java
+            .getResourceAsStream("/stubs/play-stub.jar")
+            ?: error("play-stub.jar not found in test resources")
+
+        val playJar = File(frameworkDir, "play.jar")
+        stubJarSrc.use { Files.copy(it, playJar.toPath()) }
+
+        val found = Play1HomeValidator.findPlayJar(frameworkDir.toPath())
+        assertNotNull("play.jar should be found by findPlayJar", found)
+        assertEquals("play.jar", found?.fileName?.toString())
     }
 
     @Test

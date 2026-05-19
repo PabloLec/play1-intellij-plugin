@@ -28,7 +28,7 @@ object Play1HomeValidator {
         }
 
         val playJar = findPlayJar(frameworkDir)
-            ?: return ValidationResult(false, null, null, "No play-*.jar found in $frameworkDir")
+            ?: return ValidationResult(false, null, null, "No Play JAR found in framework/ (expected play.jar or play-X.Y.Z.jar)")
 
         if (!containsControllerClass(playJar)) {
             return ValidationResult(false, null, null, "play-*.jar does not contain play/mvc/Controller.class")
@@ -44,7 +44,11 @@ object Play1HomeValidator {
         if (!Files.isDirectory(frameworkDir)) return null
         return Files.list(frameworkDir).use { stream ->
             stream
-                .filter { it.fileName.toString().matches(Regex("play-\\d+\\..*\\.jar")) }
+                .filter { path ->
+                    val name = path.fileName.toString()
+                    // Matches "play-1.2.7.jar" (Play 1.2.x) and "play.jar" (Play 1.1.x and earlier)
+                    name.matches(Regex("play-\\d+\\..*\\.jar")) || name == "play.jar"
+                }
                 .findFirst()
                 .orElse(null)
         }
@@ -61,7 +65,22 @@ object Play1HomeValidator {
     }
 
     private fun extractVersion(jar: Path): String? {
-        val name = jar.fileName.toString()
-        return Regex("play-(\\d+\\.\\S+)\\.jar").find(name)?.groupValues?.get(1)
+        // Try filename first (e.g., play-1.2.7.jar)
+        val filenameVersion = Regex("play-(\\d+\\.\\S+)\\.jar").find(jar.fileName.toString())?.groupValues?.get(1)
+        if (filenameVersion != null) return filenameVersion
+
+        // For play.jar (Play 1.1.x): read from play/version entry inside the JAR
+        return try {
+            JarFile(jar.toFile()).use { jf ->
+                val versionEntry = jf.getJarEntry("play/version")
+                if (versionEntry != null) {
+                    jf.getInputStream(versionEntry).bufferedReader().readText().trim()
+                } else {
+                    jf.manifest?.mainAttributes?.getValue("Specification-Version")
+                }
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 }

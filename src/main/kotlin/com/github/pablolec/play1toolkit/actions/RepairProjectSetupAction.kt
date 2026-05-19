@@ -32,7 +32,7 @@ class RepairProjectSetupAction : AnAction() {
     companion object {
         fun runRepair(project: Project, silent: Boolean = false) {
             ProgressManager.getInstance().run(object : Task.Backgroundable(
-                project, "Repairing Play 1 Project Setup", false
+                project, "Repairing Play v1 Project Setup", false
             ) {
                 override fun run(indicator: ProgressIndicator) {
                     val report = RepairReport(project.name)
@@ -42,16 +42,16 @@ class RepairProjectSetupAction : AnAction() {
                             Messages.showMessageDialog(
                                 project,
                                 report.toText(),
-                                "Play 1 Toolkit — Repair Report",
+                                "Play v1 Toolkit — Repair Report",
                                 if (report.hasErrors) Messages.getErrorIcon() else Messages.getInformationIcon()
                             )
                         }
                     } else if (!report.hasErrors) {
                         ApplicationManager.getApplication().invokeLater {
                             NotificationGroupManager.getInstance()
-                                .getNotificationGroup("Play 1 Toolkit")
+                                .getNotificationGroup("Play v1 Toolkit")
                                 ?.createNotification(
-                                    "Play 1 Toolkit",
+                                    "Play v1 Toolkit",
                                     "Project setup complete — libraries attached and source roots configured.",
                                     NotificationType.INFORMATION
                                 )

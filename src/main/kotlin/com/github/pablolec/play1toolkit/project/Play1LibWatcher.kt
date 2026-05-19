@@ -39,7 +39,7 @@ class Play1LibWatcher(private val project: Project) : BulkFileListener {
 
         ApplicationManager.getApplication().invokeLater {
             ProgressManager.getInstance().run(object : Task.Backgroundable(
-                project, "Play 1: refreshing libraries", false
+                project, "Play v1: refreshing libraries", false
             ) {
                 override fun run(indicator: ProgressIndicator) {
                     indicator.text = "Attaching new JARs from lib/..."
@@ -48,9 +48,9 @@ class Play1LibWatcher(private val project: Project) : BulkFileListener {
 
                     ApplicationManager.getApplication().invokeLater {
                         NotificationGroupManager.getInstance()
-                            .getNotificationGroup("Play 1 Toolkit")
+                            .getNotificationGroup("Play v1 Toolkit")
                             ?.createNotification(
-                                "Play 1 Toolkit",
+                                "Play v1 Toolkit",
                                 "Libraries refreshed — new JARs detected in lib/",
                                 NotificationType.INFORMATION
                             )

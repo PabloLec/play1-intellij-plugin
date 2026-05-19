@@ -40,13 +40,13 @@ class Play1ApplicationRunConfiguration(
         Play1RunConfigurationSupport.validatePorts(httpPort, debugPort)
         val settings = Play1Settings.getInstance()
         if (settings.playHome.isBlank()) {
-            throw RuntimeConfigurationWarning("Play Home is not configured. Go to Settings > Tools > Play 1 Toolkit.")
+            throw RuntimeConfigurationWarning("Play Home is not configured. Go to Settings > Tools > Play v1 Toolkit.")
         }
         val module = Play1RunConfigurationSupport.resolveModule(project, applicationPath)
         val sdk = Play1RunConfigurationSupport.resolveSdk(project, module)
         if (sdk == null) {
             throw RuntimeConfigurationError(
-                "No Java SDK configured for Play 1 App. Configure a module SDK or a project SDK."
+                "No Java SDK configured for Play v1 App. Configure a module SDK or a project SDK."
             )
         }
     }

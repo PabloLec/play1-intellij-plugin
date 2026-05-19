@@ -1,4 +1,4 @@
-# Testing — Play 1 Toolkit
+# Testing — Play v1 Toolkit
 
 > Ce document décrit la stratégie de test du plugin, les outils utilisés,
 > les fixtures disponibles et les commandes pour lancer les tests.

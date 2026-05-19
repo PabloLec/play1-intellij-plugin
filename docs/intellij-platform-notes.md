@@ -1,4 +1,4 @@
-# IntelliJ Platform Notes — Play 1 Toolkit
+# IntelliJ Platform Notes — Play v1 Toolkit
 
 > Ce document décrit les APIs IntelliJ Platform utilisées dans le plugin,
 > pourquoi elles sont utilisées, et les points d'attention associés.
@@ -46,7 +46,7 @@ Play Home est application-level (ADR-003). Un override projet pourra être ajout
 
 **Utilisé pour :** `Play1SettingsConfigurable.kt`
 
-**Pourquoi :** API standard pour intégrer une page de settings dans `File > Settings > Tools > Play 1 Toolkit`.
+**Pourquoi :** API standard pour intégrer une page de settings dans `File > Settings > Tools > Play v1 Toolkit`.
 
 **Enregistrement dans plugin.xml :**
 ```xml
@@ -54,7 +54,7 @@ Play Home est application-level (ADR-003). Un override projet pourra être ajout
     <applicationConfigurable
         parentId="tools"
         id="play1toolkit.settings"
-        displayName="Play 1 Toolkit"
+        displayName="Play v1 Toolkit"
         instance="...Play1SettingsConfigurable"/>
 </extensions>
 ```
@@ -137,11 +137,11 @@ class Play1ApplicationRunState(environment: ExecutionEnvironment, config: Play1A
 
 **Utilisé pour :** `Play1ToolWindowFactory.kt`
 
-**Pourquoi :** Permet d'ajouter un panneau latéral "Play 1" dans l'IDE.
+**Pourquoi :** Permet d'ajouter un panneau latéral "Play v1 Toolkit" dans l'IDE.
 
 **Enregistrement dans plugin.xml :**
 ```xml
-<toolWindow id="Play 1"
+<toolWindow id="Play v1 Toolkit"
             anchor="right"
             factoryClass="...Play1ToolWindowFactory"
             icon="/icons/play1.svg"/>

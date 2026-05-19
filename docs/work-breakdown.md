@@ -1,4 +1,4 @@
-# Work Breakdown — Play 1 Toolkit
+# Work Breakdown — Play v1 Toolkit
 
 > Découpage de tout le travail en lots cohérents et progressifs.
 > Ce fichier doit être mis à jour à chaque avancée de lot.
@@ -122,14 +122,14 @@ src/test/resources/fixtures/not-play1/
 
 **Tâches :**
 - [ ] `Play1Settings.kt` — PersistentStateComponent application-level
-- [ ] `Play1SettingsConfigurable.kt` — intégration Settings > Tools > Play 1 Toolkit
+- [ ] `Play1SettingsConfigurable.kt` — intégration Settings > Tools > Play v1 Toolkit
 - [ ] `Play1SettingsPanel.kt` — UI (champ Play Home, boutons Browse/Auto-detect, validation)
 - [ ] `Play1HomeDetector.kt` — auto-detection (PLAY_HOME env, chemins courants, which play)
 - [ ] `Play1HomeValidator.kt` — validation (présence JAR principal, play/mvc/Controller.class)
 - [ ] Enregistrement dans `plugin.xml`
 
 **Critères d'acceptation :**
-- Settings > Tools > Play 1 Toolkit accessible
+- Settings > Tools > Play v1 Toolkit accessible
 - Bouton "Auto-detect" trouve Play Home si `PLAY_HOME` défini ou installé dans `/opt/play-1.*`
 - Validation affiche la version Play détectée ou un message d'erreur clair
 - Settings persistants entre redémarrages IDE
@@ -164,10 +164,10 @@ src/main/kotlin/.../detection/Play1HomeValidator.kt
 - [ ] `RepairProjectSetupAction.kt` — AnAction principale
 - [ ] `Play1LibraryManager.kt` — création/mise à jour library "Play 1 Framework"
 - [ ] `Play1SourceRootManager.kt` — configuration app/ + test/ + conf/
-- [ ] `Play1RunConfigManager.kt` — création run configuration "Play 1 App"
+- [ ] `Play1RunConfigManager.kt` — création run configuration "Play v1 App"
 - [ ] `RepairReport.kt` — modèle de données du rapport
 - [ ] `RepairReportDialog.kt` — affichage rapport (dialog ou notification)
-- [ ] Enregistrement dans `plugin.xml` (menu Tools > Play 1)
+- [ ] Enregistrement dans `plugin.xml` (menu Tools > Play v1 Toolkit)
 - [ ] Tests plateforme `RepairProjectSetupActionTest`
 
 **Étapes de l'action :**
@@ -180,13 +180,13 @@ src/main/kotlin/.../detection/Play1HomeValidator.kt
 7. Marquer `app/` → source root
 8. Marquer `test/` → test source root
 9. Marquer `conf/` → resources root
-10. Créer run configuration "Play 1 App"
+10. Créer run configuration "Play v1 App"
 11. Afficher rapport
 
 **Critères d'acceptation :**
 - Après exécution : `import play.mvc.*;` résolu (plus en rouge)
 - `app/` marqué source root dans Project Structure
-- Run configuration "Play 1 App" créée
+- Run configuration "Play v1 App" créée
 - Rapport affiche tous les éléments avec statut OK/ERREUR
 
 **Fichiers concernés :**
@@ -229,7 +229,7 @@ Classpath:
 ```
 
 **Critères d'acceptation :**
-- Run ▶ "Play 1 App" démarre l'application sur port 9000
+- Run ▶ "Play v1 App" démarre l'application sur port 9000
 - Debug 🐛 permet de poser des breakpoints
 - Console Play visible dans IntelliJ
 
@@ -317,11 +317,11 @@ src/test/kotlin/.../routes/RoutesNavigationTest.kt
 
 ---
 
-## Lot 8 — Tool Window Play 1
+## Lot 8 — Tool Window Play v1 Toolkit
 
 **Statut :** `DONE`
 
-**Objectif :** Ajouter un panneau latéral "Play 1" affichant l'état du projet, les routes, les diagnostics et des actions rapides.
+**Objectif :** Ajouter un panneau latéral "Play v1 Toolkit" affichant l'état du projet, les routes, les diagnostics et des actions rapides.
 
 **Tâches :**
 - [ ] `Play1ToolWindowFactory.kt`
@@ -332,7 +332,7 @@ src/test/kotlin/.../routes/RoutesNavigationTest.kt
 - [ ] Test manuel dans sandbox
 
 **Critères d'acceptation :**
-- Tool Window "Play 1" visible dans la barre latérale
+- Tool Window "Play v1 Toolkit" visible dans la barre latérale
 - Affiche statut (Play détecté, Play Home, classpath, run config)
 - Liste les routes parsées
 - Bouton "Repair" déclenche l'action de réparation

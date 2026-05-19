@@ -1,14 +1,14 @@
-# Play 1 Toolkit
+# Play v1 Toolkit
 
 > Modern IntelliJ IDEA support for legacy Play Framework 1.x applications.
 
 ## Overview
 
-Play 1 Toolkit is an IntelliJ IDEA Ultimate plugin that dramatically improves the developer experience when working on legacy Java applications built with Play Framework 1.x.
+Play v1 Toolkit is an IntelliJ IDEA Ultimate plugin that dramatically improves the developer experience when working on legacy Java applications built with Play Framework 1.x.
 
 **The problem:** Opening an old Play 1 project in IntelliJ shows red imports (`import play.mvc.*;`), no run configuration, and no source root configuration.
 
-**The solution:** Play 1 Toolkit detects the project, attaches the Play framework libraries, configures source roots, and creates a run configuration — all in one action.
+**The solution:** Play v1 Toolkit detects the project, attaches the Play framework libraries, configures source roots, and creates a run configuration — all in one action.
 
 ## Features
 
@@ -82,7 +82,7 @@ Open any Play 1 project. You need a real Play 1 installation for this (see Step 
 
 Features that resolve Java PSI (render navigation, gutter icons, missing view inspection) require Play JARs to be on the classpath. Without them, `play.mvc.Controller` is unresolvable and these features silently do nothing.
 
-1. `Settings > Tools > Play 1 Toolkit`
+1. `Settings > Tools > Play v1 Toolkit`
 2. Set **Play Home** to your Play 1 installation directory (e.g. `/opt/play-1.2.7`)
 3. Click **Auto-detect** if you have `PLAY_HOME` set or Play installed in a standard path
 4. The field should show `Play 1.2.7 — OK` (or similar)
@@ -91,7 +91,7 @@ Features that resolve Java PSI (render navigation, gutter icons, missing view in
 
 #### Step 4 — Repair the project
 
-`Tools > Play 1 > Repair Project Setup`
+`Tools > Play v1 Toolkit > Repair Project Setup`
 
 This attaches the Play JARs to the project. After this, `import play.mvc.*;` resolves (no more red imports).
 
@@ -100,15 +100,15 @@ This attaches the Play JARs to the project. After this, `import play.mvc.*;` res
 | Feature | How to trigger | Expected result |
 |---------|---------------|-----------------|
 | **Auto-detection** | Open a Play 1 project | Notification balloon "Play 1 project detected" |
-| **Repair** | `Tools > Play 1 > Repair Project Setup` | Dialog showing OK for library, source roots, run config |
+| **Repair** | `Tools > Play v1 Toolkit > Repair Project Setup` | Dialog showing OK for library, source roots, run config |
 | **Syntax highlighting** | Open `conf/routes` | HTTP methods in blue, paths in white, controllers in green, actions in purple |
 | **Ctrl+Click in routes** | Ctrl+Click on `Application.index` in routes | Jumps to `Application.java`, `index()` method |
 | **render() navigation** | Open a controller, Ctrl+Click on `render()` | Navigation popup includes "Go to Play 1 View" → opens the `.html` file |
 | **Gutter icons (Java)** | Open a controller | Small `→` icon in the gutter next to `public static void index()` — click to jump to the matching route |
 | **Gutter icons (routes)** | Open `conf/routes` | Small `←` icon next to `Application.index` — click to jump to the Java method |
 | **Missing view inspection** | In a controller, call `render()` from a method that has no `app/views/X/Y.html` | Yellow underline warning; hover shows "View not found: ..."; Alt+Enter → "Create view" |
-| **Tool Window** | Click "Play 1" in the right sidebar | Tabs: Status (Play detected, Play Home), Routes (tree), Diagnostics (unresolved controllers) |
-| **Run/Debug** | Run ▶ "Play 1 App" | App starts on http://localhost:9000 |
+| **Tool Window** | Click "Play v1 Toolkit" in the right sidebar | Tabs: Status (Play detected, Play Home), Routes (tree), Diagnostics (unresolved controllers) |
+| **Run/Debug** | Run ▶ "Play v1 App" | App starts on http://localhost:9000 |
 
 #### Troubleshooting
 
@@ -134,7 +134,7 @@ src/
 │   ├── run/              Run/Debug configuration type
 │   ├── routes/           conf/routes file type support
 │   ├── services/         Project-level services (index, state)
-│   └── toolwindow/       Play 1 Tool Window
+│   └── toolwindow/       Play v1 Toolkit Tool Window
 └── test/kotlin/          Tests (unit + platform)
 sample-play1-app/         Sample Play 1 project for testing
 docs/                     Work documentation and ADRs

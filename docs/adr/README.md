@@ -1,6 +1,6 @@
 # ADR — Architecture Decision Records
 
-> Ce répertoire contient les décisions architecturales du projet Play 1 Toolkit.
+> Ce répertoire contient les décisions architecturales du projet Play v1 Toolkit.
 > Chaque ADR documente une décision structurante : le contexte, les alternatives
 > considérées, la décision retenue et ses conséquences.
 >

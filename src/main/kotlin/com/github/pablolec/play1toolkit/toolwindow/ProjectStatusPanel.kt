@@ -52,7 +52,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         border = JBUI.Borders.empty(6)
         buildLayout()
         configureButton.addActionListener {
-            ShowSettingsUtil.getInstance().showSettingsDialog(project, "Play 1 Toolkit")
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, "Play v1 Toolkit")
         }
         repairButton.addActionListener {
             RepairProjectSetupAction.runRepair(project, silent = false)
@@ -100,7 +100,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
 
         val playConfig = findPlayConfiguration()
-        runConfigLabel.text = if (playConfig != null) "Run config: ✓ Play 1 App" else "Run config: missing — use Repair Project Setup"
+        runConfigLabel.text = if (playConfig != null) "Run config: ✓ Play v1 App" else "Run config: missing — use Repair Project Setup"
 
         val projectVersion = validation?.playVersion
         val depsPlan = if (validation?.valid == true) {

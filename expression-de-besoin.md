@@ -1,4 +1,4 @@
-# Spécification — Play 1 Toolkit pour IntelliJ IDEA Ultimate
+# Spécification — Play v1 Toolkit pour IntelliJ IDEA Ultimate
 
 ## 1. Objectif général
 
@@ -18,7 +18,7 @@ Le plugin doit viser une expérience simple, claire, guidée et moderne :
 * les actions courantes Play 1 sont accessibles sans connaître les commandes historiques ;
 * le plugin aide un développeur moderne à comprendre un projet legacy Play 1.
 
-Nom provisoire du projet : **Play 1 Toolkit**.
+Nom du projet : **Play v1 Toolkit**.
 
 Promesse produit :
 
@@ -62,7 +62,7 @@ Le plugin doit être pensé pour la developer experience avant tout.
 
 À l’ouverture d’un projet, le plugin doit détecter automatiquement qu’il s’agit probablement d’un projet Play 1 et proposer une action claire :
 
-> Play 1 project detected. Configure Play 1 Toolkit?
+> Play 1 project detected. Configure Play v1 Toolkit?
 
 Le développeur ne doit pas avoir à comprendre immédiatement toute la mécanique interne du framework.
 
@@ -213,7 +213,7 @@ JetBrains maintient le dépôt `intellij-sdk-code-samples`, qui présente des ex
 
 Pour chaque feature non triviale, l’agent IA doit chercher le sample JetBrains correspondant avant d’implémenter :
 
-* Action System pour les menus `Tools > Play 1` ;
+* Action System pour les menus `Tools > Play v1 Toolkit` ;
 * Project Service pour l’état projet ;
 * Tool Window pour la vue Play 1 ;
 * LocalInspectionTool pour les inspections ;
@@ -396,7 +396,7 @@ Settings page
 Créer une page :
 
 ```text
-Settings > Tools > Play 1 Toolkit
+Settings > Tools > Play v1 Toolkit
 ```
 
 Champs :
@@ -479,13 +479,13 @@ Après attachement, IntelliJ doit permettre :
 Feature UX :
 
 ```text
-Tools > Play 1 > Attach Play Framework Libraries
+Tools > Play v1 Toolkit > Attach Play Framework Libraries
 ```
 
 Feature supérieure :
 
 ```text
-Tools > Play 1 > Repair Project Setup
+Tools > Play v1 Toolkit > Repair Project Setup
 ```
 
 ---
@@ -552,7 +552,7 @@ Executor
 
 Créer deux types de run configurations.
 
-#### 16.5.1. Play 1 Application
+#### 16.5.1. Play v1 Application
 
 Mode intégré JVM.
 
@@ -633,7 +633,7 @@ Options JVM typiques :
 UX souhaitée :
 
 ```text
-Debug Play 1 App
+Debug Play v1 App
 ```
 
 Le développeur ne doit pas écrire lui-même les options JDWP.
@@ -655,7 +655,7 @@ Context menu actions
 Créer un menu :
 
 ```text
-Tools > Play 1
+Tools > Play v1 Toolkit
 ```
 
 Actions :
@@ -686,7 +686,7 @@ Actions contextuelles :
 
 ---
 
-### 16.8. Tool Window Play 1
+### 16.8. Tool Window Play v1 Toolkit
 
 Type IntelliJ :
 
@@ -1277,8 +1277,8 @@ Repair Play 1 Project Setup
 Emplacement :
 
 ```text
-Tools > Play 1 > Repair Project Setup
-Tool Window Play 1 > Repair
+Tools > Play v1 Toolkit > Repair Project Setup
+Tool Window Play v1 Toolkit > Repair
 Notification projet > Repair
 ```
 
@@ -1295,7 +1295,7 @@ Notification projet > Repair
 9. Marquer `app/` comme source root.
 10. Marquer `test/` comme test source root.
 11. Marquer `conf/` comme resources.
-12. Créer une run configuration “Play 1 App”.
+12. Créer une run configuration “Play v1 App”.
 13. Créer éventuellement une debug configuration.
 14. Recharger l’index Play 1.
 15. Afficher un rapport.
@@ -1305,7 +1305,7 @@ Notification projet > Repair
 Exemple :
 
 ```text
-Play 1 Toolkit Repair Report
+Play v1 Toolkit Repair Report
 
 Project: gmvet
 Play project: detected
@@ -1337,8 +1337,8 @@ Please select your Play 1 installation directory.
 Le développeur doit pouvoir faire :
 
 ```text
-Run > Play 1 App
-Debug > Play 1 App
+Run > Play v1 App
+Debug > Play v1 App
 ```
 
 Sans connaître :
@@ -1354,7 +1354,7 @@ Sans connaître :
 Nom :
 
 ```text
-Play 1 App
+Play v1 App
 ```
 
 Valeurs :
@@ -1380,7 +1380,7 @@ Open http://localhost:9000
 Action :
 
 ```text
-Restart Play 1 App
+Restart Play v1 App
 ```
 
 ---
@@ -1483,7 +1483,7 @@ Mode optionnel très utile.
 Action :
 
 ```text
-Tools > Play 1 > Start Onboarding Tour
+Tools > Play v1 Toolkit > Start Onboarding Tour
 ```
 
 Le plugin guide le développeur :
@@ -1525,7 +1525,7 @@ Objectif : lancer et debugger depuis IntelliJ.
 
 Features :
 
-* run configuration Play 1 App ;
+* run configuration Play v1 App ;
 * run configuration Play 1 Command ;
 * debug configuration ;
 * actions Run / Debug / Test / Deps / Clean ;
@@ -1712,7 +1712,7 @@ Le premier objectif n’est pas de tout supporter. Le premier objectif est de su
 
 ## 20. Prompt de mission pour un agent IA
 
-Tu vas développer un plugin IntelliJ IDEA Ultimate nommé “Play 1 Toolkit”.
+Tu vas développer un plugin IntelliJ IDEA Ultimate nommé “Play v1 Toolkit”.
 
 Objectif : améliorer fortement la developer experience sur des projets legacy Java basés sur Play Framework 1.x, afin de se rapprocher du confort d’une stack moderne Spring Boot + Maven.
 

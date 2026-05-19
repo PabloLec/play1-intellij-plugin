@@ -8,7 +8,7 @@ import com.intellij.openapi.project.Project
 
 object Play1RunConfigManager {
 
-    private const val RUN_CONFIG_NAME = "Play 1 App"
+    private const val RUN_CONFIG_NAME = "Play v1 App"
 
     fun createRunConfiguration(project: Project, report: RepairReport) {
         val runManager = RunManager.getInstance(project)

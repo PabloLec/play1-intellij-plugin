@@ -47,10 +47,10 @@ class Play1StartupActivity : ProjectActivity {
 
     private fun showDetectionNotification(project: Project) {
         NotificationGroupManager.getInstance()
-            .getNotificationGroup("Play 1 Toolkit")
+            .getNotificationGroup("Play v1 Toolkit")
             ?.createNotification(
                 "Play 1 Project Detected",
-                "Configure Play 1 Toolkit to attach libraries and set up your project.",
+                "Configure Play v1 Toolkit to attach libraries and set up your project.",
                 NotificationType.INFORMATION
             )
             ?.addAction(com.intellij.notification.NotificationAction.createSimple("Configure") {

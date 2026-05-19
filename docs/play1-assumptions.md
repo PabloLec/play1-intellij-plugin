@@ -1,4 +1,4 @@
-# Play 1 Assumptions — Play 1 Toolkit
+# Play 1 Assumptions — Play v1 Toolkit
 
 > Ce document liste les hypothèses prises sur les projets Play Framework 1.x
 > que le plugin prend en charge. Ces hypothèses informent les heuristiques

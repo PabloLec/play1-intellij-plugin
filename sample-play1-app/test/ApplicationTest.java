@@ -4,7 +4,7 @@ import play.mvc.*;
 import play.mvc.Http.*;
 
 /**
- * Sample functional test for the Play 1 Toolkit sample app.
+ * Sample functional test for the Play v1 Toolkit sample app.
  * This file is a fixture — it is not executed by the plugin test suite.
  */
 public class ApplicationTest extends FunctionalTest {

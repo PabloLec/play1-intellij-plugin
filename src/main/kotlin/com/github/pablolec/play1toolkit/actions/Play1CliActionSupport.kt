@@ -45,7 +45,7 @@ object Play1CliActionSupport {
         }
 
         val console = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
-        val title = "Play 1: ${request.commandId.displayName}"
+        val title = "Play v1: ${request.commandId.displayName}"
         val descriptor = RunContentDescriptor(console, null, console.component, title)
 
         ApplicationManager.getApplication().invokeLater {
@@ -69,7 +69,7 @@ object Play1CliActionSupport {
                     projectPlayVersion = requestedVersion,
                 )
 
-                print("Play 1 Toolkit — ${request.commandId.displayName}")
+                print("Play v1 Toolkit — ${request.commandId.displayName}")
                 print("Project: ${project.name}")
                 print("Play Home: $playHome")
                 plan.effectivePlayHome?.takeIf { it != playHome }?.let {
@@ -178,14 +178,14 @@ object Play1CliActionSupport {
         }
         ApplicationManager.getApplication().invokeLater {
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("Play 1 Toolkit")
-                ?.createNotification("Play 1 Toolkit", message, NotificationType.INFORMATION)
+                .getNotificationGroup("Play v1 Toolkit")
+                ?.createNotification("Play v1 Toolkit", message, NotificationType.INFORMATION)
                 ?.notify(project)
         }
     }
 
     private fun notifyFailure(project: Project, commandId: Play1CliCommandId, result: Play1CliResult, warning: Boolean) {
-        val group = NotificationGroupManager.getInstance().getNotificationGroup("Play 1 Toolkit") ?: return
+        val group = NotificationGroupManager.getInstance().getNotificationGroup("Play v1 Toolkit") ?: return
         val type = if (warning) NotificationType.WARNING else NotificationType.ERROR
         val content = when (result.reason) {
             Play1CliResultReason.UNSUPPORTED_PLAY_VERSION ->
@@ -202,11 +202,11 @@ object Play1CliActionSupport {
             Play1CliResultReason.EXECUTION_CANCELLED ->
                 "${commandId.displayName} was stopped."
             else ->
-                "${commandId.displayName} failed — see \"Play 1: ${commandId.displayName}\" console for details."
+                "${commandId.displayName} failed — see \"Play v1: ${commandId.displayName}\" console for details."
         }
 
         ApplicationManager.getApplication().invokeLater {
-            group.createNotification("Play 1 Toolkit", content, type).apply {
+            group.createNotification("Play v1 Toolkit", content, type).apply {
                 if (result.reason == Play1CliResultReason.UNSUPPORTED_PLAY_VERSION) {
                     addAction(object : com.intellij.openapi.actionSystem.AnAction("Open Settings") {
                         override fun actionPerformed(e: com.intellij.openapi.actionSystem.AnActionEvent) {
@@ -221,9 +221,9 @@ object Play1CliActionSupport {
     private fun notifyAlreadyRunning(project: Project, currentCommandId: Play1CliCommandId?) {
         ApplicationManager.getApplication().invokeLater {
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("Play 1 Toolkit")
+                .getNotificationGroup("Play v1 Toolkit")
                 ?.createNotification(
-                    "Play 1 Toolkit",
+                    "Play v1 Toolkit",
                     "A Play command is already running${currentCommandId?.let { ": ${it.displayName}" } ?: ""}. Stop it before starting another one.",
                     NotificationType.WARNING
                 )

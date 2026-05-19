@@ -20,7 +20,7 @@ class Play1ApplicationRunState(
     override fun createJavaParameters(): JavaParameters {
         val settings = Play1Settings.getInstance()
         val playHome = settings.playHome.takeIf { it.isNotBlank() }
-            ?: throw ExecutionException("Play Home is not configured. Go to Settings > Tools > Play 1 Toolkit.")
+            ?: throw ExecutionException("Play Home is not configured. Go to Settings > Tools > Play v1 Toolkit.")
 
         val playHomePath = Paths.get(playHome)
         val frameworkDir = playHomePath.resolve("framework")
@@ -32,7 +32,7 @@ class Play1ApplicationRunState(
         params.workingDirectory = config.applicationPath
         params.jdk = Play1RunConfigurationSupport.resolveSdk(config.project, targetModule)
             ?: throw ExecutionException(
-                "No Java SDK configured for Play 1 App. Configure a module SDK or a project SDK."
+                "No Java SDK configured for Play v1 App. Configure a module SDK or a project SDK."
             )
 
         // Add play jar first, then project lib/*.jar, then remaining framework libs.

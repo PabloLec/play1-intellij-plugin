@@ -1,4 +1,4 @@
-# Todo — Play 1 Toolkit
+# Todo — Play v1 Toolkit
 
 > Ce fichier est la liste vivante des tâches. Il doit rester à jour à chaque étape.
 > Statuts : `[ ]` à faire · `[~]` en cours · `[x]` terminé · `[>]` reporté · `[!]` bloquant
@@ -69,7 +69,7 @@
 - [x] Créer `Play1SourceRootManager.kt` (source roots)
 - [x] Créer `Play1RunConfigManager.kt` (crée run config)
 - [x] Créer `RepairReport.kt` (modèle rapport)
-- [x] Enregistrer action dans `plugin.xml` (menu Tools > Play 1)
+- [x] Enregistrer action dans `plugin.xml` (menu Tools > Play v1 Toolkit)
 - [ ] Tests plateforme `RepairProjectSetupActionTest` — TODO Lot 9
 
 ---
@@ -110,7 +110,7 @@
 
 ---
 
-## Lot 8 — Tool Window Play 1 ✓ DONE
+## Lot 8 — Tool Window Play v1 Toolkit ✓ DONE
 
 - [x] Créer `Play1ToolWindowFactory.kt` (3 onglets : Status / Routes / Diagnostics)
 - [x] Créer `ProjectStatusPanel.kt` (Play detected, Play Home, version, run config)

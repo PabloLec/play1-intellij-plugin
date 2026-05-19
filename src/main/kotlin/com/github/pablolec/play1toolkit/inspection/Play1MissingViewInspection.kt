@@ -8,7 +8,7 @@ import com.intellij.psi.util.PsiTreeUtil
 class Play1MissingViewInspection : LocalInspectionTool() {
 
     override fun getDisplayName(): String = "Missing Play 1 view for render() call"
-    override fun getGroupDisplayName(): String = "Play 1"
+    override fun getGroupDisplayName(): String = "Play v1 Toolkit"
     override fun getShortName(): String = "Play1MissingView"
     override fun isEnabledByDefault(): Boolean = true
 

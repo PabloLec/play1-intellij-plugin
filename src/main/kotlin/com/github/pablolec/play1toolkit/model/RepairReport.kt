@@ -15,7 +15,7 @@ data class RepairReport(
     fun skipped(label: String, detail: String = "") = add(label, ReportStatus.SKIPPED, detail)
 
     fun toText(): String = buildString {
-        appendLine("Play 1 Toolkit — Repair Report")
+        appendLine("Play v1 Toolkit — Repair Report")
         appendLine()
         appendLine("Project: $projectName")
         appendLine()

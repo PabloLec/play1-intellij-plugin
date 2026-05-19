@@ -1,6 +1,6 @@
 <idea-plugin>
     <id>com.github.pablolec.play1toolkit</id>
-    <name>Play 1 Toolkit</name>
+    <name>Play v1 Toolkit</name>
     <vendor url="https://github.com/PabloLec">PabloLec</vendor>
 
     <description><![CDATA[
@@ -29,7 +29,7 @@
         <applicationConfigurable
                 parentId="tools"
                 id="play1toolkit.settings"
-                displayName="Play 1 Toolkit"
+                displayName="Play v1 Toolkit"
                 instance="com.github.pablolec.play1toolkit.config.Play1SettingsConfigurable"/>
 
         <!-- Project Services -->
@@ -43,7 +43,7 @@
         <configurationType implementation="com.github.pablolec.play1toolkit.run.Play1RunConfigurationType"/>
 
         <!-- Notification Group -->
-        <notificationGroup id="Play 1 Toolkit"
+        <notificationGroup id="Play v1 Toolkit"
                            displayType="BALLOON"
                            key="notification.group"/>
 
@@ -73,7 +73,7 @@
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesAnnotator"/>
 
         <!-- Tool Window -->
-        <toolWindow id="Play 1"
+        <toolWindow id="Play v1 Toolkit"
                     anchor="right"
                     secondary="true"
                     factoryClass="com.github.pablolec.play1toolkit.toolwindow.Play1ToolWindowFactory"
@@ -108,13 +108,13 @@
         <localInspection language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.inspection.Play1MissingViewInspection"
                 displayName="Missing Play 1 view for render() call"
-                groupName="Play 1"
+                groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WARNING"/>
     </extensions>
 
     <actions>
-        <group id="Play1ToolkitMenu" text="Play 1" popup="true">
+        <group id="Play1ToolkitMenu" text="Play v1 Toolkit" popup="true">
             <add-to-group group-id="ToolsMenu" anchor="last"/>
         </group>
 

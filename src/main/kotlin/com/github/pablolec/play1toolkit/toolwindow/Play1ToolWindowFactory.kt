@@ -54,7 +54,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         }
 
         val repairButton = JButton("⚙ Repair").apply {
-            toolTipText = "Repair Play 1 project setup"
+            toolTipText = "Repair Play v1 project setup"
             addActionListener { e ->
                 val action = RepairProjectSetupAction()
                 val dataContext = com.intellij.ide.DataManager.getInstance()

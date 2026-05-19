@@ -1,6 +1,6 @@
 # sample-play1-app
 
-A minimal Play Framework 1.x sample application used for testing the Play 1 Toolkit plugin.
+A minimal Play Framework 1.x sample application used for testing the Play v1 Toolkit plugin.
 
 Based on the `yabe` (Yet Another Blog Engine) example from the official Play Framework 1 repository.
 

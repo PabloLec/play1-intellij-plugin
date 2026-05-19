@@ -378,7 +378,7 @@ object Play1CliRunner {
     private fun unsupportedDepsPlan(request: Play1CliRequest, projectVersion: String?) = Play1CliCommandPlan(
         request = request,
         available = false,
-        message = "play deps requires Play 1.2+ (project: ${projectVersion ?: "unknown"}). Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution.",
+        message = "play deps requires Play 1.2+ (project: ${projectVersion ?: "unknown"}). Configure a Play 1.2+ home in Settings > Play v1 Toolkit > Dependency Resolution.",
         reason = Play1CliResultReason.UNSUPPORTED_PLAY_VERSION,
     )
 

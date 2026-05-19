@@ -22,7 +22,7 @@ class Play1WarCommandDialog(project: Project) : DialogWrapper(project) {
         get() = zipCheckbox.isSelected
 
     init {
-        title = "Build Play 1 WAR"
+        title = "Build Play v1 WAR"
         val basePath = project.basePath.orEmpty()
         if (basePath.isNotBlank()) {
             val projectDir = Paths.get(basePath)

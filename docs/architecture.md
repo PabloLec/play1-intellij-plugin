@@ -1,4 +1,4 @@
-# Architecture — Play 1 Toolkit
+# Architecture — Play v1 Toolkit
 
 > Ce document décrit l'architecture retenue pour le plugin. Il doit évoluer à mesure que le projet avance.
 > Les décisions structurantes sont détaillées dans `docs/adr/`.
@@ -66,7 +66,7 @@ com.github.pablolec.play1toolkit/
 ├── services/                  Services projet IntelliJ (état, index)
 │   └── Play1ProjectService.kt     Project Service — état et index Play 1
 │
-├── toolwindow/                Tool Window "Play 1"
+├── toolwindow/                Tool Window "Play v1 Toolkit"
 │   ├── Play1ToolWindowFactory.kt
 │   ├── ProjectStatusPanel.kt
 │   ├── RoutesTreePanel.kt
@@ -128,7 +128,7 @@ Les scans de JARs et les modifications de projet (library attachment) s'exécute
 | `LibraryTable` / `ModifiableRootModel` | Attacher JARs |
 | `ModuleRootManager` | Configurer source roots |
 | `RunConfigurationFactory` | Créer run configuration |
-| `ToolWindowFactory` | Tool Window Play 1 |
+| `ToolWindowFactory` | Tool Window Play v1 Toolkit |
 | `LocalInspectionTool` | Inspections |
 | `CompletionContributor` | Complétion dans conf/routes |
 | `FileType` + `SyntaxHighlighter` | Support conf/routes |
@@ -141,7 +141,7 @@ Voir `docs/intellij-platform-notes.md` pour plus de détails.
 ## Flux principal : Repair Project Setup
 
 ```
-User: Tools > Play 1 > Repair Project Setup
+User: Tools > Play v1 Toolkit > Repair Project Setup
   │
   ▼
 RepairProjectSetupAction.actionPerformed()
@@ -162,7 +162,7 @@ RepairProjectSetupAction.actionPerformed()
   │    └─ conf/ → RESOURCE
   │
   ├─ Play1RunConfigManager.createRunConfiguration(project)
-  │    └─ "Play 1 App" (play.server.Server + classpath)
+  │    └─ "Play v1 App" (play.server.Server + classpath)
   │
   ├─ Play1ProjectService.getInstance(project).refresh()
   │

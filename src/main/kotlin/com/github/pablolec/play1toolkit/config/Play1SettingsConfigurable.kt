@@ -7,7 +7,7 @@ class Play1SettingsConfigurable : Configurable {
 
     private var panel: Play1SettingsPanel? = null
 
-    override fun getDisplayName(): String = "Play 1 Toolkit"
+    override fun getDisplayName(): String = "Play v1 Toolkit"
 
     override fun createComponent(): JComponent {
         panel = Play1SettingsPanel()

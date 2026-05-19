@@ -1,4 +1,4 @@
-# Runlog — Play 1 Toolkit
+# Runlog — Play v1 Toolkit
 
 > Journal chronologique d'exécution. Toute personne (développeur ou agent IA) reprenant
 > ce projet doit pouvoir lire ce fichier et comprendre ce qui a été fait, pourquoi,
@@ -131,7 +131,7 @@ Reprise après bilan qualité des Lots 0–6. Tous les composants existants vali
 - `RoutesAnnotator.kt` — Underline rouge si controller/action non trouvé (skips `{ctrl}` dynamiques)
 - `RoutesLexerTest.kt` — 17 tests unitaires couvrant GET/POST/*/staticDir/module/params/multi-lignes/fichier réaliste
 
-**Tool Window Play 1 (Lot 8) :**
+**Tool Window Play v1 Toolkit (Lot 8) :**
 - `Play1ToolWindowFactory.kt` — 3 onglets, boutons Repair/Refresh, implémente DumbAware
 - `ProjectStatusPanel.kt` — Play détecté, Play Home, version extraite, run config présente
 - `RoutesTreePanel.kt` — Lit PSI routes via PsiManager, affiche METHOD → Controller.action dans JTree
@@ -154,7 +154,7 @@ Reprise après bilan qualité des Lots 0–6. Tous les composants existants vali
 - Tests platform (`RepairProjectSetupActionTest`, `RoutesNavigationTest`, `Play1SettingsTest`) reportés post-MVP : nécessitent une infrastructure IDE lourde, valeur marginale par rapport à l'effort
 
 ### État final du projet
-**Tous les lots 0–9 sont DONE. Le MVP Play 1 Toolkit est complet.**
+**Tous les lots 0–9 sont DONE. Le MVP Play v1 Toolkit est complet.**
 - 46 tests unitaires passent
 - `./gradlew buildPlugin` → BUILD SUCCESSFUL
 - Custom Language routes : coloration, navigation Ctrl+Click, completion, annotateur

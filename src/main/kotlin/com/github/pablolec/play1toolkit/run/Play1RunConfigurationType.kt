@@ -9,7 +9,7 @@ class Play1RunConfigurationType : ConfigurationType {
 
     private val factory = Play1ApplicationConfigurationFactory(this)
 
-    override fun getDisplayName(): String = "Play 1 Application"
+    override fun getDisplayName(): String = "Play v1 Application"
     override fun getConfigurationTypeDescription(): String = "Run a Play Framework 1.x application"
     override fun getIcon(): Icon = AllIcons.RunConfigurations.Application
     override fun getId(): String = "PLAY1_APPLICATION"

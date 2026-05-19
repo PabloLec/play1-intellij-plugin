@@ -10,5 +10,5 @@ class Play1ApplicationConfigurationFactory(type: ConfigurationType) : Configurat
     override fun getId(): String = "Play1Application"
 
     override fun createTemplateConfiguration(project: Project): RunConfiguration =
-        Play1ApplicationRunConfiguration(project, this, "Play 1 App")
+        Play1ApplicationRunConfiguration(project, this, "Play v1 App")
 }

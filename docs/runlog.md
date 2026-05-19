@@ -45,7 +45,69 @@ Premier démarrage du projet. Le repository ne contenait que `expression-de-beso
 - `docs/adr/` — 5 ADRs initiaux
 
 ### Prochaine étape
-Lot 1 : Bootstrap du projet Gradle/Kotlin avec IntelliJ Platform Gradle Plugin 2.x.
+Lot 7 : Support conf/routes (Custom Language, Lexer, Highlighter, Navigation).
+
+---
+
+## 2026-05-19 — Lots 1–6 : Bootstrap complet + MVP fonctionnel
+
+### Contexte
+Tous les lots 1 à 6 ont été réalisés en une seule session. Le MVP core est implémenté.
+
+### Actions réalisées
+
+**Bootstrap projet (Lot 1) :**
+- Gradle 8.8 + IntelliJ Platform Gradle Plugin 2.1.0 (cible IntelliJ IU 2024.1)
+- `build.gradle.kts` avec `libs.versions.toml`
+- CI GitHub Actions `.github/workflows/build.yml`
+- `./gradlew buildPlugin` → BUILD SUCCESSFUL
+- `./gradlew test` → 16 tests passent
+
+**Détection Play 1 (Lot 2) :**
+- `Play1ProjectDetector.kt` — logique pure (path-based, pas d'API IntelliJ)
+- `Play1ProjectService.kt` — Project Service IntelliJ
+- `Play1StartupActivity.kt` — notification à l'ouverture du projet
+
+**Settings Play Home (Lot 3) :**
+- `Play1Settings.kt` — PersistentStateComponent application-level
+- `Play1SettingsConfigurable.kt` + `Play1SettingsPanel.kt` — UI Kotlin DSL
+- `Play1HomeDetector.kt` — auto-detect via PLAY_HOME, chemins courants, `which play`
+- `Play1HomeValidator.kt` — validation par scan du JAR et présence de Controller.class
+
+**Repair Project Setup (Lot 4) :**
+- `RepairProjectSetupAction.kt` — AnAction avec ProgressIndicator background
+- `Play1LibraryManager.kt` — création library "Play 1 Framework" via LibraryTable + ModifiableRootModel
+- `Play1SourceRootManager.kt` — configuration app/ (SOURCE), test/ (TEST_SOURCE), conf/ (RESOURCE)
+- `Play1RunConfigManager.kt` — création run config via ConfigurationTypeUtil
+- `RepairReport.kt` — modèle rapport typé (OK/ERROR/SKIPPED)
+
+**Run/Debug (Lot 5) :**
+- `Play1RunConfigurationType.kt` + Factory + Configuration + Editor + RunState
+- Lancement via `play.server.Server` avec `-Dapplication.path`, `-Dplay.id`
+- Debug via injection JDWP automatique
+
+**Sample app + fixtures (Lot 6) :**
+- `sample-play1-app/` — copie adaptée de `yabe` (controllers, models, views, conf)
+- `src/test/resources/stubs/play-stub.jar` — JAR minimal avec play.Play, play.mvc.Controller, play.server.Server
+
+### Tests
+- 16 tests unitaires passent
+- `Play1ProjectDetectorTest` : 6 cas (standard, 2 critères, 1 critère, vide, Spring Boot, companion)
+- `Play1HomeValidatorTest` : 5 cas (inexistant, sans framework/, sans JAR, avec stub 1.0.0, version 1.2.7)
+- `RepairReportTest` : 5 cas (OK, erreur, texte, statut ERRORS, skipped)
+
+### Problèmes rencontrés et résolus
+1. `Play1SettingsPanel.kt` — erreur DSL Kotlin UI (`.component` private dans DialogPanel) → résolu en utilisant des champs séparés (`TextFieldWithBrowseButton`, `JBTextField`) dans un `panel { }` sans appel `.component`
+2. `Play1RunConfigurationType` — ne peut pas utiliser `service()` (c'est un `ConfigurationType` pas un Service) → résolu en utilisant `ConfigurationTypeUtil.findConfigurationType()`
+3. `ProjectActivity` dans `plugin.xml` — la registration via `<projectListeners topic="...">` est incorrecte → résolu avec `<postStartupActivity implementation="..."/>`
+
+### Décisions prises
+- La page Settings utilise le Kotlin UI DSL avec des composants Swing pré-instanciés (meilleure compatibilité)
+- `RepairReport.toText()` retourne une chaîne formatée (dialog simple) — pas de fenêtre dédiée dans le MVP
+- Le run configuration Editor est intentionnellement simple (extension future possible)
+
+### Prochaine étape
+Lot 7 : Support `conf/routes` — Custom Language (RoutesLanguage, RoutesFileType, Lexer, SyntaxHighlighter, CompletionContributor, NavigationContributor).
 
 ---
 

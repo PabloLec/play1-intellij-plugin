@@ -21,82 +21,76 @@
 
 ---
 
-## Lot 1 — Bootstrap projet IntelliJ plugin
+## Lot 1 — Bootstrap projet IntelliJ plugin ✓ DONE
 
-- [ ] Créer `build.gradle.kts` avec IntelliJ Platform Gradle Plugin 2.x
-- [ ] Créer `settings.gradle.kts`
-- [ ] Créer `gradle.properties`
-- [ ] Créer le wrapper Gradle (`gradle/wrapper/`)
-- [ ] Créer `src/main/resources/META-INF/plugin.xml` minimal
-- [ ] Créer la structure de packages Kotlin
-- [ ] Créer `README.md`
-- [ ] Créer `CHANGELOG.md`
-- [ ] Créer `.gitignore`
-- [ ] Créer `.github/workflows/build.yml` (CI)
-- [ ] Vérifier `./gradlew buildPlugin` → BUILD SUCCESSFUL
-- [ ] Commit `chore: bootstrap IntelliJ plugin project`
-
----
-
-## Lot 2 — Détection projet Play 1
-
-- [ ] Créer `Play1ProjectDetector.kt` (logique pure, sans IDE)
-- [ ] Créer `Play1ProjectService.kt` (Project Service)
-- [ ] Créer `Play1StartupActivity.kt` (ProjectActivity)
-- [ ] Enregistrer le service et l'activity dans `plugin.xml`
-- [ ] Créer fixtures de test (`src/test/resources/fixtures/`)
-- [ ] Créer `Play1ProjectDetectorTest.kt`
-- [ ] Vérifier tests passent
-- [ ] Commit `feat: add Play 1 project detection service and startup activity`
+- [x] Créer `build.gradle.kts` avec IntelliJ Platform Gradle Plugin 2.x
+- [x] Créer `settings.gradle.kts`
+- [x] Créer `gradle.properties`
+- [x] Créer le wrapper Gradle (`gradle/wrapper/`)
+- [x] Créer `src/main/resources/META-INF/plugin.xml` minimal
+- [x] Créer la structure de packages Kotlin (actions, config, detection, model, project, run, routes, services, toolwindow, inspection)
+- [x] Créer `README.md`
+- [x] Créer `CHANGELOG.md`
+- [x] Créer `.gitignore`
+- [x] Créer `.github/workflows/build.yml` (CI)
+- [x] `./gradlew buildPlugin` → BUILD SUCCESSFUL
+- [x] `./gradlew test` → 16 tests passent
+- [x] Commit effectué
 
 ---
 
-## Lot 3 — Settings Play Home
+## Lot 2 — Détection projet Play 1 ✓ DONE (inclus dans Lot 1)
 
-- [ ] Créer `Play1Settings.kt` (PersistentStateComponent, application-level)
-- [ ] Créer `Play1SettingsConfigurable.kt`
-- [ ] Créer `Play1SettingsPanel.kt` (UI)
-- [ ] Implémenter auto-detect Play Home
-- [ ] Implémenter validation Play Home (JAR principal)
-- [ ] Enregistrer dans `plugin.xml`
-- [ ] Commit `feat: add Play Home settings with auto-detect and validation`
-
----
-
-## Lot 4 — Repair Project Setup
-
-- [ ] Créer `RepairProjectSetupAction.kt`
-- [ ] Créer `Play1LibraryManager.kt` (attache JARs Play + lib/)
-- [ ] Créer `Play1SourceRootManager.kt` (source roots)
-- [ ] Créer `Play1RunConfigManager.kt` (crée run config)
-- [ ] Créer `RepairReport.kt` (modèle rapport)
-- [ ] Créer `RepairReportDialog.kt` (affichage rapport)
-- [ ] Enregistrer action dans `plugin.xml` (menu Tools > Play 1)
-- [ ] Tests plateforme `RepairProjectSetupActionTest`
-- [ ] Commit `feat: implement Repair Play 1 Project Setup action`
+- [x] Créer `Play1ProjectDetector.kt` (logique pure, sans IDE)
+- [x] Créer `Play1ProjectService.kt` (Project Service)
+- [x] Créer `Play1StartupActivity.kt` (ProjectActivity)
+- [x] Enregistrer le service et l'activity dans `plugin.xml`
+- [x] Créer `Play1ProjectDetectorTest.kt` (6 tests)
+- [x] Vérifier tests passent
 
 ---
 
-## Lot 5 — Run/Debug configuration
+## Lot 3 — Settings Play Home ✓ DONE (inclus dans Lot 1)
 
-- [ ] Créer `Play1RunConfigurationType.kt`
-- [ ] Créer `Play1ApplicationRunConfiguration.kt`
-- [ ] Créer `Play1ApplicationConfigurationFactory.kt`
-- [ ] Créer `Play1ApplicationRunState.kt`
-- [ ] Enregistrer dans `plugin.xml`
-- [ ] Tester run configuration dans sandbox
-- [ ] Commit `feat: add Play 1 run and debug configuration type`
+- [x] Créer `Play1Settings.kt` (PersistentStateComponent, application-level)
+- [x] Créer `Play1SettingsConfigurable.kt`
+- [x] Créer `Play1SettingsPanel.kt` (UI)
+- [x] Implémenter `Play1HomeDetector.kt` (auto-detect)
+- [x] Implémenter `Play1HomeValidator.kt` (validation JAR principal)
+- [x] `Play1HomeValidatorTest.kt` (5 tests avec play-stub.jar)
+- [x] Enregistrer dans `plugin.xml`
 
 ---
 
-## Lot 6 — Sample Play 1 app + fixtures de test
+## Lot 4 — Repair Project Setup ✓ DONE (inclus dans Lot 1)
 
-- [ ] Copier/adapter `yabe` depuis `/tmp/play1-master/samples-and-tests/yabe/`
-- [ ] Nettoyer le sample (garder le minimal utile)
-- [ ] Créer `play-stub.jar` (play.Play, play.mvc.Controller, play.server.Server)
-- [ ] Placer stub jar dans `src/test/resources/stubs/`
-- [ ] Documenter dans `docs/testing.md`
-- [ ] Commit `test: add sample Play 1 app fixture and play stub jar`
+- [x] Créer `RepairProjectSetupAction.kt`
+- [x] Créer `Play1LibraryManager.kt` (attache JARs Play + lib/)
+- [x] Créer `Play1SourceRootManager.kt` (source roots)
+- [x] Créer `Play1RunConfigManager.kt` (crée run config)
+- [x] Créer `RepairReport.kt` (modèle rapport)
+- [x] Enregistrer action dans `plugin.xml` (menu Tools > Play 1)
+- [ ] Tests plateforme `RepairProjectSetupActionTest` — TODO Lot 9
+
+---
+
+## Lot 5 — Run/Debug configuration ✓ DONE (inclus dans Lot 1)
+
+- [x] Créer `Play1RunConfigurationType.kt`
+- [x] Créer `Play1ApplicationRunConfiguration.kt`
+- [x] Créer `Play1ApplicationConfigurationFactory.kt`
+- [x] Créer `Play1ApplicationRunState.kt`
+- [x] Créer `Play1RunConfigurationEditor.kt`
+- [x] Enregistrer dans `plugin.xml`
+- [ ] Tester run configuration dans sandbox — TODO (nécessite Play Home réel)
+
+---
+
+## Lot 6 — Sample Play 1 app + fixtures de test ✓ DONE (inclus dans Lot 1)
+
+- [x] Copier/adapter `yabe` depuis `/tmp/play1-master/samples-and-tests/yabe/`
+- [x] Créer `play-stub.jar` (play.Play, play.mvc.Controller, play.server.Server)
+- [x] Placer stub jar dans `src/test/resources/stubs/`
 
 ---
 

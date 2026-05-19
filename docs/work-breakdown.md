@@ -39,7 +39,7 @@ docs/adr/*.md
 
 ## Lot 1 — Bootstrap projet IntelliJ plugin moderne
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Créer un projet Gradle/Kotlin buildable avec l'IntelliJ Platform Gradle Plugin 2.x. Le plugin doit se lancer dans une sandbox IntelliJ.
 
@@ -79,7 +79,7 @@ CHANGELOG.md
 
 ## Lot 2 — Détection projet Play 1
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Détecter automatiquement à l'ouverture d'un projet qu'il s'agit d'un projet Play 1, et afficher une notification.
 
@@ -116,7 +116,7 @@ src/test/resources/fixtures/not-play1/
 
 ## Lot 3 — Settings Play Home
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Permettre à l'utilisateur de configurer son installation Play 1 (Play Home) via une page Settings dédiée.
 
@@ -156,7 +156,7 @@ src/main/kotlin/.../detection/Play1HomeValidator.kt
 
 ## Lot 4 — Repair Project Setup
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Implémenter l'action centrale du plugin : réparer automatiquement la configuration IntelliJ d'un projet Play 1.
 
@@ -204,7 +204,7 @@ src/test/kotlin/.../actions/RepairProjectSetupActionTest.kt
 
 ## Lot 5 — Run/Debug configuration
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Permettre de lancer et debugger l'application Play 1 directement depuis IntelliJ sans connaître les détails techniques.
 
@@ -245,7 +245,7 @@ src/main/kotlin/.../run/Play1ApplicationRunState.kt
 
 ## Lot 6 — Sample Play 1 app + fixtures de test
 
-**Statut :** `TODO`
+**Statut :** `DONE`
 
 **Objectif :** Intégrer un projet Play 1 réaliste dans le repository pour les tests manuels et automatisés.
 

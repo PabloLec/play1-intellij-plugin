@@ -40,10 +40,9 @@ private object ActionNameReferenceProvider : PsiReferenceProvider() {
 class ControllerNameReference(element: PsiElement) :
     PsiReferenceBase<PsiElement>(element, TextRange(0, element.textLength)) {
 
-    override fun resolve(): PsiElement? {
-        val name = element.text.trim()
-        return RoutesControllerResolver.resolveClass(element.project, name)
-    }
+    // Navigation is handled by RoutesGotoDeclarationHandler; returning null here prevents
+    // double-counting usages alongside RoutesReferencesSearcher.
+    override fun resolve(): PsiElement? = null
 
     override fun getVariants(): Array<Any> {
         val project = element.project

@@ -63,6 +63,9 @@
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesCompletionContributor"
                 order="first"/>
 
+        <psi.referenceContributor language="Routes"
+                implementation="com.github.pablolec.play1toolkit.routes.RoutesReferenceContributor"/>
+
         <annotator language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesAnnotator"/>
 
@@ -90,9 +93,6 @@
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1RoutesLineMarkerProvider"/>
-
-        <!-- Route references count as Java usages -->
-        <referencesSearch implementation="com.github.pablolec.play1toolkit.routes.RoutesReferencesSearcher"/>
 
         <!-- Suppresses "unused" warning on public static Controller actions routed in conf/routes -->
         <implicitUsageProvider implementation="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerImplicitUsageProvider"/>

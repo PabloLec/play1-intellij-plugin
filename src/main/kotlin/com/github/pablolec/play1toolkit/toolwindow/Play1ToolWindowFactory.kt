@@ -57,12 +57,13 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
                 val action = RepairProjectSetupAction()
                 val dataContext = com.intellij.ide.DataManager.getInstance()
                     .getDataContext(e.source as? java.awt.Component)
+                @Suppress("DEPRECATION")
                 val event = AnActionEvent.createFromDataContext(
                     ActionPlaces.TOOLWINDOW_TOOLBAR_BAR,
                     null,
                     dataContext
                 )
-                ActionUtil.performActionDumbAwareWithCallbacks(action, event)
+                ActionUtil.performAction(action, event)
             }
         }
 

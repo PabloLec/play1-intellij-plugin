@@ -1,6 +1,6 @@
 [versions]
-kotlin = "1.9.24"
-intellijPlatform = "2.1.0"
+kotlin = "2.3.21"
+intellijPlatform = "2.16.0"
 junit = "4.13.2"
 
 [libraries]

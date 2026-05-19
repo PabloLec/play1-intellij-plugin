@@ -10,7 +10,7 @@ group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(21)
 }
 
 repositories {
@@ -29,7 +29,6 @@ dependencies {
         bundledPlugin("com.intellij.java")
         pluginVerifier()
         zipSigner()
-        instrumentationTools()
         testFramework(TestFrameworkType.Platform)
     }
 }
@@ -63,6 +62,6 @@ intellijPlatform {
 
 tasks {
     wrapper {
-        gradleVersion = providers.gradleProperty("gradleVersion").orElse("8.8").get()
+        gradleVersion = providers.gradleProperty("gradleVersion").orElse("9.5.1").get()
     }
 }

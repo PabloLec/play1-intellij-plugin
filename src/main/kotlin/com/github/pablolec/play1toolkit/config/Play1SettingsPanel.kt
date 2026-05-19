@@ -29,8 +29,9 @@ class Play1SettingsPanel {
                     .resizableColumn()
                     .also {
                         playHomeField.addBrowseFolderListener(
-                            "Select Play Home Directory", null, null,
+                            null,
                             FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                                .apply { title = "Select Play Home Directory" }
                         )
                     }
                 button("Auto-detect") {

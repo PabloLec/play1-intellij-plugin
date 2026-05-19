@@ -146,7 +146,7 @@ class RoutesLexer : LexerBase() {
 
         val rest = buffer.substring(tokenStart, bufferEnd)
         return when {
-            rest.startsWith("staticDir:") -> {
+            rest.startsWith("staticDir:") || rest.startsWith("staticFile:") -> {
                 scanToEndOfLine()
                 state = STATE_LINE_START
                 RoutesTokenTypes.STATIC_REF
@@ -157,15 +157,16 @@ class RoutesLexer : LexerBase() {
                 RoutesTokenTypes.MODULE_REF
             }
             else -> {
-                // Scan until '.' or whitespace/newline → CONTROLLER_NAME
-                tokenEnd = tokenStart
-                while (tokenEnd < bufferEnd &&
-                    buffer[tokenEnd] != '.' &&
-                    !isWhitespace(buffer[tokenEnd]) &&
-                    buffer[tokenEnd] != '\n'
-                ) {
-                    tokenEnd++
+                // Scan the full "pkg.Class.action" token then split on the LAST dot.
+                // e.g., "login.LoginCtl.doSomething" → CONTROLLER_NAME="login.LoginCtl"
+                //        "Application.index"          → CONTROLLER_NAME="Application"
+                var lineEnd = tokenStart
+                while (lineEnd < bufferEnd && !isWhitespace(buffer[lineEnd]) && buffer[lineEnd] != '\n') {
+                    lineEnd++
                 }
+                val actionStr = buffer.substring(tokenStart, lineEnd)
+                val lastDot = actionStr.lastIndexOf('.')
+                tokenEnd = if (lastDot >= 0) tokenStart + lastDot else lineEnd
                 state = STATE_IN_CONTROLLER
                 RoutesTokenTypes.CONTROLLER_NAME
             }

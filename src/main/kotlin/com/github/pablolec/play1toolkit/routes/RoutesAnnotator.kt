@@ -5,6 +5,7 @@ import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiShortNamesCache
@@ -19,10 +20,9 @@ class RoutesAnnotator : Annotator {
 
     private fun annotateController(element: PsiElement, holder: AnnotationHolder) {
         val name = element.text.trim()
-        // Skip dynamic route placeholders like {controller}
         if (name.isEmpty() || name.contains('{')) return
 
-        if (!findClass(element, name)) {
+        if (resolveClass(element.project, name) == null) {
             holder.newAnnotation(HighlightSeverity.ERROR, "Controller not found: $name")
                 .range(element)
                 .create()
@@ -31,31 +31,34 @@ class RoutesAnnotator : Annotator {
 
     private fun annotateAction(element: PsiElement, holder: AnnotationHolder) {
         val actionName = element.text.trim()
-        if (actionName.isEmpty()) return
+        if (actionName.isEmpty() || actionName.contains('.')) return
         val routeElement = element.parent as? RoutesRouteElement ?: return
         val controllerName = routeElement.getControllerName()?.text?.trim() ?: return
         if (controllerName.contains('{')) return
 
-        val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
-        val psiFacade = JavaPsiFacade.getInstance(project)
+        val psiClass = resolveClass(element.project, controllerName) ?: return
 
-        val psiClass = psiFacade.findClass(controllerName, scope)
-            ?: PsiShortNamesCache.getInstance(project).getClassesByName(controllerName, scope).firstOrNull()
-            ?: return // Controller annotation handles the missing controller case
-
-        if (psiClass.findMethodsByName(actionName, true).isEmpty()) {
+        if (psiClass.findMethodsByName(actionName, false).isEmpty()) {
             holder.newAnnotation(HighlightSeverity.ERROR, "Action not found: $controllerName.$actionName")
                 .range(element)
                 .create()
         }
     }
 
-    private fun findClass(element: PsiElement, name: String): Boolean {
-        val project = element.project
-        val scope = GlobalSearchScope.projectScope(project)
+    /**
+     * Resolves a Play controller name to a PsiClass.
+     * Tries (in order):
+     *   1. Exact FQN match
+     *   2. "controllers." prefix (Play convention — controllers.Application, controllers.login.LoginCtl)
+     *   3. Short class name via PsiShortNamesCache (last component after the last dot)
+     */
+    private fun resolveClass(project: com.intellij.openapi.project.Project, name: String): PsiClass? {
+        val scope = GlobalSearchScope.allScope(project)
         val psiFacade = JavaPsiFacade.getInstance(project)
-        return psiFacade.findClass(name, scope) != null
-            || PsiShortNamesCache.getInstance(project).getClassesByName(name, scope).isNotEmpty()
+        val shortName = name.substringAfterLast('.')
+
+        return psiFacade.findClass(name, scope)
+            ?: psiFacade.findClass("controllers.$name", scope)
+            ?: PsiShortNamesCache.getInstance(project).getClassesByName(shortName, scope).firstOrNull()
     }
 }

@@ -163,6 +163,53 @@ class RoutesLexerTest {
         assertEquals(2, methods.size)
     }
 
+    // ── Sub-package controllers ────────────────────────────────────────────────
+
+    @Test
+    fun `sub-package controller splits on last dot — controller name`() {
+        val tokens = tokenize("POST /login login.LoginCtl.doLogin\n")
+        val ctrl = tokens.first { it.first == "RoutesTokenType.CONTROLLER_NAME" }
+        assertEquals("login.LoginCtl", ctrl.second)
+    }
+
+    @Test
+    fun `sub-package controller splits on last dot — action name`() {
+        val tokens = tokenize("POST /login login.LoginCtl.doLogin\n")
+        val action = tokens.first { it.first == "RoutesTokenType.ACTION_NAME" }
+        assertEquals("doLogin", action.second)
+    }
+
+    @Test
+    fun `three-segment controller route tokenizes without BAD_CHARACTER`() {
+        val types = tokenTypes("GET /medical medical.MedicalCtl.getById\n")
+        assertTrue(types.none { it == "RoutesTokenType.BAD_CHARACTER" })
+        assertTrue(types.contains("RoutesTokenType.CONTROLLER_NAME"))
+        assertTrue(types.contains("RoutesTokenType.ACTION_NAME"))
+    }
+
+    // ── staticFile ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `staticFile route produces STATIC_REF token`() {
+        val tokens = tokenize("GET /favicon.ico staticFile:public/images/favicon.ico\n")
+        assertTrue(tokens.any { it.first == "RoutesTokenType.STATIC_REF" })
+        val ref = tokens.first { it.first == "RoutesTokenType.STATIC_REF" }
+        assertTrue(ref.second.startsWith("staticFile:"))
+    }
+
+    @Test
+    fun `staticFile route produces no BAD_CHARACTER tokens`() {
+        val types = tokenTypes("GET /favicon.ico staticFile:public/images/favicon.ico\n")
+        assertTrue(types.none { it == "RoutesTokenType.BAD_CHARACTER" })
+    }
+
+    @Test
+    fun `staticFile route produces no CONTROLLER_NAME or ACTION_NAME tokens`() {
+        val types = tokenTypes("GET /favicon.ico staticFile:public/images/favicon.ico\n")
+        assertFalse(types.contains("RoutesTokenType.CONTROLLER_NAME"))
+        assertFalse(types.contains("RoutesTokenType.ACTION_NAME"))
+    }
+
     // ── Realistic sample ───────────────────────────────────────────────────────
 
     @Test
@@ -180,5 +227,18 @@ class RoutesLexerTest {
         assertTrue(tokens.none { it.first == "RoutesTokenType.BAD_CHARACTER" })
         val methods = tokens.filter { it.first == "RoutesTokenType.HTTP_METHOD" }
         assertEquals(6, methods.size)
+    }
+
+    @Test
+    fun `realistic routes with sub-packages and staticFile tokenize without errors`() {
+        val input = """
+            GET     /favicon.ico                        staticFile:public/images/favicon.ico
+            POST    /clearSession                       login.LoginCtl.clearAccountSession
+            GET     /login/dialog                       login.MachineLoginCtl.passwordLostDialog
+            GET     /medical/event/{id}                 medical.MedicalEventCtl.getById
+            GET     /clients/{id}                       ClientCtl.getCompactById
+        """.trimIndent() + "\n"
+        val tokens = tokenize(input)
+        assertTrue(tokens.none { it.first == "RoutesTokenType.BAD_CHARACTER" })
     }
 }

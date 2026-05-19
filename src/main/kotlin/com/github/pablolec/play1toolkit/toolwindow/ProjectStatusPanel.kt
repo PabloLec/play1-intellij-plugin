@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.project.Play1CliCommandId
 import com.github.pablolec.play1toolkit.project.Play1CliRequest
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
 import com.github.pablolec.play1toolkit.run.Play1RunConfigurationType
+import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
@@ -39,13 +40,13 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val lastCommandLabel = JBLabel("Last command: —")
     private val configureButton = JButton("Configure Play Home…")
     private val repairButton = JButton("Repair Project Setup")
+    private val stopCommandButton = JButton("Stop Command")
     private val runAppButton = JButton("Run App")
     private val debugAppButton = JButton("Debug App")
     private val runStatusLabel = JBLabel()
     private val debugStatusLabel = JBLabel()
     private val commandButtons = linkedMapOf<Play1CliCommandId, JButton>()
     private val commandStatusLabels = linkedMapOf<Play1CliCommandId, JBLabel>()
-    private var commandRunning = false
 
     init {
         border = JBUI.Borders.empty(6)
@@ -55,6 +56,10 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
         repairButton.addActionListener {
             RepairProjectSetupAction.runRepair(project, silent = false)
+        }
+        stopCommandButton.addActionListener {
+            Play1CliActionSupport.stopCurrent(project)
+            refresh()
         }
         runAppButton.addActionListener { launchRunConfiguration(debug = false) }
         debugAppButton.addActionListener { launchRunConfiguration(debug = true) }
@@ -69,6 +74,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         playDetectedLabel.text = if (isPlay1) "✓  Play 1 project detected" else "✗  Not a Play 1 project"
 
         val settings = Play1Settings.getInstance()
+        val executionService = Play1CommandExecutionService.getInstance(project)
         val playHome = settings.playHome
         val validation = if (playHome.isBlank()) null else Play1HomeValidator.validate(Paths.get(playHome))
 
@@ -112,9 +118,11 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             else -> "Dependencies: use project Play Home"
         }
 
+        val commandRunning = executionService.isRunning
         val canLaunch = isPlay1 && !commandRunning
         runAppButton.isEnabled = canLaunch
         debugAppButton.isEnabled = canLaunch
+        stopCommandButton.isEnabled = commandRunning
         runStatusLabel.text = if (playConfig != null) "Launch the IntelliJ run configuration" else "Run configuration missing — click to repair"
         debugStatusLabel.text = if (playConfig != null) "Launch the IntelliJ debug configuration" else "Run configuration missing — click to repair"
 
@@ -153,7 +161,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
 
         content.add(section("Project", playDetectedLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
-        content.add(buttonRow(configureButton, repairButton))
+        content.add(buttonRow(configureButton, repairButton, stopCommandButton))
 
         content.add(commandsSection("Run", listOf(
             Triple(runAppButton, runStatusLabel, "Run App"),
@@ -251,11 +259,9 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             else -> Play1CliRequest(commandId)
         }
 
-        commandRunning = true
         lastCommandLabel.text = "Last command: running ${commandId.displayName}…"
         refresh()
         Play1CliActionSupport.execute(project, request) { result ->
-            commandRunning = false
             lastCommandLabel.text = buildString {
                 append("Last command: ${commandId.displayName} — ")
                 append(if (result.success) "success" else if (result.skipped) "skipped" else "failed")

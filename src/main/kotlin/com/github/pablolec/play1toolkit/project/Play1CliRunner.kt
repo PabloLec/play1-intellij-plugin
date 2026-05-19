@@ -7,6 +7,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 
 object Play1CliRunner {
 
@@ -49,16 +50,27 @@ object Play1CliRunner {
         }
 
         val projectVersion = projectPlayVersion ?: validation.playVersion
-        val effectiveHomeValidation = resolveEffectiveHome(request, playHome, projectVersion, depsPlayHome)
-            ?: return Play1CliCommandPlan(
-                request = request,
-                available = false,
-                message = "play deps requires Play 1.2+ (project: ${projectVersion ?: "unknown"}). Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution.",
-                reason = Play1CliResultReason.UNSUPPORTED_PLAY_VERSION,
-            )
+        val effectiveHomeValidation = resolveEffectiveHomeForPlan(request, playHome, projectVersion, depsPlayHome)
+            ?: return unsupportedDepsPlan(request, projectVersion)
 
         val effectiveHome = effectiveHomeValidation.first
         val effectiveVersion = effectiveHomeValidation.second.playVersion
+        val managedDownloadPending = !effectiveHomeValidation.second.valid
+
+        if (request.commandId == Play1CliCommandId.DEPS && managedDownloadPending) {
+            return Play1CliCommandPlan(
+                request = request,
+                available = true,
+                message = "Ready",
+                effectivePlayHome = effectiveHome,
+                effectivePlayVersion = Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version,
+                commandName = "deps",
+                args = listOf("deps"),
+                runtimeDescription = "Managed Play ${Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version} download on first run",
+                requiredPythonMajor = 2,
+            )
+        }
+
         val capabilities = Play1CliCapabilitiesDetector.detect(Paths.get(effectiveHome))
         val commandName = Play1CliCapabilitiesDetector.resolveCommandName(request.commandId, capabilities.commands, effectiveVersion)
             ?: return Play1CliCommandPlan(
@@ -166,8 +178,29 @@ object Play1CliRunner {
         projectPlayVersion: String? = null,
         indicator: ProgressIndicator? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
+        onProcessStarted: (Process) -> Unit = {},
+        shouldStop: () -> Boolean = { false },
     ): Play1CliResult {
-        val plan = plan(request, projectPath, playHome, projectPlayVersion)
+        val plan = if (request.commandId == Play1CliCommandId.DEPS) {
+            val materialized = materializeDepsHome(playHome, projectPlayVersion, indicator, onLine)
+                ?: return Play1CliResult(
+                    request = request,
+                    success = false,
+                    skipped = true,
+                    message = "could not provision a managed Play 1.2+ home for dependency resolution",
+                    reason = Play1CliResultReason.MANAGED_PLAY_HOME_UNAVAILABLE,
+                    detail = "Failed to download or validate Play ${Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version}",
+                )
+            plan(
+                request = request,
+                projectPath = projectPath,
+                playHome = playHome,
+                projectPlayVersion = projectPlayVersion,
+                depsPlayHome = materialized,
+            )
+        } else {
+            plan(request, projectPath, playHome, projectPlayVersion)
+        }
         if (!plan.available) {
             return Play1CliResult(
                 request = request,
@@ -223,13 +256,47 @@ object Play1CliRunner {
                 detail = ex.message,
             )
         }
+        onProcessStarted(process)
 
-        process.inputStream.bufferedReader().useLines { lines ->
-            lines.forEach { onLine(it, false) }
+        val readerThread = Thread {
+            process.inputStream.bufferedReader().useLines { lines ->
+                lines.forEach { onLine(it, false) }
+            }
+        }.apply {
+            name = "play1-cli-${request.commandId.name.lowercase()}"
+            isDaemon = true
+            start()
+        }
+
+        var cancelled = false
+        while (process.isAlive) {
+            if (shouldStop() || indicator?.isCanceled == true) {
+                cancelled = true
+                process.destroy()
+                process.waitFor(1, TimeUnit.SECONDS)
+                if (process.isAlive) {
+                    process.destroyForcibly()
+                }
+                break
+            }
+            process.waitFor(200, TimeUnit.MILLISECONDS)
         }
 
         val exitCode = process.waitFor()
-        return if (exitCode == 0) {
+        readerThread.join(1000)
+        return if (cancelled) {
+            Play1CliResult(
+                request = request,
+                success = false,
+                skipped = true,
+                message = "${request.commandId.displayName} cancelled",
+                reason = Play1CliResultReason.EXECUTION_CANCELLED,
+                effectivePlayHome = plan.effectivePlayHome,
+                effectivePlayVersion = plan.effectivePlayVersion,
+                runtimeDescription = commandResult.runtimeDescription ?: plan.runtimeDescription,
+                requiredPythonMajor = commandResult.requiredPythonMajor,
+            )
+        } else if (exitCode == 0) {
             Play1CliResult(
                 request = request,
                 success = true,
@@ -267,6 +334,53 @@ object Play1CliRunner {
         if (!validation.valid || !Play1CliCapabilitiesDetector.supportsDepCommand(validation.playVersion)) return null
         return depsPlayHome to validation
     }
+
+    private fun resolveEffectiveHomeForPlan(
+        request: Play1CliRequest,
+        playHome: String,
+        playVersion: String?,
+        depsPlayHome: String,
+    ): Pair<String, Play1HomeValidator.ValidationResult>? {
+        resolveEffectiveHome(request, playHome, playVersion, depsPlayHome)?.let { return it }
+        if (request.commandId != Play1CliCommandId.DEPS || Play1CliCapabilitiesDetector.supportsDepCommand(playVersion)) {
+            return null
+        }
+        val managedPath = Play1VersionDownloader.cacheDir().resolve("play-${Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version}")
+        return managedPath.toString() to Play1HomeValidator.ValidationResult(
+            valid = false,
+            playVersion = Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version,
+            playJar = null,
+            error = "Managed Play home not downloaded yet"
+        )
+    }
+
+    private fun materializeDepsHome(
+        playHome: String,
+        playVersion: String?,
+        indicator: ProgressIndicator?,
+        onLine: (line: String, isError: Boolean) -> Unit,
+    ): String? {
+        val resolved = resolveEffectiveHome(Play1CliRequest(Play1CliCommandId.DEPS), playHome, playVersion, Play1Settings.getInstance().depsPlayHome)
+        if (resolved != null) {
+            return resolved.first
+        }
+        val progress = indicator ?: return null
+        val release = Play1VersionDownloader.RECOMMENDED_FOR_DEPS
+        onLine("~ Project Play ${playVersion ?: "unknown"} does not support dependency resolution.", true)
+        onLine("~ Downloading managed Play ${release.version} for dependency resolution.", false)
+        val path = Play1VersionDownloader.download(release, progress) ?: return null
+        if (Play1Settings.getInstance().depsPlayHome.isBlank()) {
+            Play1Settings.getInstance().depsPlayHome = path.toString()
+        }
+        return path.toString()
+    }
+
+    private fun unsupportedDepsPlan(request: Play1CliRequest, projectVersion: String?) = Play1CliCommandPlan(
+        request = request,
+        available = false,
+        message = "play deps requires Play 1.2+ (project: ${projectVersion ?: "unknown"}). Configure a Play 1.2+ home in Settings > Play 1 Toolkit > Dependency Resolution.",
+        reason = Play1CliResultReason.UNSUPPORTED_PLAY_VERSION,
+    )
 
     private data class CommandBuildResult(
         val command: List<String>?,

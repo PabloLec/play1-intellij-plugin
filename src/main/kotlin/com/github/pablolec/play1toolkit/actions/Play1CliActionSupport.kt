@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.project.Play1CliResult
 import com.github.pablolec.play1toolkit.project.Play1CliResultReason
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
+import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
@@ -30,9 +31,18 @@ object Play1CliActionSupport {
         request: Play1CliRequest,
         onFinished: ((Play1CliResult) -> Unit)? = null,
     ) {
+        val executionService = Play1CommandExecutionService.getInstance(project)
+        if (!executionService.start(request.commandId)) {
+            notifyAlreadyRunning(project, executionService.currentCommandId)
+            return
+        }
         val settings = Play1Settings.getInstance()
         val playHome = settings.playHome
-        val basePath = project.basePath ?: return
+        val basePath = project.basePath
+        if (playHome.isBlank() || basePath == null) {
+            executionService.finish()
+            return
+        }
 
         val console = TextConsoleBuilderFactory.getInstance().createBuilder(project).console
         val title = "Play 1: ${request.commandId.displayName}"
@@ -83,9 +93,8 @@ object Play1CliActionSupport {
                         detail = plan.detail,
                     )
                     finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome)
-                    onFinished?.let { callback ->
-                        ApplicationManager.getApplication().invokeLater { callback(result) }
-                    }
+                    executionService.finish()
+                    onFinished?.let { callback -> ApplicationManager.getApplication().invokeLater { callback(result) } }
                     return
                 }
 
@@ -100,6 +109,8 @@ object Play1CliActionSupport {
                     playHome = playHome,
                     projectPlayVersion = requestedVersion,
                     indicator = indicator,
+                    onProcessStarted = { executionService.attachProcess(it) },
+                    shouldStop = { executionService.stopRequested },
                     onLine = { line, isErr ->
                         ApplicationManager.getApplication().invokeLater {
                             console.print(
@@ -112,11 +123,18 @@ object Play1CliActionSupport {
                 )
 
                 finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome)
-                onFinished?.let { callback ->
-                    ApplicationManager.getApplication().invokeLater { callback(result) }
-                }
+                executionService.finish()
+                onFinished?.let { callback -> ApplicationManager.getApplication().invokeLater { callback(result) } }
+            }
+
+            override fun onCancel() {
+                executionService.requestStop()
             }
         })
+    }
+
+    fun stopCurrent(project: Project) {
+        Play1CommandExecutionService.getInstance(project).requestStop()
     }
 
     private fun finish(
@@ -179,6 +197,10 @@ object Play1CliActionSupport {
                     append("${commandId.displayName} failed — could not provision the managed PyPy 2.7 runtime.")
                     result.detail?.takeIf { it.isNotBlank() }?.let { append(" Cause: $it") }
                 }
+            Play1CliResultReason.MANAGED_PLAY_HOME_UNAVAILABLE ->
+                "Dependency sync failed — could not download or validate the managed Play ${com.github.pablolec.play1toolkit.project.Play1VersionDownloader.RECOMMENDED_FOR_DEPS.version} runtime."
+            Play1CliResultReason.EXECUTION_CANCELLED ->
+                "${commandId.displayName} was stopped."
             else ->
                 "${commandId.displayName} failed — see \"Play 1: ${commandId.displayName}\" console for details."
         }
@@ -193,6 +215,19 @@ object Play1CliActionSupport {
                     })
                 }
             }.notify(project)
+        }
+    }
+
+    private fun notifyAlreadyRunning(project: Project, currentCommandId: Play1CliCommandId?) {
+        ApplicationManager.getApplication().invokeLater {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("Play 1 Toolkit")
+                ?.createNotification(
+                    "Play 1 Toolkit",
+                    "A Play command is already running${currentCommandId?.let { ": ${it.displayName}" } ?: ""}. Stop it before starting another one.",
+                    NotificationType.WARNING
+                )
+                ?.notify(project)
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.github.pablolec.play1toolkit.toolwindow
 
+import com.github.pablolec.play1toolkit.actions.Play1CliActionSupport
+import com.github.pablolec.play1toolkit.actions.Play1SyncDepsAction
 import com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction
+import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
@@ -66,6 +69,22 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
             }
         }
 
+        val syncDepsButton = JButton("⬇ Sync Deps").apply {
+            toolTipText = "Download and attach project dependencies (play deps)"
+            addActionListener {
+                if (Play1Settings.getInstance().playHome.isBlank()) return@addActionListener
+                Play1SyncDepsAction.syncDeps(project)
+            }
+        }
+
+        val stopButton = JButton("■ Stop").apply {
+            toolTipText = "Stop the current Play command"
+            addActionListener {
+                Play1CliActionSupport.stopCurrent(project)
+                ApplicationManager.getApplication().invokeLater { onRefresh() }
+            }
+        }
+
         val refreshButton = JButton("↺ Refresh").apply {
             toolTipText = "Refresh tool window data"
             addActionListener {
@@ -74,6 +93,8 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         }
 
         panel.add(repairButton)
+        panel.add(syncDepsButton)
+        panel.add(stopButton)
         panel.add(refreshButton)
         return panel
     }

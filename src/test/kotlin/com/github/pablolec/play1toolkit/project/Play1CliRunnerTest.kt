@@ -15,7 +15,7 @@ class Play1CliRunnerTest {
     val tempDir = TemporaryFolder()
 
     @Test
-    fun `deps are unavailable for play 1 1 without alternate deps home`() {
+    fun `deps stay available for play 1 1 via managed play download`() {
         val playHome = createPlayHome("project-play", "play.jar", "1.1.1", listOf("clean", "test"))
         val projectDir = createProjectDir(withDependenciesFile = true)
 
@@ -27,8 +27,10 @@ class Play1CliRunnerTest {
             depsPlayHome = "",
         )
 
-        assertFalse(plan.available)
-        assertEquals(Play1CliResultReason.UNSUPPORTED_PLAY_VERSION, plan.reason)
+        assertTrue(plan.available)
+        assertEquals("deps", plan.commandName)
+        assertEquals("1.5.3", plan.effectivePlayVersion)
+        assertTrue(plan.runtimeDescription?.contains("Managed Play 1.5.3") == true)
     }
 
     @Test

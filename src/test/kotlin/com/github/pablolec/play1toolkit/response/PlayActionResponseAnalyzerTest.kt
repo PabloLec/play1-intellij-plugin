@@ -13,6 +13,7 @@ class PlayActionResponseAnalyzerTest : BasePlatformTestCase() {
             """
             package play.mvc;
             public class Controller {
+                public static Http.Response response = new Http.Response();
                 public static void render(Object... args) {}
                 public static void renderTemplate(String template, Object... args) {}
                 public static void renderJSON(Object value) {}
@@ -29,6 +30,26 @@ class PlayActionResponseAnalyzerTest : BasePlatformTestCase() {
                 public static void error() {}
                 public static void notModified() {}
                 public static void todo() {}
+            }
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
+            "app/play/mvc/Http.java",
+            """
+            package play.mvc;
+            public class Http {
+                public static class Response {
+                    public int status;
+                }
+            }
+            """.trimIndent()
+        )
+        myFixture.addFileToProject(
+            "app/play/mvc/results/RenderJson.java",
+            """
+            package play.mvc.results;
+            public class RenderJson extends RuntimeException {
+                public RenderJson(Object value) {}
             }
             """.trimIndent()
         )
@@ -237,6 +258,99 @@ class PlayActionResponseAnalyzerTest : BasePlatformTestCase() {
 
         val info = PlayActionResponseService.getInstance(project).analyze(method)
         assertEquals(PlayResponseKind.TEXT, info.kind)
+    }
+
+    fun `test helper throwing render json stays json`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            import play.mvc.results.RenderJson;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    respond(id);
+                }
+
+                private static void respond(Long id) {
+                    throw new RenderJson(id);
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.JSON, info.kind)
+    }
+
+    fun `test json remains primary with error branches`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            import play.mvc.results.RenderJson;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    if (id == null) {
+                        badRequest();
+                    }
+                    if (id != null && id < 0) {
+                        error(423, "locked");
+                    }
+                    respond(id);
+                }
+
+                private static void respond(Long id) {
+                    throw new RenderJson(id);
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.JSON, info.kind)
+        val tooltip = PlayResponsePresentation.tooltip(info)
+        assertTrue(tooltip.contains("May also return HTTP 400"))
+        assertTrue(tooltip.contains("May also return HTTP 423"))
+    }
+
+    fun `test json keeps success status in tooltip only`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            import play.mvc.results.RenderJson;
+            public class Users extends Controller {
+                public static void create() {
+                    response.status = 201;
+                    throw new RenderJson("ok");
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.JSON, info.kind)
+        val tooltip = PlayResponsePresentation.tooltip(info)
+        assertTrue(tooltip.contains("Nominal HTTP status: 201"))
+        assertFalse(tooltip.contains("May also return HTTP 201"))
+    }
+
+    fun `test status only action falls back to http`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            public class Users extends Controller {
+                public static void ping() {
+                    ok();
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.STATUS, info.kind)
+        assertTrue(PlayResponsePresentation.tooltip(info).contains("Response: HTTP"))
     }
 
     fun `test route inlay uses nested helper outcome`() {

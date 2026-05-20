@@ -15,4 +15,21 @@ data class PlayEndpointResponseInfo(
     val kind: PlayResponseKind,
     val outcomes: List<PlayResponseOutcome>,
     val confidence: PlayResponseConfidence,
-)
+) {
+    val primaryOutcomes: List<PlayResponseOutcome>
+        get() = outcomes.filter { it.kind in PRIMARY_KINDS }
+
+    val statusOutcomes: List<PlayResponseOutcome>
+        get() = outcomes.filter { it.kind == PlayResponseKind.STATUS || it.kind == PlayResponseKind.ERROR }
+
+    companion object {
+        val PRIMARY_KINDS = setOf(
+            PlayResponseKind.HTML,
+            PlayResponseKind.JSON,
+            PlayResponseKind.XML,
+            PlayResponseKind.TEXT,
+            PlayResponseKind.BINARY,
+            PlayResponseKind.REDIRECT,
+        )
+    }
+}

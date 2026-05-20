@@ -22,40 +22,50 @@ object PlayResponsePresentation {
 
         val primary = when (info.kind) {
             PlayResponseKind.MIXED -> {
-                val labels = info.outcomes
+                val labels = info.primaryOutcomes
                     .map { it.kind }
-                    .filter { it !in setOf(PlayResponseKind.STATUS, PlayResponseKind.ERROR, PlayResponseKind.UNKNOWN) }
                     .distinct()
                     .joinToString(" | ") { shortLabel(it) }
                 "Response: Mixed: $labels"
             }
 
             else -> {
-                val first = info.outcomes.firstOrNull { it.kind == info.kind } ?: info.outcomes.first()
+                val first = info.primaryOutcomes.firstOrNull { it.kind == info.kind }
+                    ?: info.statusOutcomes.firstOrNull()
+                    ?: info.outcomes.first()
                 val detail = first.details?.let { ": $it" } ?: ""
                 val via = first.callText?.let { " via $it" } ?: ""
                 "Response: ${shortLabel(info.kind)}$detail$via"
             }
         }
 
-        val secondary = info.outcomes
-            .filter { it.kind != info.kind || info.kind == PlayResponseKind.MIXED }
-            .mapNotNull { outcome ->
-                when (outcome.kind) {
-                    PlayResponseKind.STATUS -> outcome.statusCode?.let { "May also return HTTP $it" }
-                    PlayResponseKind.ERROR -> "May also return HTTP 500"
-                    PlayResponseKind.UNKNOWN -> null
-                    PlayResponseKind.MIXED -> null
-                    else -> if (info.kind == PlayResponseKind.MIXED) {
-                        val via = outcome.callText?.let { " via $it" } ?: ""
-                        "${shortLabel(outcome.kind)}${outcome.details?.let { ": $it" } ?: ""}$via"
-                    } else {
-                        null
-                    }
+        val nominalStatus = if (info.kind == PlayResponseKind.MIXED || info.primaryOutcomes.isEmpty()) {
+            null
+        } else {
+            info.statusOutcomes
+                .mapNotNull { it.statusCode }
+                .firstOrNull { it in 200..399 }
+                ?.let { "Nominal HTTP status: $it" }
+        }
+
+        val mixedPrimaryDetails = if (info.kind != PlayResponseKind.MIXED) {
+            emptyList()
+        } else {
+            info.primaryOutcomes
+                .map { outcome ->
+                    val via = outcome.callText?.let { " via $it" } ?: ""
+                    "${shortLabel(outcome.kind)}${outcome.details?.let { ": $it" } ?: ""}$via"
                 }
+                .distinct()
+        }
+
+        val secondaryStatuses = info.statusOutcomes
+            .mapNotNull { outcome ->
+                val status = outcome.statusCode ?: return@mapNotNull null
+                if (info.primaryOutcomes.isNotEmpty() && status in 200..399) null else "May also return HTTP $status"
             }
             .distinct()
 
-        return (listOf(primary) + secondary).joinToString("\n")
+        return (listOfNotNull(primary, nominalStatus) + mixedPrimaryDetails + secondaryStatuses).joinToString("\n")
     }
 }

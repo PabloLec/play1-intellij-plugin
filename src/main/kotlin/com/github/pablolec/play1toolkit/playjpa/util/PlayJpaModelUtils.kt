@@ -26,6 +26,19 @@ private val JPA_FIELD_ANNOTATIONS = setOf(
     "ManyToOne",
     "ManyToMany"
 )
+private val NON_MODEL_NAME_SUFFIXES = listOf(
+    "DTO",
+    "Dto",
+    "Srv",
+    "Service",
+    "ServiceImpl",
+    "Builder",
+    "Provider",
+    "Factory",
+    "Mock",
+    "Converter",
+    "Mapper"
+)
 private val RELATION_KINDS = mapOf(
     "OneToOne" to PlayJpaRelationKind.ONE_TO_ONE,
     "OneToMany" to PlayJpaRelationKind.ONE_TO_MANY,
@@ -37,6 +50,7 @@ object PlayJpaModelUtils {
 
     fun isPlayJpaModel(psiClass: PsiClass): Boolean {
         if (psiClass.isInterface || psiClass.isAnnotationType || psiClass.isEnum) return false
+        if (psiClass.name?.let(::hasNonModelNameSuffix) == true) return false
         if (extendsPlayModel(psiClass)) return true
         if (hasEntityAnnotation(psiClass)) return true
         if (isUnderAppModels(psiClass) && hasJpaLikeStructure(psiClass)) return true
@@ -165,16 +179,14 @@ object PlayJpaModelUtils {
         }
         if (hasJpaAnnotations) return true
 
-        val hasDeclaredIdField = ownFields.any { field ->
-            field.name == "id" && field.type.presentableText in setOf("Long", "long", "Integer", "int", "String")
-        }
-        if (hasDeclaredIdField) return true
-
         val hasEntityLikeName = psiClass.name?.let { name ->
             name.endsWith("Model") || name.endsWith("Entity")
         } == true
         return hasEntityLikeName && ownFields.any { field -> field.name != "serialVersionUID" }
     }
+
+    private fun hasNonModelNameSuffix(name: String): Boolean =
+        NON_MODEL_NAME_SUFFIXES.any { name.endsWith(it) }
 
     private fun extractRelationTargetType(field: PsiField): String? {
         val typeText = field.type.presentableText

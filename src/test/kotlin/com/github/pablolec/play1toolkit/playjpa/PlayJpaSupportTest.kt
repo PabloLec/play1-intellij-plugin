@@ -140,6 +140,16 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
             """.trimIndent()
         )
         addProjectFile(
+            "app/models/clientPatient/ClientDto.java",
+            """
+            package models.clientPatient;
+
+            public class ClientDto {
+                public Long id;
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
             "app/models/advancedsearch/services/impl/AdvancedSearchQueryBuilderSrv.java",
             """
             package models.advancedsearch.services.impl;
@@ -164,6 +174,7 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
         val service = PlayJpaModelService.getInstance(project)
         val modelNames = service.getAllModels().map { it.className }.toSet()
         assertFalse(modelNames.contains("ActualitesDTO"))
+        assertFalse(modelNames.contains("ClientDto"))
         assertFalse(modelNames.contains("AdvancedSearchQueryBuilderSrv"))
         assertTrue(modelNames.contains("LegacyFallbackModel"))
     }

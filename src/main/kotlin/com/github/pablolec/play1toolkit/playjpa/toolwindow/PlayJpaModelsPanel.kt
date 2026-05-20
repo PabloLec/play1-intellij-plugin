@@ -11,6 +11,7 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiElement
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
@@ -52,9 +53,9 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
                 val path = tree.getPathForLocation(e.x, e.y) ?: return
                 val node = path.lastPathComponent as? DefaultMutableTreeNode ?: return
                 when (val userObject = node.userObject) {
-                    is PlayJpaTreeNode.ModelNode -> userObject.model.psiClass.navigate(true)
-                    is PlayJpaTreeNode.FieldNode -> userObject.field.psiField.navigate(true)
-                    is PlayJpaTreeNode.RelationNode -> userObject.relation.psiField.navigate(true)
+                    is PlayJpaTreeNode.ModelNode -> navigateTo(userObject.model.psiClass)
+                    is PlayJpaTreeNode.FieldNode -> navigateTo(userObject.field.psiField)
+                    is PlayJpaTreeNode.RelationNode -> navigateTo(userObject.relation.psiField)
                 }
             }
         })
@@ -130,6 +131,19 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
             root.add(modelNode)
         }
         return root
+    }
+
+    private fun navigateTo(element: PsiElement) {
+        ReadAction.nonBlocking<OpenFileDescriptor?> {
+            val file = element.containingFile?.virtualFile ?: return@nonBlocking null
+            OpenFileDescriptor(project, file, element.textOffset)
+        }
+            .finishOnUiThread(ModalityState.defaultModalityState()) { descriptor ->
+                if (descriptor != null && !project.isDisposed) {
+                    descriptor.navigate(true)
+                }
+            }
+            .submit(AppExecutorUtil.getAppExecutorService())
     }
 }
 

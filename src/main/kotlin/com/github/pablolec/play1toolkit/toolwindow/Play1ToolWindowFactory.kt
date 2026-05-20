@@ -27,18 +27,21 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val statusPanel = ProjectStatusPanel(project)
         val routesPanel = RoutesTreePanel(project)
+        val templatesPanel = TemplatesTreePanel(project)
         val diagnosticsPanel = DiagnosticsPanel(project)
         val uiDisposable = Disposer.newDisposable("Play v1 Toolkit tool window")
 
         val tabs = JBTabbedPane().apply {
             addTab("Status", JBScrollPane(statusPanel))
             addTab("Routes", routesPanel)
+            addTab("Templates", templatesPanel)
             addTab("Diagnostics", diagnosticsPanel)
         }
 
         val toolbar = buildToolbar(project, uiDisposable) {
             statusPanel.refresh()
             routesPanel.refresh()
+            templatesPanel.refresh()
             diagnosticsPanel.refresh()
         }
 

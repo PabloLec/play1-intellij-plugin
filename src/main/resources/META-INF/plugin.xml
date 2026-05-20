@@ -38,6 +38,8 @@
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1LibWatcher"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.response.PlayActionResponseService"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.templates.service.PlayTemplateService"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver"/>
 
         <!-- Startup Activity -->
         <postStartupActivity implementation="com.github.pablolec.play1toolkit.Play1StartupActivity"/>
@@ -90,6 +92,10 @@
         <!-- render() → view navigation -->
         <gotoDeclarationHandler
                 implementation="com.github.pablolec.play1toolkit.render.Play1RenderViewGotoHandler"/>
+        <gotoDeclarationHandler
+                implementation="com.github.pablolec.play1toolkit.templates.goto.PlayTemplateGotoDeclarationHandler"/>
+        <gotoDeclarationHandler
+                implementation="com.github.pablolec.play1toolkit.templates.goto.PlayTemplateToControllerGotoHandler"/>
 
         <!-- conf/routes → Java controller/action navigation -->
         <gotoDeclarationHandler
@@ -117,10 +123,113 @@
         <!-- Inspections -->
         <localInspection language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.inspection.Play1MissingViewInspection"
-                displayName="Missing Play 1 view for render() call"
+                displayName="Missing Play 1 view for render() or renderTemplate() call"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WARNING"/>
+
+        <!-- Play templates and custom tags -->
+        <psi.referenceContributor language="HTML"
+                implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateHtmlReferenceContributor"/>
+        <psi.referenceContributor language="XML"
+                implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateHtmlReferenceContributor"/>
+        <psi.referenceContributor language="JAVA"
+                implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateJavaReferenceContributor"/>
+
+        <completion.contributor language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.completion.PlayTemplateCompletionContributor"
+                order="last"/>
+        <completion.contributor language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.completion.PlayTemplateCompletionContributor"
+                order="last"/>
+        <completion.contributor language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.templates.completion.PlayTemplateJavaCompletionContributor"
+                order="last"/>
+
+        <platform.backend.documentation.targetProvider
+                implementation="com.github.pablolec.play1toolkit.templates.documentation.PlayTemplateDocumentationTargetProvider"/>
+
+        <codeInsight.lineMarkerProvider language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.lineMarker.PlayTemplateLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.lineMarker.PlayTemplateLineMarkerProvider"/>
+
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateFileUsageSearcher"/>
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteClassReferencesSearcher"/>
+        <methodReferencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteMethodReferencesSearcher"/>
+
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingPathInspection"
+                displayName="Missing Play 1 template file"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingPathInspection"
+                displayName="Missing Play 1 template file"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownTagInspection"
+                displayName="Unknown Play 1 template tag"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownTagInspection"
+                displayName="Unknown Play 1 template tag"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownRouteInspection"
+                displayName="Unknown Play v1 reverse route"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownRouteInspection"
+                displayName="Unknown Play v1 reverse route"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingAssetInspection"
+                displayName="Missing Play v1 static asset"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingAssetInspection"
+                displayName="Missing Play v1 static asset"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownVariableInspection"
+                displayName="Unknown Play v1 template variable"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownVariableInspection"
+                displayName="Unknown Play v1 template variable"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateTagBalanceInspection"
+                displayName="Unbalanced Play v1 template tag"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateTagBalanceInspection"
+                displayName="Unbalanced Play v1 template tag"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
 
         <!-- PlayConfig Custom Language -->
         <fileType name="PlayConfig"

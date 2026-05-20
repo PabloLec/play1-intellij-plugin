@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.render
 
+import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.editor.Editor
@@ -33,8 +34,7 @@ class Play1RenderViewGotoHandler : GotoDeclarationHandler {
                 val firstArg = methodCall.argumentList.expressions.firstOrNull()
                 val templatePath = (firstArg as? PsiLiteralExpression)?.value as? String
                 if (templatePath != null) {
-                    // Explicit path — relative to app/views/ or absolute from project root
-                    Play1ViewUtils.findViewFile(project, "", templatePath.removeSuffix(".html"))
+                    PlayTemplateFileUtils.resolveTemplatePath(project, templatePath)
                         ?: run {
                             val basePath = project.basePath ?: return null
                             VirtualFileManager.getInstance()

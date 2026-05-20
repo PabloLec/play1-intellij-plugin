@@ -19,7 +19,9 @@ import java.util.Locale
 
 object Play1LibraryManager {
 
-    internal const val LIBRARY_NAME = "Play 1 Framework"
+    internal const val FRAMEWORK_LIBRARY_NAME = "Play v1 Framework"
+    internal const val PROJECT_LIBRARY_NAME = "Play v1 Project Libraries"
+    internal const val LEGACY_LIBRARY_NAME = "Play 1 Framework"
 
     fun attachLibraries(project: Project, playHome: Path, report: RepairReport) {
         val module = ModuleManager.getInstance(project).modules.firstOrNull()
@@ -41,15 +43,14 @@ object Play1LibraryManager {
         val srcDir = frameworkDir.resolve("src")
         val projectLibDir = Paths.get(project.basePath ?: "").resolve("lib")
 
-        val jarRoots = mutableListOf<String>()
         val sourceRoots = mutableListOf<String>()
 
-        // Add main play JAR
-        jarRoots.add(toJarUrl(playJar))
-
         val classpathJars = buildProjectClasspathJars(playHome, project.basePath)
-        classpathJars.projectJars.forEach { jarRoots.add(toJarUrl(it)) }
-        classpathJars.frameworkJars.forEach { jarRoots.add(toJarUrl(it)) }
+        val projectJarRoots = classpathJars.projectJars.map(::toJarUrl)
+        val frameworkJarRoots = buildList {
+            add(toJarUrl(playJar))
+            classpathJars.frameworkJars.forEach { add(toJarUrl(it)) }
+        }
 
         report.ok(
             "Project lib jars",
@@ -77,35 +78,31 @@ object Play1LibraryManager {
             val libraryTable = LibraryTablesRegistrar.getInstance().getLibraryTable(project)
             val tableModel = libraryTable.modifiableModel
 
-            var library = libraryTable.getLibraryByName(LIBRARY_NAME)
-            if (library == null) {
-                library = tableModel.createLibrary(LIBRARY_NAME)
-            }
+            val projectLibrary = ensureLibrary(libraryTable, tableModel, PROJECT_LIBRARY_NAME)
+            replaceLibraryRoots(projectLibrary, projectJarRoots, emptyList())
 
-            val libModel = library.modifiableModel
-            libModel.getUrls(OrderRootType.CLASSES).forEach { libModel.removeRoot(it, OrderRootType.CLASSES) }
-            libModel.getUrls(OrderRootType.SOURCES).forEach { libModel.removeRoot(it, OrderRootType.SOURCES) }
-            for (url in jarRoots) {
-                libModel.addRoot(url, OrderRootType.CLASSES)
+            val frameworkLibrary = ensureLibrary(libraryTable, tableModel, FRAMEWORK_LIBRARY_NAME)
+            replaceLibraryRoots(frameworkLibrary, frameworkJarRoots, sourceRoots)
+
+            libraryTable.getLibraryByName(LEGACY_LIBRARY_NAME)?.let { legacyLibrary ->
+                tableModel.removeLibrary(legacyLibrary)
             }
-            for (url in sourceRoots) {
-                libModel.addRoot(url, OrderRootType.SOURCES)
-            }
-            libModel.commit()
             tableModel.commit()
 
             val rootModel = ModuleRootManager.getInstance(module).modifiableModel
-            val alreadyAttached = rootModel.orderEntries
+            rootModel.orderEntries
                 .filterIsInstance<LibraryOrderEntry>()
-                .any { it.libraryName == LIBRARY_NAME }
+                .filter { it.libraryName in setOf(PROJECT_LIBRARY_NAME, FRAMEWORK_LIBRARY_NAME, LEGACY_LIBRARY_NAME) }
+                .toList()
+                .forEach { rootModel.removeOrderEntry(it) }
 
-            if (!alreadyAttached) {
-                rootModel.addLibraryEntry(library)
-            }
+            libraryTable.getLibraryByName(PROJECT_LIBRARY_NAME)?.let { rootModel.addLibraryEntry(it) }
+            libraryTable.getLibraryByName(FRAMEWORK_LIBRARY_NAME)?.let { rootModel.addLibraryEntry(it) }
             rootModel.commit()
         }
 
-        report.ok("Library \"$LIBRARY_NAME\"", "attached to module")
+        report.ok("Library \"$PROJECT_LIBRARY_NAME\"", "attached to module")
+        report.ok("Library \"$FRAMEWORK_LIBRARY_NAME\"", "attached to module")
     }
 
     internal data class ClasspathJars(
@@ -152,6 +149,26 @@ object Play1LibraryManager {
     internal fun artifactKey(jar: Path): String {
         val name = jar.fileName.toString().removeSuffix(".jar")
         return name.replace(Regex("-\\d.*$"), "")
+    }
+
+    internal fun managedLibraryNames(): Set<String> =
+        setOf(PROJECT_LIBRARY_NAME, FRAMEWORK_LIBRARY_NAME, LEGACY_LIBRARY_NAME)
+
+    private fun ensureLibrary(
+        libraryTable: com.intellij.openapi.roots.libraries.LibraryTable,
+        tableModel: com.intellij.openapi.roots.libraries.LibraryTable.ModifiableModel,
+        name: String,
+    ): Library {
+        return libraryTable.getLibraryByName(name) ?: tableModel.createLibrary(name)
+    }
+
+    private fun replaceLibraryRoots(library: Library, classRoots: List<String>, sourceRoots: List<String>) {
+        val libModel = library.modifiableModel
+        libModel.getUrls(OrderRootType.CLASSES).forEach { libModel.removeRoot(it, OrderRootType.CLASSES) }
+        libModel.getUrls(OrderRootType.SOURCES).forEach { libModel.removeRoot(it, OrderRootType.SOURCES) }
+        classRoots.forEach { libModel.addRoot(it, OrderRootType.CLASSES) }
+        sourceRoots.forEach { libModel.addRoot(it, OrderRootType.SOURCES) }
+        libModel.commit()
     }
 
     private fun toJarUrl(jar: Path): String =

@@ -148,4 +148,28 @@ class Play1LibraryManagerTest {
             result.overriddenFrameworkJars.map { it.fileName.toString() }
         )
     }
+
+    @Test
+    fun `project lib jars override framework jars across commons collections versions`() {
+        val frameworkLibDir = tempDir.newFolder("play-home-cc", "framework", "lib")
+        val projectLibDir = tempDir.newFolder("project-cc", "lib")
+
+        File(frameworkLibDir, "commons-collections-3.1.jar").createNewFile()
+        File(projectLibDir, "commons-collections-3.2.2.jar").createNewFile()
+
+        val result = Play1LibraryManager.buildProjectClasspathJars(
+            tempDir.root.toPath().resolve("play-home-cc"),
+            tempDir.root.toPath().resolve("project-cc").toString()
+        )
+
+        assertEquals(
+            listOf("commons-collections-3.2.2.jar"),
+            result.projectJars.map { it.fileName.toString() }
+        )
+        assertTrue(result.frameworkJars.isEmpty())
+        assertEquals(
+            listOf("commons-collections-3.1.jar"),
+            result.overriddenFrameworkJars.map { it.fileName.toString() }
+        )
+    }
 }

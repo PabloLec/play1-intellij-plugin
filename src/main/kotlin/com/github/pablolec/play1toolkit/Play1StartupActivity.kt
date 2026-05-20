@@ -42,7 +42,7 @@ class Play1StartupActivity : ProjectActivity {
         val module = ModuleManager.getInstance(project).modules.firstOrNull() ?: return false
         return ModuleRootManager.getInstance(module).orderEntries
             .filterIsInstance<LibraryOrderEntry>()
-            .any { it.libraryName == Play1LibraryManager.LIBRARY_NAME }
+            .any { it.libraryName in Play1LibraryManager.managedLibraryNames() }
     }
 
     private fun showDetectionNotification(project: Project) {

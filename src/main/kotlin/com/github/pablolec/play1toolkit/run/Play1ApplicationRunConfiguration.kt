@@ -58,6 +58,8 @@ class Play1ApplicationRunConfiguration(
             targetModule = Play1RunConfigurationSupport.resolveModule(project, applicationPath)
         )
 
+    fun getActiveProfile(): String? = playId.takeIf { it.isNotBlank() }
+
     override fun readExternal(element: Element) {
         super<RunConfigurationBase>.readExternal(element)
         applicationPath = element.getAttributeValue("applicationPath") ?: project.basePath ?: ""
@@ -65,6 +67,13 @@ class Play1ApplicationRunConfiguration(
         httpPort = element.getAttributeValue("httpPort")?.toIntOrNull() ?: 9000
         debugPort = element.getAttributeValue("debugPort")?.toIntOrNull() ?: 5005
         jvmOptions = element.getAttributeValue("jvmOptions") ?: ""
+        // Restore env vars from child elements
+        val envElement = element.getChild("envVars")
+        if (envElement != null) {
+            envVars = envElement.children.associate {
+                it.getAttributeValue("name") to (it.getAttributeValue("value") ?: "")
+            }
+        }
     }
 
     override fun writeExternal(element: Element) {
@@ -74,5 +83,16 @@ class Play1ApplicationRunConfiguration(
         element.setAttribute("httpPort", httpPort.toString())
         element.setAttribute("debugPort", debugPort.toString())
         element.setAttribute("jvmOptions", jvmOptions)
+        // Persist env vars as child elements
+        if (envVars.isNotEmpty()) {
+            val envElement = org.jdom.Element("envVars")
+            envVars.forEach { (k, v) ->
+                val entry = org.jdom.Element("var")
+                entry.setAttribute("name", k)
+                entry.setAttribute("value", v)
+                envElement.addContent(entry)
+            }
+            element.addContent(envElement)
+        }
     }
 }

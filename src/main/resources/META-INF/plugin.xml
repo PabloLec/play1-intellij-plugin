@@ -121,6 +121,112 @@
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WARNING"/>
+
+        <!-- PlayConfig Custom Language -->
+        <fileType name="PlayConfig"
+                  language="PlayConfig"
+                  implementationClass="com.github.pablolec.play1toolkit.playconfig.lang.PlayConfigFileType"
+                  fileNames="application.conf"/>
+
+        <lang.syntaxHighlighterFactory language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.lang.PlayConfigSyntaxHighlighterFactory"/>
+
+        <lang.parserDefinition language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.lang.PlayConfigParserDefinition"/>
+
+        <lang.findUsagesProvider language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.references.PlayConfigFindUsagesProvider"/>
+
+        <!-- PlayConfig Services -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playconfig.service.PlayConfigService"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playconfig.settings.PlayConfigProjectSettings"/>
+
+        <!-- PlayConfig Settings -->
+        <projectConfigurable
+                parentId="play1toolkit.settings"
+                id="play1toolkit.config.intelligence"
+                displayName="Configuration Intelligence"
+                instance="com.github.pablolec.play1toolkit.playconfig.settings.PlayConfigConfigurable"/>
+
+        <!-- PlayConfig References (Java → conf) -->
+        <psi.referenceContributor language="JAVA"
+                implementation="com.github.pablolec.play1toolkit.playconfig.references.PlayConfigJavaReferenceContributor"/>
+
+        <!-- PlayConfig Find Usages (conf → Java) -->
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.playconfig.references.PlayConfigJavaUsageSearcher"/>
+
+        <!-- PlayConfig Rename -->
+        <renamePsiElementProcessor
+                implementation="com.github.pablolec.play1toolkit.playconfig.references.PlayConfigRenameProcessor"/>
+
+        <!-- PlayConfig Completion -->
+        <completion.contributor language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.completion.PlayConfigJavaCompletionContributor"
+                order="last"/>
+        <completion.contributor language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.completion.PlayConfigConfCompletionContributor"/>
+
+        <!-- PlayConfig Inlay Hints -->
+        <codeInsight.inlayProvider language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.hints.PlayConfigJavaInlayHintsProvider"
+                settingsKeyId="play-v1.config.java-values"
+                enabledByDefault="true"/>
+        <codeInsight.inlayProvider language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.hints.PlayConfigConfInlayHintsProvider"
+                settingsKeyId="play-v1.config.conf-markers"
+                enabledByDefault="true"/>
+
+        <!-- PlayConfig Documentation -->
+        <platform.backend.documentation.targetProvider
+                implementation="com.github.pablolec.play1toolkit.playconfig.documentation.PlayConfigDocumentationTargetProvider"/>
+
+        <!-- PlayConfig Line Markers -->
+        <codeInsight.lineMarkerProvider language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.lineMarker.PlayConfigLineMarkerProvider"/>
+
+        <!-- PlayConfig Inspections -->
+        <localInspection language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.UnresolvedPlayConfigKeyInspection"
+                displayName="Unresolved Play configuration key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.UnusedPlayConfigKeyInspection"
+                displayName="Unused Play configuration key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="INFORMATION"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.DuplicatePlayConfigKeyInspection"
+                displayName="Duplicate Play configuration key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.ProfileOverrideWithoutDefaultInspection"
+                displayName="Profile override without default value"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="INFORMATION"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.UnresolvedEnvironmentVariableInspection"
+                displayName="Unresolved environment variable"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.SuspiciousProfilePrefixInspection"
+                displayName="Suspicious profile prefix"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="PlayConfig"
+                implementationClass="com.github.pablolec.play1toolkit.playconfig.inspections.UnknownPlayFrameworkKeyInspection"
+                displayName="Unknown Play framework key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
     </extensions>
 
     <actions>

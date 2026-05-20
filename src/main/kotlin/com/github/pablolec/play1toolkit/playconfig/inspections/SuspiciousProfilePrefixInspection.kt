@@ -10,7 +10,7 @@ import com.intellij.psi.*
 class SuspiciousProfilePrefixInspection : LocalInspectionTool() {
     override fun getDisplayName() = "Suspicious Play configuration profile prefix"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "PlayConfigSuspiciousProfilePrefix"
+    override fun getShortName() = "SuspiciousProfilePrefix"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

@@ -10,7 +10,7 @@ import com.intellij.psi.*
 class ProfileOverrideWithoutDefaultInspection : LocalInspectionTool() {
     override fun getDisplayName() = "Profile override without default value"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "PlayConfigProfileOverrideWithoutDefault"
+    override fun getShortName() = "ProfileOverrideWithoutDefault"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

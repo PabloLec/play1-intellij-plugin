@@ -10,7 +10,7 @@ import com.intellij.psi.*
 class UnresolvedEnvironmentVariableInspection : LocalInspectionTool() {
     override fun getDisplayName() = "Unresolved environment variable in Play configuration"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "PlayConfigUnresolvedEnvVar"
+    override fun getShortName() = "UnresolvedEnvironmentVariable"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

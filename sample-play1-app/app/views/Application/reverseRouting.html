@@ -1,0 +1,34 @@
+#{extends 'main.html' /}
+#{set title:'Reverse Routing Demo' /}
+
+<h1>Reverse Routing Examples</h1>
+
+<!-- Relative reverse route - @{Controller.action()} -->
+<a href="@{Application.index()}">Home</a>
+
+<!-- Absolute reverse route - @@{Controller.action()} -->
+<a href="@@{Application.index()}">Home (absolute URL)</a>
+
+<!-- Route with parameter -->
+<a href="@{Application.show(1)}">Show post 1</a>
+
+<!-- Route with parameter (absolute) -->
+<a href="@@{Application.show(1)}">Show post 1 (absolute)</a>
+
+<!-- Action that exists in Java but has no route (triggers PlayTemplateActionNotRoutedInspection) -->
+<!-- <a href="@{Application.internalHelper()}">Internal</a> -->
+
+<!-- Unknown controller (triggers PlayTemplateUnknownRouteInspection) -->
+<!-- <a href="@{Missing.index()}">Missing</a> -->
+
+<!-- Static asset (relative) -->
+<link rel="stylesheet" href="@{'/public/stylesheets/main.css'}">
+
+<!-- Static asset (absolute) -->
+<link rel="stylesheet" href="@@{'/public/stylesheets/main.css'}">
+
+<!-- Static asset with image -->
+<img src="@{'/public/images/logo.png'}" alt="Logo">
+
+<!-- Missing static asset (triggers PlayTemplateMissingAssetInspection) -->
+<!-- <img src="@{'/public/images/missing.png'}"> -->

@@ -160,6 +160,7 @@
 
         <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateFileUsageSearcher"/>
         <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteClassReferencesSearcher"/>
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteActionUsageSearcher"/>
         <methodReferencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteMethodReferencesSearcher"/>
 
         <localInspection
@@ -198,7 +199,30 @@
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateActionNotRoutedInspection"
+                displayName="Play v1 action not declared in conf/routes"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateActionNotRoutedInspection"
+                displayName="Play v1 action not declared in conf/routes"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateRouteArgCountInspection"
+                displayName="Suspicious Play v1 reverse route argument count"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="false"
+                level="INFORMATION"/>
+        <localInspection language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateRouteArgCountInspection"
+                displayName="Suspicious Play v1 reverse route argument count"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="false"
+                level="INFORMATION"/>
 
         <!-- PlayConfig Custom Language -->
         <fileType name="PlayConfig"

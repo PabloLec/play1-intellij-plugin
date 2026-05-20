@@ -66,21 +66,30 @@ class PlayTemplateDocumentationTargetProvider : DocumentationTargetProvider {
                     )
                 }
                 is com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteReference -> {
-                    val fullRoute = PlayTemplatePatterns.REVERSE_ROUTE.findAll(xmlText.text)
+                    val routeMatch = PlayTemplatePatterns.REVERSE_ROUTE.findAll(xmlText.text)
                         .firstOrNull { localOffset in it.range }
-                        ?.groupValues?.get(1)
-                        ?: reference.canonicalText
+                    val fullRoute = routeMatch?.groupValues?.get(1) ?: reference.canonicalText
+                    val isAbsolute = routeMatch?.let {
+                        val start = it.range.first
+                        start + 1 < xmlText.text.length && xmlText.text[start] == '@' && xmlText.text[start + 1] == '@'
+                    } ?: false
                     PlayTemplateDocumentationTarget(
                         label = fullRoute,
                         pointer = SmartPointerManager.createPointer(xmlText),
-                        html = buildRouteDoc(project, fullRoute)
+                        html = buildRouteDoc(project, fullRoute, isAbsolute)
                     )
                 }
                 is com.github.pablolec.play1toolkit.templates.references.PlayTemplateStaticAssetReference -> {
+                    val assetMatch = PlayTemplatePatterns.STATIC_ASSET.findAll(xmlText.text)
+                        .firstOrNull { localOffset in it.range }
+                    val isAbsolute = assetMatch?.let {
+                        val start = it.range.first
+                        start + 1 < xmlText.text.length && xmlText.text[start] == '@' && xmlText.text[start + 1] == '@'
+                    } ?: false
                     PlayTemplateDocumentationTarget(
                         label = reference.canonicalText,
                         pointer = SmartPointerManager.createPointer(xmlText),
-                        html = buildAssetDoc(reference.canonicalText, resolved as? PsiFile)
+                        html = buildAssetDoc(reference.canonicalText, resolved as? PsiFile, isAbsolute)
                     )
                 }
                 else -> null
@@ -163,7 +172,7 @@ class PlayTemplateDocumentationTargetProvider : DocumentationTargetProvider {
         }
     }
 
-    private fun buildRouteDoc(project: com.intellij.openapi.project.Project, routeText: String): String {
+    private fun buildRouteDoc(project: com.intellij.openapi.project.Project, routeText: String, isAbsolute: Boolean = false): String {
         val dotIndex = routeText.lastIndexOf('.')
         if (dotIndex < 0) return routeText
         val controllerName = routeText.substring(0, dotIndex)
@@ -175,16 +184,19 @@ class PlayTemplateDocumentationTargetProvider : DocumentationTargetProvider {
         )
         val method = com.github.pablolec.play1toolkit.routes.RoutesControllerResolver.resolveMethod(project, controllerName, actionName)
         val response = method?.let { PlayActionResponseService.getInstance(project).analyze(it) }
+        val prefix = if (isAbsolute) "@@" else "@"
         return buildString {
             append(DocumentationMarkup.DEFINITION_START)
-            append("<b>Reverse route</b> @{${escape(routeText)}(...)}")
+            append("<b>Reverse route</b> ${prefix}{${escape(routeText)}(...)}")
             append(DocumentationMarkup.DEFINITION_END)
             append(DocumentationMarkup.CONTENT_START)
             append("<table>")
-            if (routes.isNotEmpty()) {
-                append("<tr><td><b>Route:</b></td><td>${escape(routes.first().getHttpMethod()?.text ?: "?")} ${escape(routes.first().getPath() ?: "?")}</td></tr>")
+            routes.forEachIndexed { i, route ->
+                val label = if (i == 0) "<b>Route:</b>" else ""
+                append("<tr><td>$label</td><td>${escape(route.getHttpMethod()?.text ?: "?")} ${escape(route.getPath() ?: "?")}</td></tr>")
             }
             append("<tr><td><b>Action:</b></td><td>${escape(routeText)}</td></tr>")
+            append("<tr><td><b>URL type:</b></td><td>${if (isAbsolute) "Absolute" else "Relative"}</td></tr>")
             if (response != null) {
                 append("<tr><td><b>Response:</b></td><td>${escape(PlayResponsePresentation.shortLabel(response.kind))}</td></tr>")
             }
@@ -193,13 +205,15 @@ class PlayTemplateDocumentationTargetProvider : DocumentationTargetProvider {
         }
     }
 
-    private fun buildAssetDoc(assetPath: String, file: PsiFile?): String = buildString {
+    private fun buildAssetDoc(assetPath: String, file: PsiFile?, isAbsolute: Boolean = false): String = buildString {
+        val prefix = if (isAbsolute) "@@" else "@"
         append(DocumentationMarkup.DEFINITION_START)
-        append("<b>Static asset</b> ${escape(assetPath)}")
+        append("<b>Static asset</b> ${prefix}{${escape(assetPath)}}")
         append(DocumentationMarkup.DEFINITION_END)
         append(DocumentationMarkup.CONTENT_START)
         append("<table>")
         append("<tr><td><b>Resolved file:</b></td><td>${escape(file?.virtualFile?.path ?: "unresolved")}</td></tr>")
+        append("<tr><td><b>URL type:</b></td><td>${if (isAbsolute) "Absolute" else "Relative"}</td></tr>")
         append("</table>")
         append(DocumentationMarkup.CONTENT_END)
     }

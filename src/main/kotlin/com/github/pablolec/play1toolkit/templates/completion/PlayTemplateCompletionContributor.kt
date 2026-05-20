@@ -139,9 +139,14 @@ class PlayTemplateCompletionContributor : CompletionContributor() {
                         if (Play1ViewUtils.isPlayControllerClass(psiClass)) {
                             psiClass.methods.filter { it.hasModifierProperty("public") && it.name != "<init>" }
                                 .forEach { method ->
+                                    val routes = Play1ViewUtils.findRoutesForAction(project, className, method.name)
+                                    val tail = routes.firstOrNull()
+                                        ?.let { "  ${it.getHttpMethod()?.text ?: ""} ${it.getPath() ?: ""}" }
+                                        ?: ""
                                     prefixResult.addElement(
                                         LookupElementBuilder.create("$className.${method.name}")
                                             .withTypeText("action")
+                                            .withTailText(tail, true)
                                     )
                                 }
                         }

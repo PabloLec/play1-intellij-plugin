@@ -60,5 +60,10 @@ public class Application extends Controller {
         List<Post> posts = Post.findTaggedWith(tag);
         render(tag, posts);
     }
- 
+
+    // No route declared for this method - used to test PlayTemplateActionNotRoutedInspection
+    public static void internalHelper() {
+        renderText("internal");
+    }
+
 }

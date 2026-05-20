@@ -1,12 +1,15 @@
 package com.github.pablolec.play1toolkit.templates.references
 
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
+import com.github.pablolec.play1toolkit.routes.RoutesTokenTypes
+import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateService
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.util.TextRange
+import com.intellij.psi.ElementManipulators
 import com.intellij.psi.JavaRecursiveElementWalkingVisitor
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
@@ -21,6 +24,7 @@ import com.intellij.psi.PsiReferenceBase
 import com.intellij.psi.ResolveResult
 import com.intellij.psi.search.searches.MethodReferencesSearch
 import com.intellij.psi.search.searches.ReferencesSearch
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.Processor
 
 class PlayTemplateFileUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
@@ -167,6 +171,38 @@ class PlayTemplateRouteMethodReferencesSearcher : QueryExecutorBase<PsiReference
     }
 }
 
+class PlayTemplateRouteActionUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
+    override fun processQuery(params: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
+        val element = params.elementToSearch
+        val nodeType = element.node?.elementType
+        if (element !is RoutesRouteElement &&
+            nodeType != RoutesTokenTypes.ACTION_NAME &&
+            nodeType != RoutesTokenTypes.CONTROLLER_NAME) return
+        val route = element as? RoutesRouteElement
+            ?: PsiTreeUtil.getParentOfType(element, RoutesRouteElement::class.java) ?: return
+        if (!route.isDynamicRoute()) return
+        val controllerName = route.getControllerName()?.text?.trim()?.substringAfterLast('.') ?: return
+        val actionName = route.getActionName()?.text?.trim() ?: return
+        val project = element.project
+        if (DumbService.isDumb(project)) return
+        val psiManager = PsiManager.getInstance(project)
+        PlayTemplateService.getInstance(project).getAllTemplates().forEach { template ->
+            val psiFile = psiManager.findFile(template.virtualFile) ?: return@forEach
+            val text = psiFile.text
+            PlayTemplatePatterns.REVERSE_ROUTE.findAll(text).forEach { match ->
+                val fullRef = match.groupValues[1]
+                val dotIndex = fullRef.lastIndexOf('.')
+                if (dotIndex < 0) return@forEach
+                if (fullRef.substring(0, dotIndex).substringAfterLast('.') != controllerName) return@forEach
+                if (fullRef.substring(dotIndex + 1) != actionName) return@forEach
+                val actionStart = match.range.first + match.value.indexOf(actionName)
+                val leaf = psiFile.findElementAt(actionStart) ?: return@forEach
+                consumer.process(PlayTemplateMethodUsageReference(leaf, TextRange(0, leaf.textLength), controllerName, actionName))
+            }
+        }
+    }
+}
+
 class PlayTemplateRouteClassReferencesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
     override fun processQuery(params: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
         val psiClass = params.elementToSearch as? PsiClass ?: return
@@ -215,6 +251,16 @@ private class PlayTemplateMethodUsageReference(
             ?: return ResolveResult.EMPTY_ARRAY
         return arrayOf(PsiElementResolveResult(method))
     }
+
+    override fun handleElementRename(newElementName: String): PsiElement {
+        val text = element.text
+        val idx = text.indexOf(".$actionName")
+        if (idx >= 0) {
+            val range = TextRange(idx + 1, idx + 1 + actionName.length)
+            return ElementManipulators.handleContentChange(element, range, newElementName)
+        }
+        return element
+    }
 }
 
 private class PlayTemplateTextUsageReference(
@@ -237,5 +283,15 @@ private class PlayTemplateClassUsageReference(
         val clazz = RoutesControllerResolver.resolveClass(element.project, controllerName)
             ?: return ResolveResult.EMPTY_ARRAY
         return arrayOf(PsiElementResolveResult(clazz))
+    }
+
+    override fun handleElementRename(newElementName: String): PsiElement {
+        val text = element.text
+        val idx = text.indexOf(controllerName)
+        if (idx >= 0) {
+            val range = TextRange(idx, idx + controllerName.length)
+            return ElementManipulators.handleContentChange(element, range, newElementName)
+        }
+        return element
     }
 }

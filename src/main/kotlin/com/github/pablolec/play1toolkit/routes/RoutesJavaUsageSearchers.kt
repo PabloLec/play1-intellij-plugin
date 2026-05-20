@@ -22,9 +22,10 @@ class RoutesClassReferencesSearcher : QueryExecutor<PsiReference, ReferencesSear
     ): Boolean {
         val psiClass = params.elementToSearch as? PsiClass ?: return true
         val project = psiClass.project
-        if (DumbService.isDumb(project) || !Play1ViewUtils.isPlayControllerClass(psiClass)) return true
+        if (DumbService.isDumb(project)) return true
 
         runReadAction {
+            if (!Play1ViewUtils.isPlayControllerClass(psiClass)) return@runReadAction
             val routesFile = loadRoutesFile(project) ?: return@runReadAction
             val shortName = psiClass.name ?: return@runReadAction
             routesFile.getRoutes().forEach { route ->
@@ -49,11 +50,11 @@ class RoutesMethodReferencesSearcher : QueryExecutor<PsiReference, MethodReferen
         val method = params.method
         val project = method.project
         if (DumbService.isDumb(project)) return true
-        if (!method.hasModifierProperty(PsiModifier.PUBLIC) || !method.hasModifierProperty(PsiModifier.STATIC)) return true
-        val containingClass = method.containingClass ?: return true
-        if (!Play1ViewUtils.isPlayControllerClass(containingClass)) return true
 
         runReadAction {
+            if (!method.hasModifierProperty(PsiModifier.PUBLIC) || !method.hasModifierProperty(PsiModifier.STATIC)) return@runReadAction
+            val containingClass = method.containingClass ?: return@runReadAction
+            if (!Play1ViewUtils.isPlayControllerClass(containingClass)) return@runReadAction
             val routesFile = loadRoutesFile(project) ?: return@runReadAction
             val controllerShortName = containingClass.name ?: return@runReadAction
             routesFile.getRoutes().forEach { route ->

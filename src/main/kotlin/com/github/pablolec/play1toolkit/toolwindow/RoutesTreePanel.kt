@@ -25,6 +25,7 @@ import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.nio.file.Paths
+import java.util.Locale
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.JTree
@@ -114,33 +115,47 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
     private fun buildControllerTree(routes: List<RoutesRouteElement>): DefaultMutableTreeNode {
         val root = DefaultMutableTreeNode("Routes")
 
-        routes.filter { it.isDynamicRoute() }
-            .groupBy { it.getControllerName()?.text?.trim() ?: "?" }
-            .toSortedMap()
+        routes.asSequence()
+            .filter { it.isDynamicRoute() }
+            .map { routeEntryFor(it) }
+            .groupBy { it.controllerName }
+            .toSortedMap(compareBy(String.CASE_INSENSITIVE_ORDER) { normalizeControllerDisplayName(it) })
             .forEach { (ctrl, entries) ->
-                val ctrlNode = DefaultMutableTreeNode(RouteTreeNode.ControllerNode(ctrl))
-                entries.forEach { ctrlNode.add(DefaultMutableTreeNode(routeEntryFor(it))) }
+                val ctrlNode = DefaultMutableTreeNode(RouteTreeNode.ControllerNode(normalizeControllerDisplayName(ctrl)))
+                entries.sortedWith(
+                    compareBy<RouteTreeNode.RouteEntry, String>(String.CASE_INSENSITIVE_ORDER) { it.path.lowercase(Locale.ROOT) }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.actionName.lowercase(Locale.ROOT) }
+                        .thenBy(String.CASE_INSENSITIVE_ORDER) { it.method.lowercase(Locale.ROOT) }
+                )
+                    .forEach { ctrlNode.add(DefaultMutableTreeNode(it)) }
                 root.add(ctrlNode)
             }
 
-        routes.filter { !it.isDynamicRoute() }.forEach { route ->
-            root.add(DefaultMutableTreeNode(specialEntryFor(route)))
-        }
+        routes.asSequence()
+            .filter { !it.isDynamicRoute() }
+            .map { specialEntryFor(it) }
+            .sortedBy { it.label.lowercase(Locale.ROOT) }
+            .forEach { root.add(DefaultMutableTreeNode(it)) }
         return root
     }
 
     private fun buildPathTree(routes: List<RoutesRouteElement>): DefaultMutableTreeNode {
         val root = DefaultMutableTreeNode("Routes")
 
-        routes.filter { !it.isDynamicRoute() }.forEach { route ->
-            root.add(DefaultMutableTreeNode(specialEntryFor(route)))
-        }
-
-        routes.filter { it.isDynamicRoute() }.forEach { route ->
+        routes.asSequence()
+            .filter { it.isDynamicRoute() }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { routeSortKey(it) })
+            .forEach { route ->
             val rawPath = route.getPath()?.trim() ?: "/"
             val segments = rawPath.split("/").filter { it.isNotEmpty() }
             insertPathEntry(root, segments, routeEntryFor(route))
         }
+
+        routes.asSequence()
+            .filter { !it.isDynamicRoute() }
+            .map { specialEntryFor(it) }
+            .sortedBy { it.label.lowercase(Locale.ROOT) }
+            .forEach { root.add(DefaultMutableTreeNode(it)) }
         return root
     }
 
@@ -177,6 +192,20 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
         }
         return RouteTreeNode.SpecialEntry(label)
     }
+
+    private fun normalizeControllerDisplayName(controllerName: String): String =
+        controllerName.removePrefix("controllers.")
+
+    private fun routeSortKey(route: RoutesRouteElement): String =
+        buildString {
+            append((route.getPath()?.trim() ?: "/").lowercase(Locale.ROOT))
+            append('\u0000')
+            append((route.getControllerName()?.text?.trim() ?: "?").lowercase(Locale.ROOT))
+            append('\u0000')
+            append((route.getActionName()?.text?.trim() ?: "?").lowercase(Locale.ROOT))
+            append('\u0000')
+            append((route.getHttpMethod()?.text?.trim() ?: "?").lowercase(Locale.ROOT))
+        }
 
     // --- Navigation ---
 

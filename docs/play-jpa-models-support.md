@@ -11,14 +11,19 @@
 
 ## Supported conventions
 
-The plugin detects a Play JPA model when at least one of these signals is present:
+The plugin keeps two different views of `app/models`:
 
-- the class extends `play.db.jpa.Model`
-- the class extends `play.db.jpa.GenericModel`
-- the class is annotated with `@Entity`
-- the class lives under `app/models/`
+- **Play JPA models** used by finder / fixture / JPA-aware features
+- a broader **Models** tool window view that classifies everything under `app/models`
 
-The detection is intentionally tolerant because Play 1 projects often have incomplete or temporarily broken classpaths.
+Play JPA models are detected conservatively from strong persistence signals such as:
+
+- direct extension of `play.db.jpa.Model`
+- direct extension of `play.db.jpa.GenericModel`
+- `@Entity` with direct persistence signals
+- direct JPA field annotations such as `@Id`, `@Column`, `@ManyToOne`
+
+This avoids treating every class under `app/models` as a persisted entity.
 
 ## What the plugin adds
 
@@ -27,7 +32,7 @@ The detection is intentionally tolerant because Play 1 projects often have incom
 - gutter icon on Play JPA model classes
 - gutter icon on JPA relation fields
 - quick documentation on model classes and relation fields
-- a `Models` tab in the Play v1 Toolkit tool window
+- a categorized `Models` tab in the Play v1 Toolkit tool window
 
 ### Play finder intelligence
 
@@ -116,14 +121,28 @@ the response marker can display `JSON<User>`.
 
 ## Tool window
 
-The `Models` tab in the Play v1 Toolkit tool window lists detected models with:
+The `Models` tab classifies the contents of `app/models` into:
+
+- Persistent Models
+- DTOs / View Models
+- Business Objects
+- Services / Helpers
+- Enums
+- Unclassified
+
+Persistent entries keep the richer persistence details:
 
 - fields
 - relations
 - fixture counts
 - usages count
 
-Double-click opens the target model or field.
+Each entry also shows:
+
+- confidence
+- classification reasons
+
+Double-click opens the target class, model field, or relation field.
 
 ## Inspections
 
@@ -146,4 +165,5 @@ All inspections are intentionally conservative and tuned for legacy Play 1 codeb
 - query string analysis is intentionally simple and safe
 - YAML relation target detection relies on model relation metadata
 - dynamic finder or query string construction is treated conservatively
+- the `Models` tab is descriptive for legacy projects; it does not treat services or DTOs under `app/models` as errors
 - the feature enriches IntelliJ's Java support; it does not replace native refactorings or ORM understanding

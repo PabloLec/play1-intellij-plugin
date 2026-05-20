@@ -1,5 +1,7 @@
 package com.github.pablolec.play1toolkit.playjpa
 
+import com.github.pablolec.play1toolkit.playjpa.model.PlayAppModelCategory
+import com.github.pablolec.play1toolkit.playjpa.service.PlayAppModelClassificationService
 import com.github.pablolec.play1toolkit.playjpa.service.PlayJpaModelService
 import com.github.pablolec.play1toolkit.playjpa.util.PlayYamlFixtureUtils
 import com.github.pablolec.play1toolkit.response.PlayActionResponseAnalyzer
@@ -27,6 +29,13 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
             """
             package javax.persistence;
             public @interface Id {}
+            """
+        )
+        addJavaStub(
+            "javax/persistence/MappedSuperclass.java",
+            """
+            package javax.persistence;
+            public @interface MappedSuperclass {}
             """
         )
         addJavaStub(
@@ -128,7 +137,7 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
         assertTrue(user.relations.any { it.fieldName == "orders" && it.targetModel == "Order" })
     }
 
-    fun `test app models convention does not treat dto and services as jpa models`() {
+    fun `test app models classification distinguishes dto services and business objects`() {
         addProjectFile(
             "app/models/actualites/ActualitesDTO.java",
             """
@@ -165,18 +174,59 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
             package models.legacy;
 
             public class LegacyFallbackModel {
-                public Long id;
                 public String name;
+                public String code;
+                public boolean isEnabled() { return code != null; }
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
+            "app/models/actualites/Actualite.java",
+            """
+            package models.actualites;
+
+            import java.util.Date;
+            import java.util.List;
+            import models.account.AccountObject;
+
+            public class Actualite extends AccountObject {
+                public String url;
+                public Date date;
+                public String name;
+                public String summary;
+                public List<String> tags;
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
+            "app/models/account/AccountObject.java",
+            """
+            package models.account;
+
+            import javax.persistence.MappedSuperclass;
+            import play.db.jpa.GenericModel;
+
+            @MappedSuperclass
+            public class AccountObject extends GenericModel {
             }
             """.trimIndent()
         )
 
-        val service = PlayJpaModelService.getInstance(project)
-        val modelNames = service.getAllModels().map { it.className }.toSet()
+        val jpaService = PlayJpaModelService.getInstance(project)
+        val modelNames = jpaService.getAllModels().map { it.className }.toSet()
         assertFalse(modelNames.contains("ActualitesDTO"))
         assertFalse(modelNames.contains("ClientDto"))
         assertFalse(modelNames.contains("AdvancedSearchQueryBuilderSrv"))
-        assertTrue(modelNames.contains("LegacyFallbackModel"))
+        assertFalse(modelNames.contains("LegacyFallbackModel"))
+        assertFalse(modelNames.contains("Actualite"))
+
+        val classificationService = PlayAppModelClassificationService.getInstance(project)
+        val entriesByName = classificationService.getAllEntries().associateBy { it.className }
+        assertEquals(PlayAppModelCategory.DTO_OR_VIEW_MODEL, entriesByName["ActualitesDTO"]?.classification?.category)
+        assertEquals(PlayAppModelCategory.DTO_OR_VIEW_MODEL, entriesByName["ClientDto"]?.classification?.category)
+        assertEquals(PlayAppModelCategory.SERVICE_OR_HELPER, entriesByName["AdvancedSearchQueryBuilderSrv"]?.classification?.category)
+        assertEquals(PlayAppModelCategory.BUSINESS_OBJECT, entriesByName["LegacyFallbackModel"]?.classification?.category)
+        assertEquals(PlayAppModelCategory.BUSINESS_OBJECT, entriesByName["Actualite"]?.classification?.category)
     }
 
     fun `test finder string reference resolves to model field`() {

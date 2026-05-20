@@ -7,6 +7,7 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiMethod
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
@@ -48,14 +49,7 @@ class TemplatesTreePanel(private val project: Project) : JBPanel<TemplatesTreePa
                 when (val userObject = node.userObject) {
                     is TemplateNode.TemplateLeaf -> {
                         if (e.clickCount >= 2) {
-                            val action = PlayTemplateService.getInstance(project)
-                                .findLikelyRenderingMethods(userObject.template.virtualFile)
-                                .firstOrNull()
-                            if (action != null) {
-                                action.navigate(true)
-                            } else {
-                                OpenFileDescriptor(project, userObject.template.virtualFile).navigate(true)
-                            }
+                            navigateToLikelyAction(userObject.template)
                         } else {
                             OpenFileDescriptor(project, userObject.template.virtualFile).navigate(true)
                         }
@@ -82,6 +76,26 @@ class TemplatesTreePanel(private val project: Project) : JBPanel<TemplatesTreePa
                 tree.model = DefaultTreeModel(root)
                 revalidate()
                 repaint()
+            }
+            .submit(AppExecutorUtil.getAppExecutorService())
+    }
+
+    private fun navigateToLikelyAction(template: PlayTemplateFile) {
+        ReadAction.nonBlocking<PsiMethod?> {
+            PlayTemplateService.getInstance(project)
+                .findLikelyRenderingMethods(template.virtualFile)
+                .firstOrNull()
+        }
+            .inSmartMode(project)
+            .finishOnUiThread(ModalityState.defaultModalityState()) { action ->
+                if (project.isDisposed) {
+                    return@finishOnUiThread
+                }
+                if (action != null) {
+                    action.navigate(true)
+                } else {
+                    OpenFileDescriptor(project, template.virtualFile).navigate(true)
+                }
             }
             .submit(AppExecutorUtil.getAppExecutorService())
     }

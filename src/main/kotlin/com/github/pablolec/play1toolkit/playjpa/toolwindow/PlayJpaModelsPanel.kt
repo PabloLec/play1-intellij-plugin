@@ -64,15 +64,31 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
 
     fun refresh() {
         summaryLabel.text = "Models: loading…"
-        ReadAction.nonBlocking<Pair<Int, DefaultMutableTreeNode>> {
-            val models = PlayJpaModelService.getInstance(project)
-                .getAllModels()
-                .sortedBy { it.className.lowercase(Locale.ROOT) }
-            Pair(models.size, buildTree(models))
+        ReadAction.nonBlocking<ModelsPanelState> {
+            runCatching {
+                val models = PlayJpaModelService.getInstance(project)
+                    .getAllModels()
+                    .sortedBy { it.className.lowercase(Locale.ROOT) }
+                ModelsPanelState(
+                    summary = if (DumbService.isDumb(project)) {
+                        "Models: ${models.size} (indexing…)"
+                    } else {
+                        "Models: ${models.size}"
+                    },
+                    root = buildTree(models)
+                )
+            }.getOrElse { error ->
+                ModelsPanelState(
+                    summary = "Models: unavailable",
+                    root = DefaultMutableTreeNode("Failed to load models").apply {
+                        add(DefaultMutableTreeNode(error.message ?: error.javaClass.simpleName))
+                    }
+                )
+            }
         }
-            .finishOnUiThread(ModalityState.defaultModalityState()) { (count, root) ->
-                summaryLabel.text = "Models: $count"
-                tree.model = DefaultTreeModel(root)
+            .finishOnUiThread(ModalityState.defaultModalityState()) { state ->
+                summaryLabel.text = state.summary
+                tree.model = DefaultTreeModel(state.root)
                 revalidate()
                 repaint()
             }
@@ -83,8 +99,14 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
         val root = DefaultMutableTreeNode("Play JPA models")
         val canSearchUsages = !DumbService.isDumb(project)
         models.forEach { model ->
-            val usages = if (canSearchUsages) ReferencesSearch.search(model.psiClass).findAll().size else 0
-            val fixtureUsages = PlayJpaModelUsageSearcher.countFixtureUsages(project, model.psiClass)
+            val usages = if (canSearchUsages) {
+                runCatching { ReferencesSearch.search(model.psiClass).findAll().size }.getOrDefault(0)
+            } else {
+                0
+            }
+            val fixtureUsages = runCatching {
+                PlayJpaModelUsageSearcher.countFixtureUsages(project, model.psiClass)
+            }.getOrDefault(0)
             val modelNode = DefaultMutableTreeNode(PlayJpaTreeNode.ModelNode(model, usages, fixtureUsages))
 
             if (model.idField != null) {
@@ -101,6 +123,11 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
         return root
     }
 }
+
+private data class ModelsPanelState(
+    val summary: String,
+    val root: DefaultMutableTreeNode
+)
 
 private sealed interface PlayJpaTreeNode {
     data class ModelNode(val model: PlayJpaModelInfo, val usages: Int, val fixtureUsages: Int) : PlayJpaTreeNode

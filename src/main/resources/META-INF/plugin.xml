@@ -94,8 +94,6 @@
                 implementation="com.github.pablolec.play1toolkit.render.Play1RenderViewGotoHandler"/>
         <gotoDeclarationHandler
                 implementation="com.github.pablolec.play1toolkit.templates.goto.PlayTemplateGotoDeclarationHandler"/>
-        <gotoDeclarationHandler
-                implementation="com.github.pablolec.play1toolkit.templates.goto.PlayTemplateToControllerGotoHandler"/>
 
         <!-- conf/routes → Java controller/action navigation -->
         <gotoDeclarationHandler

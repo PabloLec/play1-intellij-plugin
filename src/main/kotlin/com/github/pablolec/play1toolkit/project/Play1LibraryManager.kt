@@ -46,7 +46,7 @@ object Play1LibraryManager {
         val sourceRoots = mutableListOf<String>()
 
         val classpathJars = buildProjectClasspathJars(playHome, project.basePath)
-        val projectJarRoots = classpathJars.projectJars.map(::toJarUrl)
+        val projectJarRoots = (classpathJars.projectJars + classpathJars.supplementalProjectJars).map(::toJarUrl)
         val frameworkJarRoots = buildList {
             add(toJarUrl(playJar))
             classpathJars.frameworkJars.forEach { add(toJarUrl(it)) }
@@ -54,7 +54,12 @@ object Play1LibraryManager {
 
         report.ok(
             "Project lib jars",
-            "${classpathJars.projectJars.size} attached"
+            buildString {
+                append("${classpathJars.projectJars.size} attached")
+                if (classpathJars.supplementalProjectJars.isNotEmpty()) {
+                    append(", ${classpathJars.supplementalProjectJars.size} supplemented from local dependency cache")
+                }
+            }
         )
         report.ok(
             "Framework lib jars",
@@ -107,16 +112,25 @@ object Play1LibraryManager {
 
     internal data class ClasspathJars(
         val projectJars: List<Path>,
+        val supplementalProjectJars: List<Path>,
         val frameworkJars: List<Path>,
         val overriddenFrameworkJars: List<Path>,
     )
 
-    internal fun buildProjectClasspathJars(playHome: Path, projectBasePath: String?): ClasspathJars {
+    internal fun buildProjectClasspathJars(playHome: Path, projectBasePath: String?): ClasspathJars =
+        buildProjectClasspathJars(playHome, projectBasePath, Paths.get(System.getProperty("user.home")))
+
+    internal fun buildProjectClasspathJarsForTest(playHome: Path, projectBasePath: String?, homeDir: Path): ClasspathJars =
+        buildProjectClasspathJars(playHome, projectBasePath, homeDir)
+
+    private fun buildProjectClasspathJars(playHome: Path, projectBasePath: String?, homeDir: Path): ClasspathJars {
         val frameworkLibDir = playHome.resolve("framework").resolve("lib")
-        val projectLibDir = projectBasePath?.let { Paths.get(it).resolve("lib") }
+        val projectDir = projectBasePath?.let { Paths.get(it) }
+        val projectLibDir = projectDir?.resolve("lib")
 
         val projectJars = listJarFiles(projectLibDir)
-        val projectKeys = projectJars.mapTo(linkedSetOf(), ::artifactKey)
+        val supplementalProjectJars = resolveSupplementalProjectJars(projectDir, projectJars, homeDir)
+        val projectKeys = (projectJars + supplementalProjectJars).mapTo(linkedSetOf(), ::artifactKey)
 
         val keptFrameworkJars = mutableListOf<Path>()
         val overriddenFrameworkJars = mutableListOf<Path>()
@@ -131,6 +145,7 @@ object Play1LibraryManager {
 
         return ClasspathJars(
             projectJars = projectJars,
+            supplementalProjectJars = supplementalProjectJars,
             frameworkJars = keptFrameworkJars,
             overriddenFrameworkJars = overriddenFrameworkJars,
         )
@@ -154,6 +169,81 @@ object Play1LibraryManager {
     internal fun managedLibraryNames(): Set<String> =
         setOf(PROJECT_LIBRARY_NAME, FRAMEWORK_LIBRARY_NAME, LEGACY_LIBRARY_NAME)
 
+    internal data class DeclaredDependency(
+        val group: String,
+        val artifact: String,
+        val version: String,
+    )
+
+    internal fun resolveSupplementalProjectJars(
+        projectDir: Path?,
+        existingProjectJars: List<Path>,
+        homeDir: Path = Paths.get(System.getProperty("user.home")),
+    ): List<Path> {
+        if (projectDir == null) return emptyList()
+        val declaredDependencies = parseDeclaredDependencies(projectDir.resolve("conf").resolve("dependencies.yml"))
+        if (declaredDependencies.isEmpty()) return emptyList()
+
+        val existingKeys = existingProjectJars.mapTo(linkedSetOf(), ::artifactKey)
+        val seenResolvedJars = linkedSetOf<Path>()
+
+        return declaredDependencies
+            .asSequence()
+            .filterNot { dependency -> dependency.artifact in existingKeys }
+            .mapNotNull { dependency -> resolveFromLocalCaches(dependency, homeDir) }
+            .filter { resolvedJar -> seenResolvedJars.add(resolvedJar) }
+            .sortedBy { it.fileName.toString().lowercase(Locale.ROOT) }
+            .toList()
+    }
+
+    internal fun parseDeclaredDependencies(dependenciesFile: Path): List<DeclaredDependency> {
+        if (!Files.isRegularFile(dependenciesFile)) return emptyList()
+
+        val entriesByArtifact = linkedMapOf<String, DeclaredDependency>()
+        Files.newBufferedReader(dependenciesFile).use { reader ->
+            reader.forEachLine { rawLine ->
+                val line = rawLine.substringBefore('#')
+                val match = DECLARED_DEPENDENCY_REGEX.matchEntire(line) ?: return@forEachLine
+                val dependency = DeclaredDependency(
+                    group = match.groupValues[1],
+                    artifact = match.groupValues[2],
+                    version = match.groupValues[3],
+                )
+                entriesByArtifact[dependency.artifact] = dependency
+            }
+        }
+        return entriesByArtifact.values.toList()
+    }
+
+    internal fun resolveFromLocalCaches(
+        dependency: DeclaredDependency,
+        homeDir: Path = Paths.get(System.getProperty("user.home")),
+    ): Path? {
+        val mavenJar = homeDir
+            .resolve(".m2")
+            .resolve("repository")
+            .resolve(dependency.group.replace('.', '/'))
+            .resolve(dependency.artifact)
+            .resolve(dependency.version)
+            .resolve("${dependency.artifact}-${dependency.version}.jar")
+        if (Files.isRegularFile(mavenJar)) {
+            return mavenJar
+        }
+
+        val ivyJar = homeDir
+            .resolve(".ivy2")
+            .resolve("cache")
+            .resolve(dependency.group)
+            .resolve(dependency.artifact)
+            .resolve("jars")
+            .resolve("${dependency.artifact}-${dependency.version}.jar")
+        if (Files.isRegularFile(ivyJar)) {
+            return ivyJar
+        }
+
+        return null
+    }
+
     private fun ensureLibrary(
         libraryTable: com.intellij.openapi.roots.libraries.LibraryTable,
         tableModel: com.intellij.openapi.roots.libraries.LibraryTable.ModifiableModel,
@@ -173,4 +263,7 @@ object Play1LibraryManager {
 
     private fun toJarUrl(jar: Path): String =
         VirtualFileManager.constructUrl("jar", jar.toAbsolutePath().toString() + "!/")
+
+    private val DECLARED_DEPENDENCY_REGEX =
+        Regex("""^\s{2}-\s+([A-Za-z0-9_.-]+)\s*->\s*([A-Za-z0-9_.-]+)\s+([^:\s]+)\s*:?\s*$""")
 }

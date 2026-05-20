@@ -7,6 +7,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * Tests the JAR scanning and Play home validation logic used by Play1LibraryManager.
@@ -171,5 +172,71 @@ class Play1LibraryManagerTest {
             listOf("commons-collections-3.1.jar"),
             result.overriddenFrameworkJars.map { it.fileName.toString() }
         )
+    }
+
+    @Test
+    fun `supplemental project jars are resolved from local maven cache when lib is incomplete`() {
+        val frameworkLibDir = tempDir.newFolder("play-home-lang3", "framework", "lib")
+        val projectDir = tempDir.newFolder("project-lang3")
+        val confDir = File(projectDir, "conf").also { it.mkdirs() }
+        File(projectDir, "lib").mkdirs()
+        File(frameworkLibDir, "commons-lang-2.4.jar").createNewFile()
+
+        File(confDir, "dependencies.yml").writeText(
+            """
+            require:
+              - play
+              - org.apache.commons -> commons-lang3 3.5:
+                  transitive: false
+              - org.apache.commons -> commons-lang3 3.20.0:
+                  transitive: false
+            """.trimIndent()
+        )
+
+        val homeDir = tempDir.newFolder("home").toPath()
+        val cachedJar = createCachedMavenJar(
+            homeDir = homeDir,
+            group = "org.apache.commons",
+            artifact = "commons-lang3",
+            version = "3.20.0",
+        )
+
+        val supplementalJars = Play1LibraryManager.resolveSupplementalProjectJars(
+            projectDir = projectDir.toPath(),
+            existingProjectJars = emptyList(),
+            homeDir = homeDir,
+        )
+
+        assertEquals(listOf(cachedJar), supplementalJars)
+
+        val classpath = Play1LibraryManager.buildProjectClasspathJarsForTest(
+            playHome = tempDir.root.toPath().resolve("play-home-lang3"),
+            projectBasePath = projectDir.absolutePath,
+            homeDir = homeDir,
+        )
+
+        assertEquals(
+            listOf("commons-lang3-3.20.0.jar"),
+            classpath.supplementalProjectJars.map { it.fileName.toString() }
+        )
+        assertTrue(classpath.projectJars.isEmpty())
+        assertEquals(
+            listOf("commons-lang-2.4.jar"),
+            classpath.frameworkJars.map { it.fileName.toString() }
+        )
+        assertTrue(classpath.overriddenFrameworkJars.isEmpty())
+    }
+
+    private fun createCachedMavenJar(homeDir: Path, group: String, artifact: String, version: String): Path {
+        val jarPath = homeDir
+            .resolve(".m2")
+            .resolve("repository")
+            .resolve(group.replace('.', File.separatorChar))
+            .resolve(artifact)
+            .resolve(version)
+            .resolve("$artifact-$version.jar")
+        Files.createDirectories(jarPath.parent)
+        Files.write(jarPath, byteArrayOf())
+        return jarPath
     }
 }

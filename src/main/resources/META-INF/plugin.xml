@@ -158,78 +158,43 @@
         <referencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteClassReferencesSearcher"/>
         <methodReferencesSearch implementation="com.github.pablolec.play1toolkit.templates.references.PlayTemplateRouteMethodReferencesSearcher"/>
 
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingPathInspection"
                 displayName="Missing Play 1 template file"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingPathInspection"
-                displayName="Missing Play 1 template file"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownTagInspection"
                 displayName="Unknown Play 1 template tag"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownTagInspection"
-                displayName="Unknown Play 1 template tag"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WEAK WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownRouteInspection"
                 displayName="Unknown Play v1 reverse route"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownRouteInspection"
-                displayName="Unknown Play v1 reverse route"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WEAK WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingAssetInspection"
                 displayName="Missing Play v1 static asset"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateMissingAssetInspection"
-                displayName="Missing Play v1 static asset"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownVariableInspection"
                 displayName="Unknown Play v1 template variable"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateUnknownVariableInspection"
-                displayName="Unknown Play v1 template variable"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WEAK WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateTagBalanceInspection"
                 displayName="Unbalanced Play v1 template tag"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateTagBalanceInspection"
-                displayName="Unbalanced Play v1 template tag"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WEAK WARNING"/>
+        
 
         <!-- PlayConfig Custom Language -->
         <fileType name="PlayConfig"

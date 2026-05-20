@@ -96,7 +96,6 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
             .finishOnUiThread(ModalityState.defaultModalityState()) { (count, root) ->
                 routeCountLabel.text = if (count < 0) "Routes: conf/routes not found" else "Routes: $count"
                 tree.model = DefaultTreeModel(root)
-                expandAll()
                 revalidate()
                 repaint()
             }
@@ -213,12 +212,6 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
             .submit(AppExecutorUtil.getAppExecutorService())
     }
 
-    private fun expandAll() {
-        var i = 0
-        while (i < tree.rowCount) {
-            tree.expandRow(i++)
-        }
-    }
 }
 
 private class RouteTreeCellRenderer : DefaultTreeCellRenderer() {

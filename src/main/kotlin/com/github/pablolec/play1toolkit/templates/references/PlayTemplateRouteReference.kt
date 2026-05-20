@@ -14,7 +14,7 @@ class PlayTemplateRouteReference(
     private val controllerName: String,
     private val actionName: String,
     private val kind: Kind
-) : PsiReferenceBase.Poly<PsiElement>(element, range, true) {
+) : PsiReferenceBase.Poly<PsiElement>(element, range, true), PlayTemplateReference {
 
     enum class Kind { CONTROLLER, ACTION }
 

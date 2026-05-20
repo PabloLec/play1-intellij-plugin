@@ -8,7 +8,7 @@ class PlayTemplateStaticAssetReference(
     element: PsiElement,
     range: TextRange,
     private val publicPath: String
-) : PsiReferenceBase<PsiElement>(element, range, true) {
+) : PsiReferenceBase<PsiElement>(element, range, true), PlayTemplateReference {
 
     override fun resolve(): PsiElement? {
         val vf = com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils.resolvePublicAsset(element.project, publicPath)

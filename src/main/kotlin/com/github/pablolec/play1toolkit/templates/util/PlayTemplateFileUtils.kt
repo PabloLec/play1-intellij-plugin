@@ -77,16 +77,16 @@ object PlayTemplateFileUtils {
     fun controllerNameFromLogicalPath(logicalPath: String): String? {
         val parts = logicalPath.split('/')
         if (parts.size < 2) return null
-        val first = parts[0]
-        if (first == "tags") return null
-        return first
+        if (parts[0] == "tags") return null
+        // support sub-package paths: comptabilite/PortfolioCtl/action.html → PortfolioCtl
+        return parts[parts.size - 2]
     }
 
     fun actionNameFromLogicalPath(logicalPath: String): String? {
         val parts = logicalPath.split('/')
         if (parts.size < 2) return null
         if (parts[0] == "tags") return null
-        return parts[1].substringBeforeLast('.')
+        return parts.last().substringBeforeLast('.')
     }
 
     fun titleFromTemplateFileName(fileName: String): String =

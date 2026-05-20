@@ -20,9 +20,13 @@ object PlayTemplatePatterns {
     val STATIC_ASSET = Regex("""@\{['"]([^'"]*)['"]\}""")
 
     val LIST_TAG_VAR = Regex("""#\{list\s+[^}]*as\s*:\s*['"](\w+)['"]""")
-    val LIST_TAG_ITEMS_AND_VAR = Regex("""#\{list\s+[^}]*items\s*:\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)[^}]*as\s*:\s*['"](\w+)['"]""")
+    // Handles both #{list items: expr, as:'var'} and positional #{list expr, as:'var'}
+    val LIST_TAG_ITEMS_AND_VAR = Regex("""#\{list\s+(?:items\s*:\s*)?([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)[^}]*,\s*as\s*:\s*['"](\w+)['"]""")
 
     val TAG_PARAM = Regex("""\$\{_(\w+)\}""")
+
+    val SCRIPT_BLOCK = Regex("""%\{(.*?)}%""", setOf(RegexOption.DOT_MATCHES_ALL))
+    val SCRIPT_ASSIGNMENT = Regex("""(?:^|[\s;])(?:def\s+)?([A-Za-z_]\w*)\s*=""")
 
     val BUILTIN_TAGS = setOf(
         "extends", "include", "doLayout", "get", "set",

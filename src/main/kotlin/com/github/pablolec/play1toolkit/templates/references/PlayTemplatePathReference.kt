@@ -10,7 +10,7 @@ class PlayTemplatePathReference(
     element: PsiElement,
     range: TextRange,
     private val path: String
-) : PsiReferenceBase<PsiElement>(element, range, true) {
+) : PsiReferenceBase<PsiElement>(element, range, true), PlayTemplateReference {
 
     override fun resolve(): PsiElement? {
         val vf = PlayTemplateFileUtils.resolveTemplatePath(element.project, path) ?: return null

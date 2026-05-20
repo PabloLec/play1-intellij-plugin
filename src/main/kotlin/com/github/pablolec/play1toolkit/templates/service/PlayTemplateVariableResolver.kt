@@ -21,7 +21,8 @@ class PlayTemplateVariableResolver(private val project: Project) {
 
     data class VariableInfo(
         val declaration: PsiElement,
-        val type: PsiType?
+        val type: PsiType?,
+        val exactOffset: Int? = null
     )
 
     private val explicitTemplateBindingsCache = CachedValuesManager.getManager(project).createCachedValue({
@@ -37,8 +38,6 @@ class PlayTemplateVariableResolver(private val project: Project) {
             "request", "params", "session", "flash", "errors", "out", "play",
             "_", "_index", "_parity", "_isFirst", "_isLast"
         )
-        private val SCRIPT_BLOCK = Regex("""%\{(.*?)}%""", setOf(RegexOption.DOT_MATCHES_ALL))
-        private val SCRIPT_ASSIGNMENT = Regex("""(?:^|[\s;])(?:def\s+)?([A-Za-z_]\w*)\s*=""")
 
         fun getInstance(project: Project): PlayTemplateVariableResolver =
             project.getService(PlayTemplateVariableResolver::class.java)
@@ -57,6 +56,11 @@ class PlayTemplateVariableResolver(private val project: Project) {
     fun resolveVariableType(file: PsiFile, variableName: String): PsiType? {
         if (DumbService.isDumb(project)) return null
         return resolveVariableInfos(file)[variableName]?.type
+    }
+
+    fun resolveVariableInfo(file: PsiFile, variableName: String): VariableInfo? {
+        if (DumbService.isDumb(project)) return null
+        return resolveVariableInfos(file)[variableName]
     }
 
     fun resolveMember(element: PsiElement, qualifierType: PsiType?, memberName: String, methodCall: Boolean): PsiElement? {
@@ -169,9 +173,13 @@ class PlayTemplateVariableResolver(private val project: Project) {
             val itemsExpr = match.groupValues[1]
             val name = match.groupValues[2]
             val groupRange = match.groups[2]?.range ?: return@forEach
-            val element = file.findElementAt(groupRange.first) ?: return@forEach
+            if (file.findElementAt(groupRange.first) == null) return@forEach
             val itemType = inferListItemType(knownTypes, itemsExpr)
-            result[name] = VariableInfo(element, itemType)
+            result[name] = VariableInfo(
+                com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, groupRange.first),
+                itemType,
+                groupRange.first
+            )
         }
         return result
     }
@@ -179,14 +187,18 @@ class PlayTemplateVariableResolver(private val project: Project) {
     private fun resolveFromScriptBlocks(file: PsiFile): Map<String, VariableInfo> {
         val text = file.text ?: return emptyMap()
         val result = linkedMapOf<String, VariableInfo>()
-        SCRIPT_BLOCK.findAll(text).forEach { block ->
+        PlayTemplatePatterns.SCRIPT_BLOCK.findAll(text).forEach { block ->
             val bodyRange = block.groups[1]?.range ?: return@forEach
-            SCRIPT_ASSIGNMENT.findAll(block.groupValues[1]).forEach { assignment ->
+            PlayTemplatePatterns.SCRIPT_ASSIGNMENT.findAll(block.groupValues[1]).forEach { assignment ->
                 val name = assignment.groupValues[1]
                 val nameRange = assignment.groups[1]?.range ?: return@forEach
                 val absoluteOffset = bodyRange.first + nameRange.first
-                val element = file.findElementAt(absoluteOffset) ?: return@forEach
-                result[name] = VariableInfo(element, null)
+                if (file.findElementAt(absoluteOffset) == null) return@forEach
+                result[name] = VariableInfo(
+                    com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, absoluteOffset),
+                    null,
+                    absoluteOffset
+                )
             }
         }
         return result

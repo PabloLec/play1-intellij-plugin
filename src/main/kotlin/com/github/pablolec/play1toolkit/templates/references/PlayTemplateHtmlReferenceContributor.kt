@@ -137,13 +137,33 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
                 val nameStart = xmlText.textRange.startOffset + token.start
                 val nameEnd = xmlText.textRange.startOffset + token.end
                 addReferenceIfInside(nameStart, nameEnd) { range ->
-                    PlayTemplateVariableReference(
-                        element,
-                        range,
-                        token.name,
-                        token.qualifierName,
-                        token.methodCall
-                    )
+                    PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
+                }
+            }
+        }
+
+        // %{ expr; ... }% script block — RHS of assignments and free expressions
+        PlayTemplatePatterns.SCRIPT_BLOCK.findAll(text).forEach { blockMatch ->
+            val bodyRange = blockMatch.groups[1]?.range ?: return@forEach
+            val bodyText = blockMatch.groupValues[1]
+            extractExpressionTokens(bodyText, bodyRange.first, skipAssignmentLhs = true).forEach { token ->
+                val nameStart = xmlText.textRange.startOffset + token.start
+                val nameEnd = xmlText.textRange.startOffset + token.end
+                addReferenceIfInside(nameStart, nameEnd) { range ->
+                    PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
+                }
+            }
+        }
+
+        // #{list expr, as:'var'} — items expression (e.g. resume.paiements)
+        PlayTemplatePatterns.LIST_TAG_ITEMS_AND_VAR.findAll(text).forEach { match ->
+            val itemsRange = match.groups[1]?.range ?: return@forEach
+            val itemsText = match.groupValues[1]
+            extractExpressionTokens(itemsText, itemsRange.first).forEach { token ->
+                val nameStart = xmlText.textRange.startOffset + token.start
+                val nameEnd = xmlText.textRange.startOffset + token.end
+                addReferenceIfInside(nameStart, nameEnd) { range ->
+                    PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
                 }
             }
         }
@@ -163,7 +183,11 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
         return refs
     }
 
-    private fun extractExpressionTokens(bodyText: String, bodyStartOffset: Int): List<ExpressionToken> {
+    private fun extractExpressionTokens(
+        bodyText: String,
+        bodyStartOffset: Int,
+        skipAssignmentLhs: Boolean = false
+    ): List<ExpressionToken> {
         val tokens = mutableListOf<ExpressionToken>()
         val identifierRegex = Regex("""[A-Za-z_]\w*""")
         identifierRegex.findAll(bodyText).forEach { match ->
@@ -173,6 +197,8 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val localEnd = match.range.last + 1
             val previous = previousNonWhitespace(bodyText, localStart - 1)
             val next = nextNonWhitespace(bodyText, localEnd)
+            // Skip assignment LHS: identifier followed by '=' but not '=='
+            if (skipAssignmentLhs && previous != '.' && isAssignmentLhs(bodyText, localEnd)) return@forEach
             if (previous == '.') {
                 val qualifierName = findDirectQualifierName(bodyText, localStart - 1) ?: return@forEach
                 tokens += ExpressionToken(
@@ -191,6 +217,14 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             }
         }
         return tokens
+    }
+
+    private fun isAssignmentLhs(text: String, fromIndex: Int): Boolean {
+        var idx = fromIndex
+        while (idx < text.length && text[idx].isWhitespace()) idx++
+        if (idx >= text.length || text[idx] != '=') return false
+        val afterEq = idx + 1
+        return afterEq >= text.length || text[afterEq] != '='
     }
 
     private fun previousNonWhitespace(text: String, startIndex: Int): Char? {

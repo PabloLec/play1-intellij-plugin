@@ -13,7 +13,7 @@ class PlayTemplateVariableReference(
     private val variableName: String,
     private val qualifierName: String? = null,
     private val methodCall: Boolean = false
-) : PsiReferenceBase<PsiElement>(element, range, true) {
+) : PsiReferenceBase<PsiElement>(element, range, true), PlayTemplateReference {
 
     override fun resolve(): PsiElement? {
         val resolver = PlayTemplateVariableResolver.getInstance(element.project)

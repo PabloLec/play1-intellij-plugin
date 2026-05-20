@@ -86,7 +86,6 @@ class PlayTemplateGotoDeclarationHandler : GotoDeclarationHandler {
                         PsiManager.getInstance(project).findFile(tagInfo.virtualFile)
                             ?.let { targets.add(it) }
                     } else {
-                        // Try simple name match without namespace
                         svc.getAllCustomTags().firstOrNull { it.name == tagName }?.let { info ->
                             PsiManager.getInstance(project).findFile(info.virtualFile)
                                 ?.let { targets.add(it) }

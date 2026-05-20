@@ -63,6 +63,15 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
     }
 
     fun refresh() {
+        if (DumbService.isDumb(project)) {
+            summaryLabel.text = "Models: 0 (indexing…)"
+            DumbService.getInstance(project).runWhenSmart {
+                if (!project.isDisposed) {
+                    refresh()
+                }
+            }
+            return
+        }
         summaryLabel.text = "Models: loading…"
         ReadAction.nonBlocking<ModelsPanelState> {
             runCatching {

@@ -227,6 +227,97 @@
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
+
+        <!-- PlayMessages Custom Language -->
+        <fileType name="PlayMessages"
+                  language="PlayMessages"
+                  implementationClass="com.github.pablolec.play1toolkit.playmessages.lang.PlayMessagesFileType"
+                  fileNames="messages"
+                  patterns="messages.*"/>
+
+        <lang.syntaxHighlighterFactory language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.lang.PlayMessagesSyntaxHighlighterFactory"/>
+
+        <lang.parserDefinition language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.lang.PlayMessagesParserDefinition"/>
+
+        <lang.findUsagesProvider language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesFindUsagesProvider"/>
+
+        <!-- PlayMessages Service -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playmessages.service.PlayMessagesService"/>
+
+        <!-- PlayMessages References: Java → messages -->
+        <psi.referenceContributor language="JAVA"
+                implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesJavaReferenceContributor"/>
+
+        <!-- PlayMessages References: HTML → messages -->
+        <psi.referenceContributor language="HTML"
+                implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesHtmlReferenceContributor"/>
+
+        <!-- PlayMessages Find Usages: messages → Java -->
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesJavaUsageSearcher"/>
+
+        <!-- PlayMessages Find Usages: messages → HTML -->
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesHtmlUsageSearcher"/>
+
+        <!-- PlayMessages Rename -->
+        <renamePsiElementProcessor
+                implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesRenameProcessor"/>
+
+        <!-- PlayMessages Completion -->
+        <completion.contributor language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.completion.PlayMessagesJavaCompletionContributor"
+                order="last"/>
+        <completion.contributor language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.completion.PlayMessagesHtmlCompletionContributor"
+                order="last"/>
+
+        <!-- PlayMessages Inlay Hints -->
+        <codeInsight.inlayProvider language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.hints.PlayMessagesJavaInlayHintsProvider"
+                settingsKeyId="play-v1.messages.java-values"
+                enabledByDefault="true"/>
+
+        <!-- PlayMessages Documentation -->
+        <platform.backend.documentation.targetProvider
+                implementation="com.github.pablolec.play1toolkit.playmessages.documentation.PlayMessagesDocumentationTargetProvider"/>
+
+        <!-- PlayMessages Line Markers -->
+        <codeInsight.lineMarkerProvider language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.lineMarker.PlayMessagesLineMarkerProvider"/>
+
+        <!-- PlayMessages Inspections -->
+        <localInspection language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.inspections.UnknownPlayMessageKeyJavaInspection"
+                displayName="Unknown Play message key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.inspections.UnknownPlayMessageKeyHtmlInspection"
+                displayName="Unknown Play message key (template)"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
+        <localInspection language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.inspections.DuplicatePlayMessageKeyInspection"
+                displayName="Duplicate Play message key"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WARNING"/>
+        <localInspection language="PlayMessages"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.inspections.MissingLocaleTranslationInspection"
+                displayName="Missing locale translation"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="false"
+                level="INFORMATION"/>
+        <localInspection language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.inspections.PlaceholderCountMismatchInspection"
+                displayName="Placeholder count mismatch in Messages.get()"
+                groupName="Play v1 Toolkit"
+                enabledByDefault="true"
+                level="WEAK WARNING"/>
     </extensions>
 
     <actions>

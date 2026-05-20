@@ -15,6 +15,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBTabbedPane
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.FlowLayout
@@ -30,7 +31,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         val uiDisposable = Disposer.newDisposable("Play v1 Toolkit tool window")
 
         val tabs = JBTabbedPane().apply {
-            addTab("Status", statusPanel)
+            addTab("Status", JBScrollPane(statusPanel))
             addTab("Routes", routesPanel)
             addTab("Diagnostics", diagnosticsPanel)
         }

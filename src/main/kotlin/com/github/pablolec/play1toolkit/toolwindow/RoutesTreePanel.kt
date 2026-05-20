@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.toolwindow
 
+import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 import com.intellij.openapi.application.ModalityState
@@ -8,11 +9,8 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.pom.Navigatable
-import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.search.PsiShortNamesCache
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
@@ -211,13 +209,8 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
 
     private fun navigateToJavaMethod(entry: RouteTreeNode.RouteEntry) {
         ReadAction.nonBlocking<Navigatable?> {
-            val scope = GlobalSearchScope.projectScope(project)
-            val facade = JavaPsiFacade.getInstance(project)
-            val psiClass = facade.findClass(entry.controllerName, scope)
-                ?: PsiShortNamesCache.getInstance(project)
-                    .getClassesByName(entry.controllerName, scope).firstOrNull()
-                ?: return@nonBlocking null
-            (psiClass.findMethodsByName(entry.actionName, true).firstOrNull() ?: psiClass) as Navigatable
+            (RoutesControllerResolver.resolveMethod(project, entry.controllerName, entry.actionName)
+                ?: RoutesControllerResolver.resolveClass(project, entry.controllerName)) as? Navigatable
         }
             .inSmartMode(project)
             .finishOnUiThread(ModalityState.defaultModalityState()) { nav ->

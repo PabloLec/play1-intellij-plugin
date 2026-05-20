@@ -19,6 +19,7 @@
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
 
     <resource-bundle>messages.Play1ToolkitBundle</resource-bundle>
 
@@ -428,6 +429,94 @@
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
+        <!-- Play JPA Models -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playjpa.service.PlayJpaModelService"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.lineMarker.PlayJpaModelLineMarkerProvider"/>
+        <platform.backend.documentation.targetProvider
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.documentation.PlayJpaDocumentationTargetProvider"
+            order="first"/>
+        <codeInsight.inlayProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.hints.PlayJpaFinderInlayHintsProvider"
+            settingsKeyId="play-jpa.finder.hints"
+            enabledByDefault="false"/>
+        <psi.referenceContributor language="JAVA"
+            implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaFinderReferenceContributor"/>
+        <completion.contributor language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.completion.PlayJpaFinderCompletionContributor"
+            order="last"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayJpaModelWithoutEntityInspection"
+            displayName="Play JPA model without @Entity"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJpaModelWithoutEntity"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayJpaEntityNotExtendingModelInspection"
+            displayName="Play @Entity not extending Model"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJpaEntityNotExtendingModel"
+            enabledByDefault="true"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayJpaUnknownFinderFieldInspection"
+            displayName="Unknown field in Play JPA finder"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJpaUnknownFinderField"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayJpaFinderParamCountInspection"
+            displayName="Play JPA finder parameter count mismatch"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJpaFinderParamCount"
+            enabledByDefault="false"
+            level="WEAK WARNING"/>
+        <psi.referenceContributor language="YAML"
+            implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayYamlReferenceContributor"/>
+        <completion.contributor language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.completion.PlayYamlModelCompletionContributor"
+            order="last"/>
+        <completion.contributor language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.completion.PlayYamlFieldCompletionContributor"
+            order="last"/>
+        <completion.contributor language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.completion.PlayYamlRelationTargetCompletionContributor"
+            order="last"/>
+        <localInspection language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayYamlUnknownModelInspection"
+            displayName="Unknown model in Play fixture"
+            groupName="Play v1 Toolkit"
+            shortName="PlayYamlUnknownModel"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayYamlUnknownFieldInspection"
+            displayName="Unknown field in Play fixture"
+            groupName="Play v1 Toolkit"
+            shortName="PlayYamlUnknownField"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayYamlUnknownRelationTargetInspection"
+            displayName="Unknown fixture alias in Play fixture relation"
+            groupName="Play v1 Toolkit"
+            shortName="PlayYamlUnknownRelationTarget"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="YAML"
+            implementationClass="com.github.pablolec.play1toolkit.playjpa.inspection.PlayYamlDuplicateAliasInspection"
+            displayName="Duplicate fixture alias in Play fixture"
+            groupName="Play v1 Toolkit"
+            shortName="PlayYamlDuplicateAlias"
+            enabledByDefault="true"
+            level="WARNING"/>
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaModelUsageSearcher"/>
+        <referencesSearch implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaFieldUsageSearcher"/>
+        <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaRenameProcessor"/>
+        <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaFieldRenameProcessor"/>
+        <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayYamlFixtureAliasRenameProcessor"/>
     </extensions>
 
     <actions>

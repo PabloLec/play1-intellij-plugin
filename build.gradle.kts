@@ -27,6 +27,7 @@ dependencies {
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
         bundledPlugin("com.intellij.java")
+        bundledPlugin("org.jetbrains.plugins.yaml")
         pluginVerifier()
         zipSigner()
         testFramework(TestFrameworkType.Platform)

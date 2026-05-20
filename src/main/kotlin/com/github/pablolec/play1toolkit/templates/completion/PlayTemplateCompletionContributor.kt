@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.templates.completion
 
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
+import com.github.pablolec.play1toolkit.playjpa.service.PlayJpaModelService
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateService
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
@@ -193,6 +194,7 @@ class PlayTemplateCompletionContributor : CompletionContributor() {
 
     private class VariableCompletionProvider : CompletionProvider<CompletionParameters>() {
         private val varPrefixRe = Regex(""".*\$\{(\w*)$""")
+        private val memberPrefixRe = Regex(""".*\$\{(\w+)\.(\w*)$""")
 
         override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext, result: CompletionResultSet) {
             val element = parameters.position
@@ -200,14 +202,53 @@ class PlayTemplateCompletionContributor : CompletionContributor() {
             if (DumbService.isDumb(element.project)) return
 
             val textBefore = textBeforeCaret(parameters) ?: return
+            val project = element.project
+            val file = element.containingFile ?: return
+
+            val memberMatch = memberPrefixRe.find(textBefore)
+            if (memberMatch != null && textBefore.matches(memberPrefixRe)) {
+                val variableName = memberMatch.groupValues[1]
+                val prefix = memberMatch.groupValues[2]
+                val qualifierType = PlayTemplateVariableResolver.getInstance(project).resolveVariableType(file, variableName) ?: return
+                val classType = qualifierType as? PsiClassType ?: return
+                val psiClass = classType.resolve() ?: return
+                val model = PlayJpaModelService.getInstance(project).findModelForClass(psiClass)
+                val prefixResult = result.withPrefixMatcher(prefix)
+                if (model != null) {
+                    (model.fields + (model.idField?.let { listOf(it) } ?: emptyList())).forEach { field ->
+                        prefixResult.addElement(
+                            LookupElementBuilder.create(field.name)
+                                .withTypeText(field.typeText)
+                                .withTailText("  model field", true)
+                        )
+                    }
+                    model.relations.forEach { relation ->
+                        prefixResult.addElement(
+                            LookupElementBuilder.create(relation.fieldName)
+                                .withTypeText(relation.targetModel ?: "Object")
+                                .withTailText("  relation", true)
+                        )
+                    }
+                    return
+                }
+
+                psiClass.allFields
+                    .filter { !it.hasModifierProperty(PsiModifier.STATIC) }
+                    .forEach { field ->
+                        prefixResult.addElement(
+                            LookupElementBuilder.create(field.name)
+                                .withTypeText(field.type.presentableText)
+                                .withTailText("  field", true)
+                        )
+                    }
+                return
+            }
+
             if (!textBefore.matches(varPrefixRe)) return
 
             val match = varPrefixRe.find(textBefore) ?: return
             val prefix = match.groupValues[1]
             val prefixResult = result.withPrefixMatcher(prefix)
-
-            val project = element.project
-            val file = element.containingFile ?: return
             val variables = PlayTemplateVariableResolver.getInstance(project).resolveVariables(file)
 
             variables.forEach { varName ->

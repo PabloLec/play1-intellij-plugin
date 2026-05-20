@@ -37,6 +37,7 @@
         <!-- Project Services -->
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1LibWatcher"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.response.PlayActionResponseService"/>
 
         <!-- Startup Activity -->
         <postStartupActivity implementation="com.github.pablolec.play1toolkit.Play1StartupActivity"/>
@@ -74,6 +75,11 @@
         <annotator language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.routes.RoutesAnnotator"/>
 
+        <codeInsight.inlayProvider language="Routes"
+                implementationClass="com.github.pablolec.play1toolkit.routes.Play1RoutesResponseInlayHintsProvider"
+                settingsKeyId="play-v1.route.responses"
+                enabledByDefault="true"/>
+
         <!-- Tool Window -->
         <toolWindow id="Play v1 Toolkit"
                     anchor="right"
@@ -96,6 +102,8 @@
         <!-- Gutter icons: controller ↔ routes -->
         <codeInsight.lineMarkerProvider language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1ControllerLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+                implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1ActionResponseLineMarkerProvider"/>
         <codeInsight.lineMarkerProvider language="Routes"
                 implementationClass="com.github.pablolec.play1toolkit.lineMarker.Play1RoutesLineMarkerProvider"/>
 

@@ -10,7 +10,6 @@ import com.intellij.codeInsight.navigation.NavigationGutterIconBuilder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiIdentifier
 import com.intellij.psi.PsiMethod
-import com.intellij.psi.PsiModifier
 
 class Play1ActionResponseLineMarkerProvider : RelatedItemLineMarkerProvider() {
 
@@ -24,15 +23,15 @@ class Play1ActionResponseLineMarkerProvider : RelatedItemLineMarkerProvider() {
     ) {
         if (element !is PsiIdentifier) return
         val method = element.parent as? PsiMethod ?: return
-        if (!method.hasModifierProperty(PsiModifier.PUBLIC) || !method.hasModifierProperty(PsiModifier.STATIC)) return
         val containingClass = method.containingClass ?: return
         if (!Play1ViewUtils.isPlayControllerClass(containingClass)) return
+
+        val service = PlayActionResponseService.getInstance(element.project)
+        if (!service.isPlayActionMethod(method)) return
 
         val routes = Play1ViewUtils.findRoutesForAction(element.project, containingClass.name ?: return, method.name)
         if (routes.isEmpty()) return
 
-        val service = PlayActionResponseService.getInstance(element.project)
-        if (!service.isPlayActionMethod(method)) return
         val info = service.analyze(method)
         val targets = info.outcomes.map { it.sourceElement }.ifEmpty { listOf(method) }
 

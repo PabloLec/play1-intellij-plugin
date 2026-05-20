@@ -282,6 +282,30 @@ class PlayActionResponseAnalyzerTest : BasePlatformTestCase() {
         assertEquals(PlayResponseKind.JSON, info.kind)
     }
 
+    fun `test non static routed action is analyzed`() {
+        myFixture.addFileToProject(
+            "conf/routes",
+            """
+            GET /users/{id} Users.show
+            """.trimIndent()
+        )
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            import play.mvc.results.RenderJson;
+            public class Users extends Controller {
+                public void show(Long id) {
+                    throw new RenderJson(id);
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.JSON, info.kind)
+    }
+
     fun `test json remains primary with error branches`() {
         val method = configureControllerAndFindMethod(
             """

@@ -59,7 +59,6 @@ class PlayActionResponseAnalyzer(private val project: Project) {
 
     fun isPlayActionMethod(method: PsiMethod): Boolean {
         if (!method.hasModifierProperty(PsiModifier.PUBLIC)) return false
-        if (!method.hasModifierProperty(PsiModifier.STATIC)) return false
         if (method.returnType?.equalsToText("void") != true) return false
         val containingClass = method.containingClass ?: return false
         return Play1ViewUtils.isPlayControllerClass(containingClass)

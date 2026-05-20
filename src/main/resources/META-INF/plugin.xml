@@ -198,25 +198,13 @@
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="HTML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateActionNotRoutedInspection"
                 displayName="Play v1 action not declared in conf/routes"
                 groupName="Play v1 Toolkit"
                 enabledByDefault="true"
                 level="WEAK WARNING"/>
-        <localInspection language="XML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateActionNotRoutedInspection"
-                displayName="Play v1 action not declared in conf/routes"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="true"
-                level="WEAK WARNING"/>
-        <localInspection language="HTML"
-                implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateRouteArgCountInspection"
-                displayName="Suspicious Play v1 reverse route argument count"
-                groupName="Play v1 Toolkit"
-                enabledByDefault="false"
-                level="INFORMATION"/>
-        <localInspection language="XML"
+        <localInspection
                 implementationClass="com.github.pablolec.play1toolkit.templates.inspection.PlayTemplateRouteArgCountInspection"
                 displayName="Suspicious Play v1 reverse route argument count"
                 groupName="Play v1 Toolkit"

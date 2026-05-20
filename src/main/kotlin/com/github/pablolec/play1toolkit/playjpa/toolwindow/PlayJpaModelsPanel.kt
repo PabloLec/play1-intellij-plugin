@@ -3,13 +3,13 @@ package com.github.pablolec.play1toolkit.playjpa.toolwindow
 import com.github.pablolec.play1toolkit.playjpa.model.PlayJpaFieldInfo
 import com.github.pablolec.play1toolkit.playjpa.model.PlayJpaModelInfo
 import com.github.pablolec.play1toolkit.playjpa.model.PlayJpaRelationInfo
-import com.github.pablolec.play1toolkit.playjpa.references.PlayJpaFieldUsageSearcher
 import com.github.pablolec.play1toolkit.playjpa.references.PlayJpaModelUsageSearcher
 import com.github.pablolec.play1toolkit.playjpa.service.PlayJpaModelService
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.ui.components.JBLabel
@@ -70,7 +70,6 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
                 .sortedBy { it.className.lowercase(Locale.ROOT) }
             Pair(models.size, buildTree(models))
         }
-            .inSmartMode(project)
             .finishOnUiThread(ModalityState.defaultModalityState()) { (count, root) ->
                 summaryLabel.text = "Models: $count"
                 tree.model = DefaultTreeModel(root)
@@ -82,8 +81,9 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
 
     private fun buildTree(models: List<PlayJpaModelInfo>): DefaultMutableTreeNode {
         val root = DefaultMutableTreeNode("Play JPA models")
+        val canSearchUsages = !DumbService.isDumb(project)
         models.forEach { model ->
-            val usages = ReferencesSearch.search(model.psiClass).findAll().size
+            val usages = if (canSearchUsages) ReferencesSearch.search(model.psiClass).findAll().size else 0
             val fixtureUsages = PlayJpaModelUsageSearcher.countFixtureUsages(project, model.psiClass)
             val modelNode = DefaultMutableTreeNode(PlayJpaTreeNode.ModelNode(model, usages, fixtureUsages))
 

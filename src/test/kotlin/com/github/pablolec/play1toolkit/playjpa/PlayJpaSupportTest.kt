@@ -128,6 +128,46 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
         assertTrue(user.relations.any { it.fieldName == "orders" && it.targetModel == "Order" })
     }
 
+    fun `test app models convention does not treat dto and services as jpa models`() {
+        addProjectFile(
+            "app/models/actualites/ActualitesDTO.java",
+            """
+            package models.actualites;
+
+            public class ActualitesDTO {
+                public String title;
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
+            "app/models/advancedsearch/services/impl/AdvancedSearchQueryBuilderSrv.java",
+            """
+            package models.advancedsearch.services.impl;
+
+            public class AdvancedSearchQueryBuilderSrv {
+                public String build() { return "x"; }
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
+            "app/models/legacy/LegacyFallbackModel.java",
+            """
+            package models.legacy;
+
+            public class LegacyFallbackModel {
+                public Long id;
+                public String name;
+            }
+            """.trimIndent()
+        )
+
+        val service = PlayJpaModelService.getInstance(project)
+        val modelNames = service.getAllModels().map { it.className }.toSet()
+        assertFalse(modelNames.contains("ActualitesDTO"))
+        assertFalse(modelNames.contains("AdvancedSearchQueryBuilderSrv"))
+        assertTrue(modelNames.contains("LegacyFallbackModel"))
+    }
+
     fun `test finder string reference resolves to model field`() {
         addProjectFile(
             "app/models/User.java",

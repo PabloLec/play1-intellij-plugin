@@ -139,9 +139,17 @@ private data class ModelsPanelState(
 )
 
 private sealed interface PlayJpaTreeNode {
-    data class ModelNode(val model: PlayJpaModelInfo, val usages: Int, val fixtureUsages: Int) : PlayJpaTreeNode
-    data class FieldNode(val field: PlayJpaFieldInfo) : PlayJpaTreeNode
-    data class RelationNode(val relation: PlayJpaRelationInfo) : PlayJpaTreeNode
+    data class ModelNode(val model: PlayJpaModelInfo, val usages: Int, val fixtureUsages: Int) : PlayJpaTreeNode {
+        override fun toString(): String = model.className
+    }
+
+    data class FieldNode(val field: PlayJpaFieldInfo) : PlayJpaTreeNode {
+        override fun toString(): String = field.name
+    }
+
+    data class RelationNode(val relation: PlayJpaRelationInfo) : PlayJpaTreeNode {
+        override fun toString(): String = relation.fieldName
+    }
 }
 
 private class PlayJpaModelsTreeRenderer : DefaultTreeCellRenderer() {

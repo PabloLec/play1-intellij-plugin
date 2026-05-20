@@ -9,6 +9,23 @@ private val RELATION_ANNOTATIONS = setOf("OneToOne", "OneToMany", "ManyToOne", "
 private val MODEL_BASE_CLASSES = setOf("play.db.jpa.Model", "play.db.jpa.GenericModel", "play.db.jpa.JPABase")
 private val ID_ANNOTATIONS = setOf("Id", "EmbeddedId")
 private val SKIP_ANNOTATIONS = setOf("Transient")
+private val JPA_FIELD_ANNOTATIONS = setOf(
+    "Id",
+    "EmbeddedId",
+    "Column",
+    "JoinColumn",
+    "JoinTable",
+    "Enumerated",
+    "Temporal",
+    "Lob",
+    "Version",
+    "Basic",
+    "Transient",
+    "OneToOne",
+    "OneToMany",
+    "ManyToOne",
+    "ManyToMany"
+)
 private val RELATION_KINDS = mapOf(
     "OneToOne" to PlayJpaRelationKind.ONE_TO_ONE,
     "OneToMany" to PlayJpaRelationKind.ONE_TO_MANY,
@@ -22,11 +39,12 @@ object PlayJpaModelUtils {
         if (psiClass.isInterface || psiClass.isAnnotationType || psiClass.isEnum) return false
         if (extendsPlayModel(psiClass)) return true
         if (hasEntityAnnotation(psiClass)) return true
-        if (isUnderAppModels(psiClass)) return true
+        if (isUnderAppModels(psiClass) && hasJpaLikeStructure(psiClass)) return true
         return false
     }
 
     fun extendsPlayModel(psiClass: PsiClass): Boolean {
+        if (hasPlayModelSuperTypeName(psiClass)) return true
         var superClass = psiClass.superClass
         var depth = 0
         while (superClass != null && depth < 5) {
@@ -39,7 +57,10 @@ object PlayJpaModelUtils {
     }
 
     fun hasEntityAnnotation(psiClass: PsiClass): Boolean =
-        psiClass.modifierList?.annotations?.any { it.qualifiedName?.endsWith("Entity") == true } == true
+        psiClass.modifierList?.annotations?.any { annotation ->
+            val qualifiedName = annotation.qualifiedName
+            qualifiedName?.endsWith("Entity") == true || annotation.text.substringAfterLast('.').removePrefix("@") == "Entity"
+        } == true
 
     fun isUnderAppModels(psiClass: PsiClass): Boolean {
         val vf = psiClass.containingFile?.virtualFile ?: return false
@@ -50,7 +71,7 @@ object PlayJpaModelUtils {
 
     fun getJpaAnnotations(field: PsiField): List<String> =
         field.modifierList?.annotations?.mapNotNull { ann ->
-            ann.qualifiedName?.substringAfterLast('.')
+            ann.qualifiedName?.substringAfterLast('.') ?: ann.text.substringAfterLast('.').removePrefix("@")
         } ?: emptyList()
 
     fun buildModelInfo(psiClass: PsiClass): PlayJpaModelInfo {
@@ -107,7 +128,7 @@ object PlayJpaModelUtils {
     private fun determineSourceKind(psiClass: PsiClass, annotations: List<String>): PlayJpaModelSourceKind {
         val extendsModel = extendsPlayModel(psiClass)
         val hasEntity = "Entity" in annotations
-        val inModels = isUnderAppModels(psiClass)
+        val conventionModel = isUnderAppModels(psiClass) && hasJpaLikeStructure(psiClass)
 
         val superFqn = psiClass.superClass?.qualifiedName
         val extendsGeneric = superFqn == "play.db.jpa.GenericModel"
@@ -117,9 +138,42 @@ object PlayJpaModelUtils {
             extendsGeneric -> PlayJpaModelSourceKind.EXTENDS_GENERIC_MODEL
             extendsModel -> PlayJpaModelSourceKind.EXTENDS_MODEL
             hasEntity -> PlayJpaModelSourceKind.JPA_ENTITY
-            inModels -> PlayJpaModelSourceKind.APP_MODELS_CONVENTION
+            conventionModel -> PlayJpaModelSourceKind.APP_MODELS_CONVENTION
             else -> PlayJpaModelSourceKind.APP_MODELS_CONVENTION
         }
+    }
+
+    private fun hasPlayModelSuperTypeName(psiClass: PsiClass): Boolean {
+        return psiClass.extendsListTypes.any { type ->
+            val canonicalText = type.canonicalText
+            canonicalText in MODEL_BASE_CLASSES ||
+                canonicalText.endsWith(".Model") ||
+                canonicalText.endsWith(".GenericModel") ||
+                canonicalText.endsWith(".JPABase") ||
+                canonicalText == "Model" ||
+                canonicalText == "GenericModel" ||
+                canonicalText == "JPABase"
+        }
+    }
+
+    private fun hasJpaLikeStructure(psiClass: PsiClass): Boolean {
+        val ownFields = psiClass.fields.filterNot { it.hasModifierProperty(PsiModifier.STATIC) }
+        if (ownFields.isEmpty()) return false
+
+        val hasJpaAnnotations = ownFields.any { field ->
+            getJpaAnnotations(field).any { it in JPA_FIELD_ANNOTATIONS }
+        }
+        if (hasJpaAnnotations) return true
+
+        val hasDeclaredIdField = ownFields.any { field ->
+            field.name == "id" && field.type.presentableText in setOf("Long", "long", "Integer", "int", "String")
+        }
+        if (hasDeclaredIdField) return true
+
+        val hasEntityLikeName = psiClass.name?.let { name ->
+            name.endsWith("Model") || name.endsWith("Entity")
+        } == true
+        return hasEntityLikeName && ownFields.any { field -> field.name != "serialVersionUID" }
     }
 
     private fun extractRelationTargetType(field: PsiField): String? {

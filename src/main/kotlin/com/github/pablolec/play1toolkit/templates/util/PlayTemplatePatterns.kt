@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.templates.util
 
 object PlayTemplatePatterns {
+    val GROOVY_EXPR_BLOCK = Regex("""\$\{([^}]*)\}""")
 
     val TAG_EXTENDS = Regex("""#\{extends\s+['"]([^'"]+)['"]\s*/\}""")
     val TAG_INCLUDE = Regex("""#\{include\s+['"]([^'"]+)['"]\s*/\}""")
@@ -18,6 +19,7 @@ object PlayTemplatePatterns {
     val STATIC_ASSET = Regex("""@\{['"]([^'"]*)['"]\}""")
 
     val LIST_TAG_VAR = Regex("""#\{list\s+[^}]*as\s*:\s*['"](\w+)['"]""")
+    val LIST_TAG_ITEMS_AND_VAR = Regex("""#\{list\s+[^}]*items\s*:\s*([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)[^}]*as\s*:\s*['"](\w+)['"]""")
 
     val TAG_PARAM = Regex("""\$\{_(\w+)\}""")
 

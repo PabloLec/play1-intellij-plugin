@@ -4,22 +4,34 @@ import com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableRe
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiType
 import com.intellij.psi.PsiReferenceBase
 
 class PlayTemplateVariableReference(
     element: PsiElement,
     range: TextRange,
-    private val variableName: String
+    private val variableName: String,
+    private val qualifierName: String? = null,
+    private val methodCall: Boolean = false
 ) : PsiReferenceBase<PsiElement>(element, range, true) {
 
-    override fun resolve(): PsiElement? =
-        PlayTemplateVariableResolver.getInstance(element.project)
-            .resolveVariableDeclarations(element.containingFile)[variableName]
+    override fun resolve(): PsiElement? {
+        val resolver = PlayTemplateVariableResolver.getInstance(element.project)
+        if (qualifierName == null) {
+            return resolver.resolveVariableDeclarations(element.containingFile)[variableName]
+        }
+        val qualifierType = resolver.resolveVariableType(element.containingFile, qualifierName)
+        return resolver.resolveMember(element, qualifierType, variableName, methodCall)
+    }
 
     override fun getVariants(): Array<Any> =
-        PlayTemplateVariableResolver.getInstance(element.project)
-            .resolveVariables(element.containingFile)
-            .sorted()
-            .map { LookupElementBuilder.create(it).withTypeText("template variable") }
-            .toTypedArray()
+        if (qualifierName == null) {
+            PlayTemplateVariableResolver.getInstance(element.project)
+                .resolveVariables(element.containingFile)
+                .sorted()
+                .map { LookupElementBuilder.create(it).withTypeText("template variable") }
+                .toTypedArray()
+        } else {
+            emptyArray()
+        }
 }

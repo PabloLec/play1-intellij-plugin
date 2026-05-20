@@ -10,6 +10,14 @@ import com.intellij.util.ProcessingContext
 
 class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
 
+    private data class ExpressionToken(
+        val name: String,
+        val start: Int,
+        val end: Int,
+        val qualifierName: String? = null,
+        val methodCall: Boolean = false
+    )
+
     override fun registerReferenceProviders(registrar: PsiReferenceRegistrar) {
         registrar.registerReferenceProvider(
             PlatformPatterns.psiElement(PsiElement::class.java).inside(XmlText::class.java),
@@ -102,14 +110,22 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             }
         }
 
-        // ${variable.property}
-        PlayTemplatePatterns.GROOVY_EXPR.findAll(text).forEach { match ->
-            val variableName = match.groupValues[1]
-            val nameRange = match.groups[1]?.range ?: return@forEach
-            val nameStart = xmlText.textRange.startOffset + nameRange.first
-            val nameEnd = xmlText.textRange.startOffset + nameRange.last + 1
-            addReferenceIfInside(nameStart, nameEnd) { range ->
-                PlayTemplateVariableReference(element, range, variableName)
+        // ${variable.property} and nested identifiers inside groovy expressions
+        PlayTemplatePatterns.GROOVY_EXPR_BLOCK.findAll(text).forEach { match ->
+            val bodyRange = match.groups[1]?.range ?: return@forEach
+            val bodyText = match.groupValues[1]
+            extractExpressionTokens(bodyText, bodyRange.first).forEach { token ->
+                val nameStart = xmlText.textRange.startOffset + token.start
+                val nameEnd = xmlText.textRange.startOffset + token.end
+                addReferenceIfInside(nameStart, nameEnd) { range ->
+                    PlayTemplateVariableReference(
+                        element,
+                        range,
+                        token.name,
+                        token.qualifierName,
+                        token.methodCall
+                    )
+                }
             }
         }
 
@@ -126,5 +142,75 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
         }
 
         return refs
+    }
+
+    private fun extractExpressionTokens(bodyText: String, bodyStartOffset: Int): List<ExpressionToken> {
+        val tokens = mutableListOf<ExpressionToken>()
+        val identifierRegex = Regex("""[A-Za-z_]\w*""")
+        identifierRegex.findAll(bodyText).forEach { match ->
+            val name = match.value
+            if (name in GROOVY_KEYWORDS) return@forEach
+            val localStart = match.range.first
+            val localEnd = match.range.last + 1
+            val previous = previousNonWhitespace(bodyText, localStart - 1)
+            val next = nextNonWhitespace(bodyText, localEnd)
+            if (previous == '.') {
+                val qualifierName = findDirectQualifierName(bodyText, localStart - 1) ?: return@forEach
+                tokens += ExpressionToken(
+                    name = name,
+                    start = bodyStartOffset + localStart,
+                    end = bodyStartOffset + localEnd,
+                    qualifierName = qualifierName,
+                    methodCall = next == '('
+                )
+            } else {
+                tokens += ExpressionToken(
+                    name = name,
+                    start = bodyStartOffset + localStart,
+                    end = bodyStartOffset + localEnd
+                )
+            }
+        }
+        return tokens
+    }
+
+    private fun previousNonWhitespace(text: String, startIndex: Int): Char? {
+        var index = startIndex
+        while (index >= 0) {
+            val c = text[index]
+            if (!c.isWhitespace()) return c
+            index--
+        }
+        return null
+    }
+
+    private fun nextNonWhitespace(text: String, startIndex: Int): Char? {
+        var index = startIndex
+        while (index < text.length) {
+            val c = text[index]
+            if (!c.isWhitespace()) return c
+            index++
+        }
+        return null
+    }
+
+    private fun findDirectQualifierName(text: String, dotIndex: Int): String? {
+        var index = dotIndex - 1
+        while (index >= 0 && text[index].isWhitespace()) {
+            index--
+        }
+        if (index < 0 || (!text[index].isLetterOrDigit() && text[index] != '_')) return null
+        val end = index + 1
+        while (index >= 0 && (text[index].isLetterOrDigit() || text[index] == '_')) {
+            index--
+        }
+        return text.substring(index + 1, end)
+    }
+
+    companion object {
+        private val GROOVY_KEYWORDS = setOf(
+            "new", "null", "true", "false", "def", "if", "else", "return",
+            "in", "as", "instanceof", "class", "this", "super"
+        )
     }
 }

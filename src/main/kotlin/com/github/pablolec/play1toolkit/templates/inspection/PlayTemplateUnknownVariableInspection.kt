@@ -15,7 +15,7 @@ class PlayTemplateUnknownVariableInspection : LocalInspectionTool() {
 
     override fun getDisplayName() = "Unknown Play v1 template variable"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "Play1UnknownTemplateVariable"
+    override fun getShortName() = "PlayTemplateUnknownVariable"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

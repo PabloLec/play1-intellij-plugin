@@ -14,7 +14,7 @@ class PlayTemplateMissingAssetInspection : LocalInspectionTool() {
 
     override fun getDisplayName() = "Missing Play v1 static asset"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "Play1MissingTemplateAsset"
+    override fun getShortName() = "PlayTemplateMissingAsset"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

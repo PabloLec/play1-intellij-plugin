@@ -15,7 +15,7 @@ class PlayTemplateMissingPathInspection : LocalInspectionTool() {
 
     override fun getDisplayName() = "Missing Play 1 template file"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "Play1MissingTemplatePath"
+    override fun getShortName() = "PlayTemplateMissingPath"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

@@ -15,7 +15,7 @@ class PlayTemplateUnknownRouteInspection : LocalInspectionTool() {
 
     override fun getDisplayName() = "Unknown Play v1 reverse route"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "Play1UnknownTemplateRoute"
+    override fun getShortName() = "PlayTemplateUnknownRoute"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

@@ -14,7 +14,7 @@ class PlayTemplateTagBalanceInspection : LocalInspectionTool() {
 
     override fun getDisplayName() = "Unbalanced Play v1 template tag"
     override fun getGroupDisplayName() = "Play v1 Toolkit"
-    override fun getShortName() = "Play1TemplateTagBalance"
+    override fun getShortName() = "PlayTemplateTagBalance"
     override fun isEnabledByDefault() = true
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {

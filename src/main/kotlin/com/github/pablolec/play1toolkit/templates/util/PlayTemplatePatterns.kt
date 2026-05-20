@@ -9,6 +9,7 @@ object PlayTemplatePatterns {
     val TAG_OPEN = Regex("""#\{(\w[\w.]*)\s*(?:[^}]*)?\}""")
     val TAG_SELF_CLOSE = Regex("""#\{(\w[\w.]*)\s*(?:[^}]*)?\s*/\}""")
     val TAG_CLOSE = Regex("""#\{/(\w[\w.]*)\}""")
+    val TAG_CONDITION = Regex("""#\{(?:if|elseif|ifnot)\s+([^}]*)\}""")
 
     val TAG_NAME_AT = Regex("""#\{(\w[\w.]*)""")
 

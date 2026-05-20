@@ -142,6 +142,10 @@
         <completion.contributor language="XML"
                 implementationClass="com.github.pablolec.play1toolkit.templates.completion.PlayTemplateCompletionContributor"
                 order="last"/>
+        <annotator language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.PlayTemplateReferenceAnnotator"/>
+        <annotator language="XML"
+                implementationClass="com.github.pablolec.play1toolkit.templates.PlayTemplateReferenceAnnotator"/>
         <completion.contributor language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.templates.completion.PlayTemplateJavaCompletionContributor"
                 order="last"/>

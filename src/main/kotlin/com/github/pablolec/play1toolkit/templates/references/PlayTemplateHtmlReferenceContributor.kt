@@ -78,6 +78,25 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             }
         }
 
+        // #{if ...}, #{elseif ...}, #{ifnot ...}
+        PlayTemplatePatterns.TAG_CONDITION.findAll(text).forEach { match ->
+            val bodyRange = match.groups[1]?.range ?: return@forEach
+            val bodyText = match.groupValues[1]
+            extractExpressionTokens(bodyText, bodyRange.first).forEach { token ->
+                val nameStart = xmlText.textRange.startOffset + token.start
+                val nameEnd = xmlText.textRange.startOffset + token.end
+                addReferenceIfInside(nameStart, nameEnd) { range ->
+                    PlayTemplateVariableReference(
+                        element,
+                        range,
+                        token.name,
+                        token.qualifierName,
+                        token.methodCall
+                    )
+                }
+            }
+        }
+
         // @{Controller.action(args)} reverse routes
         PlayTemplatePatterns.REVERSE_ROUTE.findAll(text).forEach { match ->
             val fullRef = match.groupValues[1]

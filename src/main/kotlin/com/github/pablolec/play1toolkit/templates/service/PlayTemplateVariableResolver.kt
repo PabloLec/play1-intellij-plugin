@@ -15,6 +15,7 @@ import com.intellij.psi.util.InheritanceUtil
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.psi.util.PsiTreeUtil
 
 @Service(Service.Level.PROJECT)
 class PlayTemplateVariableResolver(private val project: Project) {
@@ -146,6 +147,25 @@ class PlayTemplateVariableResolver(private val project: Project) {
             override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
                 super.visitMethodCallExpression(expression)
                 val name = expression.methodExpression.referenceName ?: return
+
+                if (name == "put") {
+                    val qualifier = expression.methodExpression.qualifierExpression
+                    if (qualifier?.text == "renderArgs") {
+                        val args = expression.argumentList.expressions
+                        if (args.size >= 2) {
+                            val varName = (args[0] as? PsiLiteralExpression)?.value as? String ?: return
+                            val valueArg = args[1]
+                            val resolved = (valueArg as? PsiReferenceExpression)?.resolve()
+                            if (resolved is PsiLocalVariable || resolved is PsiParameter || resolved is PsiField) {
+                                vars.putIfAbsent(varName, VariableInfo(resolved, extractElementType(resolved)))
+                            } else {
+                                vars.putIfAbsent(varName, VariableInfo(valueArg, null))
+                            }
+                        }
+                    }
+                    return
+                }
+
                 if (name != "render" && name != "renderTemplate") return
                 val containingClass = expression.resolveMethod()?.containingClass ?: method.containingClass ?: return
                 if (!Play1ViewUtils.isPlayControllerClass(containingClass)) return
@@ -228,6 +248,25 @@ class PlayTemplateVariableResolver(private val project: Project) {
                             is PsiLiteralExpression -> Unit
                         }
                     }
+                    PsiTreeUtil.getParentOfType(expression, PsiMethod::class.java)
+                        ?.accept(object : JavaRecursiveElementWalkingVisitor() {
+                            override fun visitMethodCallExpression(putExpr: PsiMethodCallExpression) {
+                                super.visitMethodCallExpression(putExpr)
+                                if (putExpr.methodExpression.referenceName != "put") return
+                                val qualifier = putExpr.methodExpression.qualifierExpression ?: return
+                                if (qualifier.text != "renderArgs") return
+                                val putArgs = putExpr.argumentList.expressions
+                                if (putArgs.size < 2) return
+                                val varName = (putArgs[0] as? PsiLiteralExpression)?.value as? String ?: return
+                                val valueArg = putArgs[1]
+                                val resolved = (valueArg as? PsiReferenceExpression)?.resolve()
+                                if (resolved is PsiLocalVariable || resolved is PsiParameter || resolved is PsiField) {
+                                    vars.putIfAbsent(varName, VariableInfo(resolved, extractElementType(resolved)))
+                                } else {
+                                    vars.putIfAbsent(varName, VariableInfo(valueArg, null))
+                                }
+                            }
+                        })
                 }
             })
         }

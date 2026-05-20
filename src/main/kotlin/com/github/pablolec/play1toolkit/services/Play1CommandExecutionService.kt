@@ -4,9 +4,18 @@ import com.github.pablolec.play1toolkit.project.Play1CliCommandId
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import java.util.concurrent.CopyOnWriteArrayList
 
 @Service(Service.Level.PROJECT)
 class Play1CommandExecutionService {
+
+    data class State(
+        val currentCommandId: Play1CliCommandId?,
+        val stopRequested: Boolean,
+    ) {
+        val isRunning: Boolean
+            get() = currentCommandId != null
+    }
 
     @Volatile
     var currentCommandId: Play1CliCommandId? = null
@@ -18,11 +27,19 @@ class Play1CommandExecutionService {
     @Volatile
     private var stopRequestedFlag: Boolean = false
 
+    private val listeners = CopyOnWriteArrayList<(State) -> Unit>()
+
     val isRunning: Boolean
         get() = currentCommandId != null
 
     val stopRequested: Boolean
         get() = stopRequestedFlag
+
+    val state: State
+        get() = State(
+            currentCommandId = currentCommandId,
+            stopRequested = stopRequestedFlag,
+        )
 
     @Synchronized
     fun start(commandId: Play1CliCommandId): Boolean {
@@ -30,6 +47,7 @@ class Play1CommandExecutionService {
         currentCommandId = commandId
         stopRequestedFlag = false
         process = null
+        notifyListeners()
         return true
     }
 
@@ -40,6 +58,7 @@ class Play1CommandExecutionService {
             process.destroy()
             process.destroyForcibly()
         }
+        notifyListeners()
     }
 
     @Synchronized
@@ -47,6 +66,7 @@ class Play1CommandExecutionService {
         stopRequestedFlag = true
         process?.destroy()
         process?.destroyForcibly()
+        notifyListeners()
     }
 
     @Synchronized
@@ -54,6 +74,18 @@ class Play1CommandExecutionService {
         currentCommandId = null
         process = null
         stopRequestedFlag = false
+        notifyListeners()
+    }
+
+    fun addListener(listener: (State) -> Unit): () -> Unit {
+        listeners += listener
+        listener(state)
+        return { listeners.remove(listener) }
+    }
+
+    private fun notifyListeners() {
+        val snapshot = state
+        listeners.forEach { it(snapshot) }
     }
 
     companion object {

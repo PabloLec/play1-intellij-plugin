@@ -4,10 +4,12 @@ import com.github.pablolec.play1toolkit.actions.Play1CliActionSupport
 import com.github.pablolec.play1toolkit.actions.Play1SyncDepsAction
 import com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction
 import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -25,6 +27,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         val statusPanel = ProjectStatusPanel(project)
         val routesPanel = RoutesTreePanel(project)
         val diagnosticsPanel = DiagnosticsPanel(project)
+        val uiDisposable = Disposer.newDisposable("Play v1 Toolkit tool window")
 
         val tabs = JBTabbedPane().apply {
             addTab("Status", statusPanel)
@@ -32,7 +35,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
             addTab("Diagnostics", diagnosticsPanel)
         }
 
-        val toolbar = buildToolbar(project) {
+        val toolbar = buildToolbar(project, uiDisposable) {
             statusPanel.refresh()
             routesPanel.refresh()
             diagnosticsPanel.refresh()
@@ -45,10 +48,12 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
 
         val contentManager = toolWindow.contentManager
         val twContent = contentManager.factory.createContent(content, "", false)
+        twContent.setDisposer(uiDisposable)
+        Disposer.register(uiDisposable, statusPanel)
         contentManager.addContent(twContent)
     }
 
-    private fun buildToolbar(project: Project, onRefresh: () -> Unit): JPanel {
+    private fun buildToolbar(project: Project, uiDisposable: com.intellij.openapi.Disposable, onRefresh: () -> Unit): JPanel {
         val panel = JPanel(FlowLayout(FlowLayout.LEFT, 4, 2)).apply {
             border = JBUI.Borders.emptyBottom(2)
         }
@@ -79,11 +84,20 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
 
         val stopButton = JButton("■ Stop").apply {
             toolTipText = "Stop the current Play command"
+            isEnabled = false
             addActionListener {
                 Play1CliActionSupport.stopCurrent(project)
                 ApplicationManager.getApplication().invokeLater { onRefresh() }
             }
         }
+
+        val detachListener = Play1CommandExecutionService.getInstance(project).addListener { state ->
+            ApplicationManager.getApplication().invokeLater {
+                stopButton.isEnabled = state.isRunning
+                onRefresh()
+            }
+        }
+        Disposer.register(uiDisposable) { detachListener.invoke() }
 
         val refreshButton = JButton("↺ Refresh").apply {
             toolTipText = "Refresh tool window data"

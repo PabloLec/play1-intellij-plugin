@@ -15,6 +15,7 @@ import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -29,7 +30,7 @@ import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
 
-class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPanel>(BorderLayout()) {
+class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPanel>(BorderLayout()), Disposable {
 
     private val playDetectedLabel = JBLabel()
     private val playHomeLabel = JBLabel()
@@ -40,13 +41,13 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val lastCommandLabel = JBLabel("Last command: —")
     private val configureButton = JButton("Configure Play Home…")
     private val repairButton = JButton("Repair Project Setup")
-    private val stopCommandButton = JButton("Stop Command")
     private val runAppButton = JButton("Run App")
     private val debugAppButton = JButton("Debug App")
     private val runStatusLabel = JBLabel()
     private val debugStatusLabel = JBLabel()
     private val commandButtons = linkedMapOf<Play1CliCommandId, JButton>()
     private val commandStatusLabels = linkedMapOf<Play1CliCommandId, JBLabel>()
+    private var executionListenerDisposer: (() -> Unit)? = null
 
     init {
         border = JBUI.Borders.empty(6)
@@ -57,12 +58,11 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         repairButton.addActionListener {
             RepairProjectSetupAction.runRepair(project, silent = false)
         }
-        stopCommandButton.addActionListener {
-            Play1CliActionSupport.stopCurrent(project)
-            refresh()
-        }
         runAppButton.addActionListener { launchRunConfiguration(debug = false) }
         debugAppButton.addActionListener { launchRunConfiguration(debug = true) }
+        executionListenerDisposer = Play1CommandExecutionService.getInstance(project).addListener {
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater { refresh() }
+        }
         refresh()
     }
 
@@ -119,18 +119,17 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
 
         val commandRunning = executionService.isRunning
+        val runningCommandId = executionService.currentCommandId
         val canLaunch = isPlay1 && !commandRunning
         runAppButton.isEnabled = canLaunch
         debugAppButton.isEnabled = canLaunch
-        stopCommandButton.isEnabled = commandRunning
         runStatusLabel.text = if (playConfig != null) "Launch the IntelliJ run configuration" else "Run configuration missing — click to repair"
         debugStatusLabel.text = if (playConfig != null) "Launch the IntelliJ debug configuration" else "Run configuration missing — click to repair"
 
-        val commandsEnabled = isPlay1 && validation?.valid == true && !commandRunning
         Play1CliCommandId.entries.forEach { commandId ->
             val button = commandButtons.getValue(commandId)
             val statusLabel = commandStatusLabels.getValue(commandId)
-            val plan = if (commandsEnabled) {
+            val plan = if (isPlay1 && validation?.valid == true) {
                 Play1CliRunner.plan(
                     request = Play1CliRequest(commandId),
                     projectPath = project.basePath ?: "",
@@ -139,13 +138,14 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                 )
             } else null
 
-            button.isEnabled = commandsEnabled && plan?.available == true
+            val commandRunningHere = runningCommandId == commandId
+            button.isEnabled = isPlay1 && validation?.valid == true && !commandRunning && plan?.available == true
             statusLabel.text = when {
                 !isPlay1 -> "Play 1 project required"
                 validation?.valid != true -> validation?.error ?: "Configure a valid Play Home"
-                commandRunning -> "Command in progress…"
+                commandRunningHere -> "Command in progress…"
                 plan == null -> "Unavailable"
-                plan.available -> buildStatusText(plan.runtimeDescription ?: "Ready", plan.effectivePlayHome, playHome)
+                plan.available -> commandId.description
                 else -> plan.message
             }
         }
@@ -161,7 +161,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
 
         content.add(section("Project", playDetectedLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
-        content.add(buttonRow(configureButton, repairButton, stopCommandButton))
+        content.add(buttonRow(configureButton, repairButton))
 
         content.add(commandsSection("Run", listOf(
             Triple(runAppButton, runStatusLabel, "Run App"),
@@ -299,10 +299,8 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private fun findPlayConfiguration() =
         RunManager.getInstance(project).allSettings.firstOrNull { it.type is Play1RunConfigurationType }
 
-    private fun buildStatusText(runtime: String, effectivePlayHome: String?, configuredPlayHome: String): String =
-        if (effectivePlayHome != null && effectivePlayHome != configuredPlayHome) {
-            "Ready — $runtime via alternate Play Home"
-        } else {
-            "Ready — $runtime"
-        }
+    override fun dispose() {
+        executionListenerDisposer?.invoke()
+        executionListenerDisposer = null
+    }
 }

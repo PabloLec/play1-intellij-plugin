@@ -235,6 +235,8 @@
                   fileNames="messages"
                   patterns="messages.*"/>
 
+        <fileTypeDetector implementationClass="com.github.pablolec.play1toolkit.playmessages.lang.PlayMessagesFileTypeDetector"/>
+
         <lang.syntaxHighlighterFactory language="PlayMessages"
                 implementationClass="com.github.pablolec.play1toolkit.playmessages.lang.PlayMessagesSyntaxHighlighterFactory"/>
 
@@ -261,6 +263,10 @@
         <!-- PlayMessages Find Usages: messages → HTML -->
         <referencesSearch implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesHtmlUsageSearcher"/>
 
+        <!-- PlayMessages HTML navigation: Ctrl+Click &{'key'} → messages declaration -->
+        <gotoDeclarationHandler
+                implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesHtmlGotoDeclarationHandler"/>
+
         <!-- PlayMessages Rename -->
         <renamePsiElementProcessor
                 implementation="com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesRenameProcessor"/>
@@ -277,6 +283,10 @@
         <codeInsight.inlayProvider language="JAVA"
                 implementationClass="com.github.pablolec.play1toolkit.playmessages.hints.PlayMessagesJavaInlayHintsProvider"
                 settingsKeyId="play-v1.messages.java-values"
+                enabledByDefault="true"/>
+        <codeInsight.inlayProvider language="HTML"
+                implementationClass="com.github.pablolec.play1toolkit.playmessages.hints.PlayMessagesHtmlInlayHintsProvider"
+                settingsKeyId="play-v1.messages.html-values"
                 enabledByDefault="true"/>
 
         <!-- PlayMessages Documentation -->

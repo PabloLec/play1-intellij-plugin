@@ -1,28 +1,29 @@
 package com.github.pablolec.play1toolkit.playmessages.hints
 
-import com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesContextDetector
+import com.github.pablolec.play1toolkit.playmessages.references.PlayMessagesHtmlReferenceContributor
 import com.github.pablolec.play1toolkit.playmessages.service.PlayMessagesService
 import com.intellij.codeInsight.hints.*
 import com.intellij.codeInsight.hints.presentation.PresentationFactory
 import com.intellij.lang.Language
-import com.intellij.lang.java.JavaLanguage
+import com.intellij.lang.html.HTMLLanguage
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.DumbService
 import com.intellij.psi.*
+import com.intellij.psi.xml.XmlText
 import java.awt.FlowLayout
 import javax.swing.JPanel
 
 @Suppress("UnstableApiUsage")
-class PlayMessagesJavaInlayHintsProvider : InlayHintsProvider<NoSettings> {
+class PlayMessagesHtmlInlayHintsProvider : InlayHintsProvider<NoSettings> {
 
-    override val key = SettingsKey<NoSettings>("play-v1.messages.java-values")
-    override val name = "Play message values"
-    override val previewText = """Messages.get("hello")"""
+    override val key = SettingsKey<NoSettings>("play-v1.messages.html-values")
+    override val name = "Play message values (HTML)"
+    override val previewText = """&{'hello'}"""
     override val group: InlayGroup = InlayGroup.OTHER_GROUP
 
     override fun createSettings() = NoSettings()
 
-    override fun isLanguageSupported(language: Language): Boolean = language == JavaLanguage.INSTANCE
+    override fun isLanguageSupported(language: Language): Boolean = language.isKindOf(HTMLLanguage.INSTANCE)
 
     override fun getCollectorFor(
         file: PsiFile,
@@ -31,20 +32,23 @@ class PlayMessagesJavaInlayHintsProvider : InlayHintsProvider<NoSettings> {
         sink: InlayHintsSink
     ): InlayHintsCollector? {
         if (DumbService.isDumb(file.project)) return null
-        if (file.language != JavaLanguage.INSTANCE) return null
+        val path = file.virtualFile?.path ?: return null
+        if (!path.contains("/app/views/")) return null
 
         return object : FactoryInlayHintsCollector(editor) {
             override fun collect(element: PsiElement, editor: Editor, sink: InlayHintsSink): Boolean {
-                val literal = element as? PsiLiteralExpression ?: return true
-                val key = literal.value as? String ?: return true
-                if (key.isBlank()) return true
-                if (!PlayMessagesContextDetector.isMessagesKeyContext(literal)) return true
-
+                val xmlText = element as? XmlText ?: return true
+                val text = xmlText.text
                 val svc = PlayMessagesService.getInstance(element.project)
-                val hint = buildHintText(svc, key)
-
                 val factory = PresentationFactory(editor)
-                sink.addInlineElement(literal.textRange.endOffset, true, factory.smallText(hint), false)
+
+                PlayMessagesHtmlReferenceContributor.MESSAGES_PATTERN.findAll(text).forEach { match ->
+                    val key = match.groupValues[1]
+                    if (key.isBlank()) return@forEach
+                    val hint = buildHintText(svc, key)
+                    val absOffset = xmlText.textRange.startOffset + match.range.last + 1
+                    sink.addInlineElement(absOffset, true, factory.smallText(hint), false)
+                }
                 return true
             }
 

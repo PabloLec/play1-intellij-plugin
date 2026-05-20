@@ -153,6 +153,124 @@ class PlayActionResponseAnalyzerTest : BasePlatformTestCase() {
         assertTrue(PlayResponsePresentation.tooltip(info).contains("Mixed"))
     }
 
+    fun `test nested helper analysis in same controller`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    respond(id);
+                }
+
+                private static void respond(Long id) {
+                    if (id == null) {
+                        notFound();
+                    }
+                    Object user = new Object();
+                    render(user);
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.HTML, info.kind)
+        assertTrue(PlayResponsePresentation.tooltip(info).contains("May also return HTTP 404"))
+    }
+
+    fun `test nested helper analysis across project classes`() {
+        myFixture.addFileToProject(
+            "app/services/UserResponses.java",
+            """
+            package services;
+            import play.mvc.Controller;
+            public class UserResponses extends Controller {
+                public static void writeJson(Object value) {
+                    renderJSON(value);
+                }
+            }
+            """.trimIndent()
+        )
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            import services.UserResponses;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    Object user = new Object();
+                    UserResponses.writeJson(user);
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.JSON, info.kind)
+    }
+
+    fun `test nested helper cycle does not loop forever`() {
+        val method = configureControllerAndFindMethod(
+            """
+            package controllers;
+            import play.mvc.Controller;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    first(id);
+                }
+
+                private static void first(Long id) {
+                    second(id);
+                }
+
+                private static void second(Long id) {
+                    if (id == null) {
+                        first(1L);
+                        return;
+                    }
+                    renderText("ok");
+                }
+            }
+            """.trimIndent()
+        )
+
+        val info = PlayActionResponseService.getInstance(project).analyze(method)
+        assertEquals(PlayResponseKind.TEXT, info.kind)
+    }
+
+    fun `test route inlay uses nested helper outcome`() {
+        myFixture.addFileToProject(
+            "app/controllers/Users.java",
+            """
+            package controllers;
+            import play.mvc.Controller;
+            public class Users extends Controller {
+                public static void show(Long id) {
+                    renderUser();
+                }
+
+                private static void renderUser() {
+                    Object user = new Object();
+                    renderJSON(user);
+                }
+            }
+            """.trimIndent()
+        )
+        val routes = myFixture.addFileToProject(
+            "conf/routes",
+            """
+            GET /users/{id} Users.show
+            """.trimIndent()
+        )
+
+        myFixture.configureFromExistingVirtualFile(routes.virtualFile)
+        myFixture.doHighlighting()
+
+        val inlays = myFixture.editor.inlayModel.getInlineElementsInRange(0, myFixture.editor.document.textLength)
+        assertTrue("expected a response inlay on routes", inlays.isNotEmpty())
+    }
+
     fun `test route gets response inlay`() {
         myFixture.addFileToProject(
             "app/controllers/Users.java",

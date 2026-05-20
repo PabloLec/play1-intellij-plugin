@@ -2,9 +2,11 @@ package com.github.pablolec.play1toolkit.response
 
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.psi.JavaRecursiveElementWalkingVisitor
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiLiteralExpression
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiMethodCallExpression
@@ -19,21 +21,17 @@ class PlayActionResponseAnalyzer(private val project: Project) {
             return PlayEndpointResponseInfo(PlayResponseKind.UNKNOWN, emptyList(), PlayResponseConfidence.LOW)
         }
 
-        val body = method.body ?: return PlayEndpointResponseInfo(
+        if (method.body == null) return PlayEndpointResponseInfo(
             PlayResponseKind.UNKNOWN,
             emptyList(),
             PlayResponseConfidence.LOW
         )
 
-        val outcomes = mutableListOf<PlayResponseOutcome>()
-        body.accept(object : JavaRecursiveElementWalkingVisitor() {
-            override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
-                super.visitMethodCallExpression(expression)
-                buildOutcome(method, expression)?.let(outcomes::add)
-            }
-        })
+        val outcomes = linkedMapOf<String, PlayResponseOutcome>()
+        collectOutcomes(method, method, 0, linkedSetOf(), outcomes)
 
-        val distinctPrimaryKinds = outcomes
+        val orderedOutcomes = outcomes.values.toList()
+        val distinctPrimaryKinds = orderedOutcomes
             .filter { it.kind !in setOf(PlayResponseKind.STATUS, PlayResponseKind.ERROR, PlayResponseKind.UNKNOWN) }
             .map { it.kind }
             .distinct()
@@ -41,19 +39,19 @@ class PlayActionResponseAnalyzer(private val project: Project) {
         val kind = when {
             distinctPrimaryKinds.size > 1 -> PlayResponseKind.MIXED
             distinctPrimaryKinds.size == 1 -> distinctPrimaryKinds.first()
-            outcomes.any { it.kind == PlayResponseKind.ERROR } -> PlayResponseKind.ERROR
-            outcomes.any { it.kind == PlayResponseKind.STATUS } -> PlayResponseKind.STATUS
-            outcomes.isNotEmpty() -> outcomes.first().kind
+            orderedOutcomes.any { it.kind == PlayResponseKind.ERROR } -> PlayResponseKind.ERROR
+            orderedOutcomes.any { it.kind == PlayResponseKind.STATUS } -> PlayResponseKind.STATUS
+            orderedOutcomes.isNotEmpty() -> orderedOutcomes.first().kind
             else -> PlayResponseKind.UNKNOWN
         }
 
         val confidence = when {
-            outcomes.isEmpty() -> PlayResponseConfidence.LOW
-            outcomes.any { it.confidence == PlayResponseConfidence.MEDIUM } -> PlayResponseConfidence.MEDIUM
+            orderedOutcomes.isEmpty() -> PlayResponseConfidence.LOW
+            orderedOutcomes.any { it.confidence == PlayResponseConfidence.MEDIUM } -> PlayResponseConfidence.MEDIUM
             else -> PlayResponseConfidence.HIGH
         }
 
-        return PlayEndpointResponseInfo(kind, outcomes, confidence)
+        return PlayEndpointResponseInfo(kind, orderedOutcomes, confidence)
     }
 
     fun isPlayActionMethod(method: PsiMethod): Boolean {
@@ -64,8 +62,41 @@ class PlayActionResponseAnalyzer(private val project: Project) {
         return Play1ViewUtils.isPlayControllerClass(containingClass)
     }
 
-    private fun buildOutcome(actionMethod: PsiMethod, call: PsiMethodCallExpression): PlayResponseOutcome? {
-        val resolved = call.resolveMethod()
+    private fun collectOutcomes(
+        actionMethod: PsiMethod,
+        currentMethod: PsiMethod,
+        depth: Int,
+        visiting: MutableSet<PsiMethod>,
+        outcomes: MutableMap<String, PlayResponseOutcome>,
+    ) {
+        if (depth > MAX_CALL_DEPTH) return
+        val body = currentMethod.body ?: return
+        if (!visiting.add(currentMethod)) return
+
+        try {
+            body.accept(object : JavaRecursiveElementWalkingVisitor() {
+                override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
+                    super.visitMethodCallExpression(expression)
+                    val resolved = expression.resolveMethod()
+                    buildOutcome(actionMethod, expression, resolved)?.let { outcome ->
+                        outcomes.putIfAbsent(outcomeKey(outcome), outcome)
+                        return
+                    }
+                    if (resolved != null && shouldTraverse(resolved, visiting)) {
+                        collectOutcomes(actionMethod, resolved, depth + 1, visiting, outcomes)
+                    }
+                }
+            })
+        } finally {
+            visiting.remove(currentMethod)
+        }
+    }
+
+    private fun buildOutcome(
+        actionMethod: PsiMethod,
+        call: PsiMethodCallExpression,
+        resolved: PsiMethod?,
+    ): PlayResponseOutcome? {
         val methodName = call.methodExpression.referenceName ?: return null
         if (!isSupportedPlayResponseCall(resolved, methodName)) return null
 
@@ -159,6 +190,26 @@ class PlayActionResponseAnalyzer(private val project: Project) {
             InheritanceUtil.isInheritor(containingClass, "play.mvc.Controller")
     }
 
+    private fun shouldTraverse(resolved: PsiMethod, visiting: Set<PsiMethod>): Boolean {
+        if (resolved in visiting) return false
+        if (resolved.isConstructor) return false
+        if (resolved.body == null) return false
+        if (resolved.containingClass?.qualifiedName == "play.mvc.Controller") return false
+        if (isSupportedPlayResponseCall(resolved, resolved.name)) return false
+        return isProjectSourceFile(resolved.containingFile)
+    }
+
+    private fun isProjectSourceFile(file: PsiFile?): Boolean {
+        val virtualFile = file?.virtualFile ?: return false
+        return ProjectFileIndex.getInstance(project).isInSourceContent(virtualFile)
+    }
+
+    private fun outcomeKey(outcome: PlayResponseOutcome): String {
+        val filePath = outcome.sourceElement.containingFile?.virtualFile?.path.orEmpty()
+        val offset = outcome.sourceElement.textRange.startOffset
+        return "${outcome.kind}|$filePath|$offset|${outcome.callText.orEmpty()}"
+    }
+
     private fun inferHtmlTemplate(actionMethod: PsiMethod, args: Array<PsiExpression>, explicitOnly: Boolean): String {
         val explicit = extractTemplatePath(args.firstOrNull())
         if (explicit != null) return explicit
@@ -206,6 +257,8 @@ class PlayActionResponseAnalyzer(private val project: Project) {
     }
 
     companion object {
+        private const val MAX_CALL_DEPTH = 6
+
         private val SUPPORTED_METHODS = setOf(
             "render",
             "renderTemplate",

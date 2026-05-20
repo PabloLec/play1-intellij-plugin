@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.toolwindow
 
+import com.github.pablolec.play1toolkit.response.PlayEndpointResponseInfo
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 
 sealed class RouteTreeNode {
@@ -10,6 +11,7 @@ sealed class RouteTreeNode {
         val path: String,
         val controllerName: String,
         val actionName: String,
+        val responseInfo: PlayEndpointResponseInfo,
         val psiElement: RoutesRouteElement,
     ) : RouteTreeNode()
     data class SpecialEntry(val label: String) : RouteTreeNode()

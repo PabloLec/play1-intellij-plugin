@@ -1,5 +1,11 @@
 package com.github.pablolec.play1toolkit.toolwindow
 
+import com.github.pablolec.play1toolkit.response.PlayActionResponseService
+import com.github.pablolec.play1toolkit.response.PlayEndpointResponseInfo
+import com.github.pablolec.play1toolkit.response.PlayResponseConfidence
+import com.github.pablolec.play1toolkit.response.PlayResponseIcons
+import com.github.pablolec.play1toolkit.response.PlayResponseKind
+import com.github.pablolec.play1toolkit.response.PlayResponsePresentation
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
@@ -27,6 +33,7 @@ import java.util.Locale
 import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.JTree
+import javax.swing.ToolTipManager
 import javax.swing.tree.DefaultMutableTreeNode
 import javax.swing.tree.DefaultTreeCellRenderer
 import javax.swing.tree.DefaultTreeModel
@@ -43,6 +50,7 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
         border = JBUI.Borders.emptyTop(4)
         tree.isRootVisible = false
         tree.cellRenderer = RouteTreeCellRenderer()
+        ToolTipManager.sharedInstance().registerComponent(tree)
 
         val byCtrlButton = JButton("By Controller").apply {
             isOpaque = false
@@ -179,8 +187,17 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
         path = route.getPath()?.trim() ?: "",
         controllerName = route.getControllerName()?.text?.trim() ?: "?",
         actionName = route.getActionName()?.text?.trim() ?: "?",
+        responseInfo = resolveResponseInfo(route),
         psiElement = route,
     )
+
+    private fun resolveResponseInfo(route: RoutesRouteElement): PlayEndpointResponseInfo {
+        val controllerName = route.getControllerName()?.text?.trim().orEmpty()
+        val actionName = route.getActionName()?.text?.trim().orEmpty()
+        val method = RoutesControllerResolver.resolveMethod(project, controllerName, actionName)
+            ?: return UNKNOWN_RESPONSE_INFO
+        return PlayActionResponseService.getInstance(project).analyze(method)
+    }
 
     private fun specialEntryFor(route: RoutesRouteElement): RouteTreeNode.SpecialEntry {
         val label = when {
@@ -258,24 +275,51 @@ private class RouteTreeCellRenderer : DefaultTreeCellRenderer() {
             is RouteTreeNode.ControllerNode -> {
                 text = node.name
                 icon = com.intellij.icons.AllIcons.Nodes.Class
+                toolTipText = null
             }
             is RouteTreeNode.PathNode -> {
                 text = "/${node.segment}"
                 icon = com.intellij.icons.AllIcons.Nodes.Package
+                toolTipText = null
             }
             is RouteTreeNode.RouteEntry -> {
                 val color = methodColors[node.method] ?: Color(0x606060)
                 val hex = String.format("%06X", color.rgb and 0xFFFFFF)
+                val responseLabel = PlayResponsePresentation.shortLabel(node.responseInfo.kind)
+                val responseHex = responseColorHex(node.responseInfo.kind)
                 text = "<html><b><font color='#$hex'>${node.method}</font></b>&nbsp;&nbsp;" +
-                    "${esc(node.path)}&nbsp;&nbsp;<font color='gray'>→ ${esc(node.actionName)}</font></html>"
+                    "${esc(node.path)}&nbsp;&nbsp;<font color='gray'>→ ${esc(node.actionName)}</font>" +
+                    "&nbsp;&nbsp;<b><font color='#$responseHex'>${esc(responseLabel)}</font></b></html>"
+                icon = PlayResponseIcons.forKind(node.responseInfo.kind)
+                toolTipText = PlayResponsePresentation.tooltip(node.responseInfo)
             }
             is RouteTreeNode.SpecialEntry -> {
                 text = "<html><font color='gray'><i>${esc(node.label)}</i></font></html>"
+                toolTipText = null
             }
             else -> { /* root node — hidden */ }
         }
         return this
     }
 
+    private fun responseColorHex(kind: PlayResponseKind): String = when (kind) {
+        PlayResponseKind.HTML -> "6C63FF"
+        PlayResponseKind.JSON -> "2E9D5A"
+        PlayResponseKind.XML -> "D17A00"
+        PlayResponseKind.TEXT -> "5D7EA8"
+        PlayResponseKind.BINARY -> "606060"
+        PlayResponseKind.REDIRECT -> "B97A1E"
+        PlayResponseKind.STATUS -> "808080"
+        PlayResponseKind.ERROR -> "C53A3A"
+        PlayResponseKind.MIXED -> "7A56C2"
+        PlayResponseKind.UNKNOWN -> "A0A0A0"
+    }
+
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 }
+
+private val UNKNOWN_RESPONSE_INFO = PlayEndpointResponseInfo(
+    kind = PlayResponseKind.UNKNOWN,
+    outcomes = emptyList(),
+    confidence = PlayResponseConfidence.LOW,
+)

@@ -102,6 +102,17 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             }
         }
 
+        // ${variable.property}
+        PlayTemplatePatterns.GROOVY_EXPR.findAll(text).forEach { match ->
+            val variableName = match.groupValues[1]
+            val nameRange = match.groups[1]?.range ?: return@forEach
+            val nameStart = xmlText.textRange.startOffset + nameRange.first
+            val nameEnd = xmlText.textRange.startOffset + nameRange.last + 1
+            addReferenceIfInside(nameStart, nameEnd) { range ->
+                PlayTemplateVariableReference(element, range, variableName)
+            }
+        }
+
         // @{'/public/path'} static assets
         PlayTemplatePatterns.STATIC_ASSET.findAll(text).forEach { match ->
             val path = match.groupValues[1]

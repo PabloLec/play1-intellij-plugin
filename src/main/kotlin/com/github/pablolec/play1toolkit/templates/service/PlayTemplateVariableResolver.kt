@@ -39,13 +39,16 @@ class PlayTemplateVariableResolver(private val project: Project) {
 
     fun resolveVariables(file: PsiFile): Set<String> {
         if (DumbService.isDumb(project)) return IMPLICIT_VARS
-        return resolveVariables(file, mutableSetOf())
+        return resolveVariableDeclarations(file).keys
     }
 
-    private fun resolveVariables(file: PsiFile, visited: MutableSet<String>): Set<String> {
-        val result = mutableSetOf<String>()
-        result.addAll(IMPLICIT_VARS)
+    fun resolveVariableDeclarations(file: PsiFile): Map<String, PsiElement> {
+        if (DumbService.isDumb(project)) return emptyMap()
+        return resolveVariableDeclarations(file, mutableSetOf())
+    }
 
+    private fun resolveVariableDeclarations(file: PsiFile, visited: MutableSet<String>): Map<String, PsiElement> {
+        val result = linkedMapOf<String, PsiElement>()
         val virtualFile = file.virtualFile ?: return result
         val logicalPath = PlayTemplateFileUtils.logicalPath(project, virtualFile) ?: return result
         if (!visited.add(logicalPath)) return result
@@ -53,32 +56,38 @@ class PlayTemplateVariableResolver(private val project: Project) {
         val actionName = PlayTemplateFileUtils.actionNameFromLogicalPath(logicalPath)
 
         if (controllerName != null && actionName != null) {
-            result.addAll(resolveFromControllerAction(controllerName, actionName))
+            result.putAll(resolveFromControllerAction(controllerName, actionName))
         }
-
-        result.addAll(explicitTemplateBindingsCache.value[logicalPath].orEmpty())
 
         includeParentsCache.value[logicalPath].orEmpty().forEach { parentLogicalPath ->
             val parentFile = PlayTemplateFileUtils.resolveTemplatePath(project, parentLogicalPath)
                 ?.let { PsiManager.getInstance(project).findFile(it) }
                 ?: return@forEach
-            result.addAll(resolveVariables(parentFile, visited))
+            result.putAll(resolveVariableDeclarations(parentFile, visited))
         }
 
-        result.addAll(resolveFromScriptBlocks(file.text ?: ""))
-        result.addAll(resolveFromListTags(file.text ?: ""))
+        explicitTemplateBindingsCache.value[logicalPath].orEmpty().forEach { (name, element) ->
+            result.putIfAbsent(name, element)
+        }
+
+        resolveFromScriptBlocks(file).forEach { (name, element) ->
+            result[name] = element
+        }
+        resolveFromListTags(file).forEach { (name, element) ->
+            result[name] = element
+        }
 
         return result
     }
 
-    private fun resolveFromControllerAction(controllerName: String, actionName: String): Set<String> {
+    private fun resolveFromControllerAction(controllerName: String, actionName: String): Map<String, PsiElement> {
         val method = RoutesControllerResolver.resolveMethod(project, controllerName, actionName)
-            ?: return emptySet()
+            ?: return emptyMap()
         return extractRenderVariables(method)
     }
 
-    private fun extractRenderVariables(method: PsiMethod): Set<String> {
-        val vars = mutableSetOf<String>()
+    private fun extractRenderVariables(method: PsiMethod): Map<String, PsiElement> {
+        val vars = linkedMapOf<String, PsiElement>()
         method.accept(object : JavaRecursiveElementWalkingVisitor() {
             override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
                 super.visitMethodCallExpression(expression)
@@ -93,8 +102,8 @@ class PlayTemplateVariableResolver(private val project: Project) {
                     val arg = args[i]
                     if (arg is PsiReferenceExpression) {
                         val localVar = arg.resolve()
-                        if (localVar is PsiLocalVariable || localVar is PsiParameter) {
-                            vars.add(arg.referenceName ?: continue)
+                        if (localVar is PsiLocalVariable || localVar is PsiParameter || localVar is PsiField) {
+                            vars.putIfAbsent(arg.referenceName ?: continue, localVar)
                         }
                     }
                 }
@@ -103,18 +112,36 @@ class PlayTemplateVariableResolver(private val project: Project) {
         return vars
     }
 
-    private fun resolveFromListTags(templateText: String): Set<String> =
-        PlayTemplatePatterns.LIST_TAG_VAR.findAll(templateText)
-            .map { it.groupValues[1] }
-            .toSet()
+    private fun resolveFromListTags(file: PsiFile): Map<String, PsiElement> {
+        val text = file.text ?: return emptyMap()
+        val result = linkedMapOf<String, PsiElement>()
+        PlayTemplatePatterns.LIST_TAG_VAR.findAll(text).forEach { match ->
+            val name = match.groupValues[1]
+            val groupRange = match.groups[1]?.range ?: return@forEach
+            val element = file.findElementAt(groupRange.first) ?: return@forEach
+            result[name] = element
+        }
+        return result
+    }
 
-    private fun resolveFromScriptBlocks(templateText: String): Set<String> =
-        SCRIPT_BLOCK.findAll(templateText)
-            .flatMap { block -> SCRIPT_ASSIGNMENT.findAll(block.groupValues[1]).map { it.groupValues[1] } }
-            .toSet()
+    private fun resolveFromScriptBlocks(file: PsiFile): Map<String, PsiElement> {
+        val text = file.text ?: return emptyMap()
+        val result = linkedMapOf<String, PsiElement>()
+        SCRIPT_BLOCK.findAll(text).forEach { block ->
+            val bodyRange = block.groups[1]?.range ?: return@forEach
+            SCRIPT_ASSIGNMENT.findAll(block.groupValues[1]).forEach { assignment ->
+                val name = assignment.groupValues[1]
+                val nameRange = assignment.groups[1]?.range ?: return@forEach
+                val absoluteOffset = bodyRange.first + nameRange.first
+                val element = file.findElementAt(absoluteOffset) ?: return@forEach
+                result[name] = element
+            }
+        }
+        return result
+    }
 
-    private fun buildExplicitTemplateBindings(): Map<String, Set<String>> {
-        val result = mutableMapOf<String, MutableSet<String>>()
+    private fun buildExplicitTemplateBindings(): Map<String, Map<String, PsiElement>> {
+        val result = mutableMapOf<String, MutableMap<String, PsiElement>>()
         val scope = GlobalSearchScope.projectScope(project)
         FilenameIndex.getAllFilesByExt(project, "java", scope).forEach { virtualFile ->
             val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@forEach
@@ -125,13 +152,13 @@ class PlayTemplateVariableResolver(private val project: Project) {
                     val args = expression.argumentList.expressions
                     val templatePath = (args.firstOrNull() as? PsiLiteralExpression)?.value as? String ?: return
                     val logicalPath = PlayTemplateFileUtils.normalizeTemplatePath(templatePath)
-                    val vars = result.getOrPut(logicalPath) { linkedSetOf() }
+                    val vars = result.getOrPut(logicalPath) { linkedMapOf() }
                     for (arg in args.drop(1)) {
                         when (arg) {
                             is PsiReferenceExpression -> {
                                 val resolved = arg.resolve()
                                 if (resolved is PsiLocalVariable || resolved is PsiParameter || resolved is PsiField) {
-                                    arg.referenceName?.let(vars::add)
+                                    arg.referenceName?.let { vars.putIfAbsent(it, resolved) }
                                 }
                             }
                             is PsiLiteralExpression -> Unit

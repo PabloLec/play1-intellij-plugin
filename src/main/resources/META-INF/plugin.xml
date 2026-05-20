@@ -23,6 +23,8 @@
     <resource-bundle>messages.Play1ToolkitBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
+        <iconMapper mappingFile="PlayPluginIconMappings.json"/>
+
         <!-- Settings -->
         <applicationService serviceImplementation="com.github.pablolec.play1toolkit.config.Play1Settings"/>
 
@@ -77,7 +79,7 @@
                     anchor="right"
                     secondary="true"
                     factoryClass="com.github.pablolec.play1toolkit.toolwindow.Play1ToolWindowFactory"
-                    icon="AllIcons.Actions.Run_anything"/>
+                    icon="/icons/playToolWindow.svg"/>
 
         <!-- render() → view navigation -->
         <gotoDeclarationHandler

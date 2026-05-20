@@ -1,0 +1,8 @@
+{
+  "icons": {
+    "expui": {
+      "playToolWindow@20x20.svg": "icons/playToolWindow.svg",
+      "playToolWindow@20x20_dark.svg": "icons/playToolWindow_dark.svg"
+    }
+  }
+}

@@ -552,6 +552,99 @@
             shortName="PlayJobBlockingStartup"
             enabledByDefault="false"
             level="INFORMATION"/>
+
+        <!-- Play Cache Intelligence -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playcache.service.PlayCacheService"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.lineMarker.PlayCacheActionLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.lineMarker.PlayCacheJavaCallLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="HTML"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.lineMarker.PlayCacheTemplateLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="XML"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.lineMarker.PlayCacheTemplateLineMarkerProvider"/>
+        <platform.backend.documentation.targetProvider
+            implementation="com.github.pablolec.play1toolkit.playcache.documentation.PlayCacheDocumentationTargetProvider"/>
+        <codeInsight.inlayProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.hints.PlayCacheJavaInlayHintsProvider"
+            settingsKeyId="play-v1.cache.java"
+            enabledByDefault="true"/>
+        <codeInsight.inlayProvider language="HTML"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.hints.PlayCacheTemplateInlayHintsProvider"
+            settingsKeyId="play-v1.cache.template"
+            enabledByDefault="true"/>
+        <completion.contributor language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.completion.PlayCacheJavaKeyCompletionContributor"
+            order="last"/>
+        <completion.contributor language="HTML"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.completion.PlayCacheTemplateKeyCompletionContributor"
+            order="last"/>
+        <completion.contributor language="XML"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.completion.PlayCacheTemplateKeyCompletionContributor"
+            order="last"/>
+        <localInspection
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheTagMissingKeyInspection"
+            displayName="Play cache tag without key"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheTagMissingKey"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheTagMissingExpirationInspection"
+            displayName="Play cache tag without explicit expiration"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheTagMissingExpiration"
+            enabledByDefault="true"
+            level="INFORMATION"/>
+        <localInspection
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheTagEmptyExpirationInspection"
+            displayName="Play cache tag with empty expiration"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheTagEmptyExpiration"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheJavaSetWithoutExpirationInspection"
+            displayName="Play cache write without explicit expiration"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheJavaSetWithoutExpiration"
+            enabledByDefault="true"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheJavaClearInspection"
+            displayName="Play global cache clear usage"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheJavaClear"
+            enabledByDefault="true"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheSuspiciousTtlInspection"
+            displayName="Suspicious Play cache TTL"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheSuspiciousTtl"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheKeyReadWithoutWriterInspection"
+            displayName="Play cache key read but no writer found"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheKeyReadWithoutWriter"
+            enabledByDefault="false"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheKeyWrittenWithoutReaderInspection"
+            displayName="Play cache key written but never read"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheKeyWrittenWithoutReader"
+            enabledByDefault="false"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playcache.inspection.PlayCacheKeyWrittenWithoutInvalidatorInspection"
+            displayName="Play cache key written but never invalidated"
+            groupName="Play v1 Toolkit"
+            shortName="PlayCacheKeyWrittenWithoutInvalidator"
+            enabledByDefault="false"
+            level="INFORMATION"/>
     </extensions>
 
     <actions>

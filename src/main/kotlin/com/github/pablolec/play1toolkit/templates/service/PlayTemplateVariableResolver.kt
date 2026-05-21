@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.templates.service
 
+import com.github.pablolec.play1toolkit.playcache.util.PlayCacheTemplateValueResolver
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
@@ -11,6 +12,7 @@ import com.intellij.psi.CommonClassNames
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.*
+import com.intellij.psi.PsiTypes
 import com.intellij.psi.util.InheritanceUtil
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -55,13 +57,12 @@ class PlayTemplateVariableResolver(private val project: Project) {
     }
 
     fun resolveVariableType(file: PsiFile, variableName: String): PsiType? {
-        if (DumbService.isDumb(project)) return null
-        return resolveVariableInfos(file)[variableName]?.type
+        return resolveVariableInfo(file, variableName)?.type
     }
 
     fun resolveVariableInfo(file: PsiFile, variableName: String): VariableInfo? {
-        if (DumbService.isDumb(project)) return null
         return resolveVariableInfos(file)[variableName]
+            ?: resolveRenderArgVariableInfo(file, variableName)
     }
 
     fun resolveMember(element: PsiElement, qualifierType: PsiType?, memberName: String, methodCall: Boolean): PsiElement? {
@@ -103,7 +104,9 @@ class PlayTemplateVariableResolver(private val project: Project) {
     private fun resolveVariableInfos(file: PsiFile, visited: MutableSet<String>): Map<String, VariableInfo> {
         val result = linkedMapOf<String, VariableInfo>()
         val virtualFile = file.virtualFile ?: return result
-        val logicalPath = PlayTemplateFileUtils.logicalPath(project, virtualFile) ?: return result
+        val logicalPath = PlayTemplateFileUtils.logicalPath(project, virtualFile)
+            ?: inferLogicalPath(virtualFile.path)
+            ?: return result
         if (!visited.add(logicalPath)) return result
         val controllerName = PlayTemplateFileUtils.controllerNameFromLogicalPath(logicalPath)
         val actionName = PlayTemplateFileUtils.actionNameFromLogicalPath(logicalPath)
@@ -135,15 +138,66 @@ class PlayTemplateVariableResolver(private val project: Project) {
         return result
     }
 
+    private fun inferLogicalPath(path: String): String? {
+        val normalized = path.replace('\\', '/')
+        val marker = "/app/views/"
+        val index = normalized.indexOf(marker)
+        return if (index >= 0) normalized.substring(index + marker.length) else null
+    }
+
     private fun resolveFromControllerAction(controllerName: String, actionName: String): Map<String, VariableInfo> {
         val method = RoutesControllerResolver.resolveMethod(project, controllerName, actionName)
             ?: return emptyMap()
-        return extractRenderVariables(method)
+        return extractRenderVariables(method, emptyMap(), mutableSetOf(), 0)
     }
 
-    private fun extractRenderVariables(method: PsiMethod): Map<String, VariableInfo> {
+    private fun resolveRenderArgVariableInfo(file: PsiFile, variableName: String): VariableInfo? {
+        resolveCacheTemplateVariableInfo(file, variableName)?.let { return it }
+
+        val logicalPath = file.virtualFile?.let { PlayTemplateFileUtils.logicalPath(project, it) }
+            ?: file.virtualFile?.path?.let { inferLogicalPath(it) }
+            ?: return null
+        val controllerName = PlayTemplateFileUtils.controllerNameFromLogicalPath(logicalPath) ?: return null
+        val actionName = PlayTemplateFileUtils.actionNameFromLogicalPath(logicalPath) ?: return null
+        val method = RoutesControllerResolver.resolveMethod(project, controllerName, actionName) ?: return null
+        return findRenderArgVariableInfo(method, variableName, emptyMap(), mutableSetOf(), 0)
+            ?: findRenderArgVariableInfoInHierarchy(method.containingClass, variableName)
+    }
+
+    private fun resolveCacheTemplateVariableInfo(file: PsiFile, variableName: String): VariableInfo? {
+        val resolved = when (variableName) {
+            "cacheName", "cacheExpiration", "isCached" ->
+                PlayCacheTemplateValueResolver.resolveInjectedVariable(project, file, variableName)
+            else -> null
+        } ?: return null
+
+        val sourceElement = resolved.sourceElement ?: return null
+        val type = when (variableName) {
+            "isCached" -> PsiTypes.booleanType()
+            else -> JavaPsiFacade.getElementFactory(project).createTypeByFQClassName(CommonClassNames.JAVA_LANG_STRING)
+        }
+        return VariableInfo(sourceElement, type)
+    }
+
+    private fun extractRenderVariables(
+        method: PsiMethod,
+        argumentBindings: Map<String, PsiExpression>,
+        visited: MutableSet<String>,
+        depth: Int
+    ): Map<String, VariableInfo> {
+        if (depth > 6) return emptyMap()
+        val methodKey = buildString {
+            append(method.containingClass?.qualifiedName.orEmpty())
+            append('#')
+            append(method.name)
+            append(':')
+            append(argumentBindings.keys.sorted().joinToString(","))
+        }
+        if (!visited.add(methodKey)) return emptyMap()
+
         val vars = linkedMapOf<String, VariableInfo>()
-        method.accept(object : JavaRecursiveElementWalkingVisitor() {
+        val body = method.body ?: return vars
+        body.accept(object : JavaRecursiveElementWalkingVisitor() {
             override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
                 super.visitMethodCallExpression(expression)
                 val name = expression.methodExpression.referenceName ?: return
@@ -153,17 +207,20 @@ class PlayTemplateVariableResolver(private val project: Project) {
                     if (qualifier?.text == "renderArgs") {
                         val args = expression.argumentList.expressions
                         if (args.size >= 2) {
-                            val varName = (args[0] as? PsiLiteralExpression)?.value as? String ?: return
+                            val varName = resolveRenderArgName(args[0], argumentBindings) ?: return
                             val valueArg = args[1]
-                            val resolved = (valueArg as? PsiReferenceExpression)?.resolve()
-                            if (resolved is PsiLocalVariable || resolved is PsiParameter || resolved is PsiField) {
-                                vars.putIfAbsent(varName, VariableInfo(resolved, extractElementType(resolved)))
-                            } else {
-                                vars.putIfAbsent(varName, VariableInfo(valueArg, null))
-                            }
+                            vars.putIfAbsent(varName, VariableInfo(expression, extractExpressionType(valueArg, argumentBindings)))
                         }
                     }
                     return
+                }
+
+                val resolvedMethod = expression.resolveMethod()
+                if (resolvedMethod != null && shouldFollowHelperCall(method, resolvedMethod)) {
+                    val nestedBindings = bindArguments(resolvedMethod, expression.argumentList.expressions, argumentBindings)
+                    extractRenderVariables(resolvedMethod, nestedBindings, visited, depth + 1).forEach { (key, info) ->
+                        vars.putIfAbsent(key, info)
+                    }
                 }
 
                 if (name != "render" && name != "renderTemplate") return
@@ -176,7 +233,11 @@ class PlayTemplateVariableResolver(private val project: Project) {
                     val arg = args[i]
                     if (arg is PsiReferenceExpression) {
                         val localVar = arg.resolve()
-                        if (localVar is PsiLocalVariable || localVar is PsiParameter || localVar is PsiField) {
+                        if (localVar is PsiParameter) {
+                            argumentBindings[localVar.name]?.let { bound ->
+                                vars.putIfAbsent(arg.referenceName ?: continue, VariableInfo(bound, extractExpressionType(bound, argumentBindings)))
+                            }
+                        } else if (localVar is PsiLocalVariable || localVar is PsiField) {
                             vars.putIfAbsent(arg.referenceName ?: continue, VariableInfo(localVar, extractElementType(localVar)))
                         }
                     }
@@ -184,6 +245,90 @@ class PlayTemplateVariableResolver(private val project: Project) {
             }
         })
         return vars
+    }
+
+    private fun findRenderArgVariableInfo(
+        method: PsiMethod,
+        variableName: String,
+        argumentBindings: Map<String, PsiExpression>,
+        visited: MutableSet<String>,
+        depth: Int
+    ): VariableInfo? {
+        if (depth > 6) return null
+        val methodKey = buildString {
+            append(method.containingClass?.qualifiedName.orEmpty())
+            append('#')
+            append(method.name)
+            append(':')
+            append(variableName)
+            append(':')
+            append(argumentBindings.keys.sorted().joinToString(","))
+        }
+        if (!visited.add(methodKey)) return null
+
+        val body = method.body ?: return null
+        for (expression in PsiTreeUtil.findChildrenOfType(body, PsiMethodCallExpression::class.java)) {
+            if (expression.methodExpression.referenceName == "put" && expression.methodExpression.qualifierExpression?.text == "renderArgs") {
+                val args = expression.argumentList.expressions
+                if (args.size >= 2 && renderArgNameMatches(args[0], variableName, argumentBindings)) {
+                    return VariableInfo(expression, extractExpressionType(args[1], argumentBindings))
+                }
+            }
+
+            val resolvedMethod = expression.resolveMethod() ?: continue
+            if (!shouldFollowHelperCall(method, resolvedMethod)) continue
+            val nestedBindings = bindArguments(resolvedMethod, expression.argumentList.expressions, argumentBindings)
+            findRenderArgVariableInfo(resolvedMethod, variableName, nestedBindings, visited, depth + 1)
+                ?.let { return it }
+        }
+        return null
+    }
+
+    private fun findRenderArgVariableInfoInHierarchy(
+        psiClass: PsiClass?,
+        variableName: String
+    ): VariableInfo? {
+        var current = psiClass
+        while (current != null) {
+            val aliases = renderArgAliases(current, variableName)
+            for (method in current.methods) {
+                val body = method.body ?: continue
+                for (expression in PsiTreeUtil.findChildrenOfType(body, PsiMethodCallExpression::class.java)) {
+                    if (expression.methodExpression.referenceName != "put") continue
+                    if (expression.methodExpression.qualifierExpression?.text != "renderArgs") continue
+                    val args = expression.argumentList.expressions
+                    if (args.size < 2) continue
+                    val firstArg = args[0]
+                    val firstArgText = firstArg.text?.trim().orEmpty()
+                    val literal = (firstArg as? PsiLiteralExpression)?.value as? String
+                    if (literal != variableName && firstArgText !in aliases && !renderArgNameMatches(firstArg, variableName, emptyMap())) {
+                        continue
+                    }
+                    return VariableInfo(expression, extractExpressionType(args[1], emptyMap()))
+                }
+            }
+            current = nextHierarchyClass(current)
+        }
+        return null
+    }
+
+    private fun renderArgAliases(
+        psiClass: PsiClass,
+        variableName: String
+    ): Set<String> =
+        psiClass.allFields.asSequence()
+            .mapNotNull { field ->
+                val initializer = field.initializer as? PsiLiteralExpression ?: return@mapNotNull null
+                val value = initializer.value as? String ?: return@mapNotNull null
+                field.name.takeIf { value == variableName }
+            }
+            .toSet()
+
+    private fun nextHierarchyClass(current: PsiClass): PsiClass? {
+        current.superClass?.let { return it }
+        val explicitSuper = current.extendsListTypes.firstOrNull()?.className ?: return null
+        return RoutesControllerResolver.resolveClass(project, explicitSuper)
+            ?: JavaPsiFacade.getInstance(project).findClass(explicitSuper, GlobalSearchScope.allScope(project))
     }
 
     private fun resolveFromListTags(file: PsiFile, knownTypes: Map<String, VariableInfo>): Map<String, VariableInfo> {
@@ -257,20 +402,137 @@ class PlayTemplateVariableResolver(private val project: Project) {
                                 if (qualifier.text != "renderArgs") return
                                 val putArgs = putExpr.argumentList.expressions
                                 if (putArgs.size < 2) return
-                                val varName = (putArgs[0] as? PsiLiteralExpression)?.value as? String ?: return
-                                val valueArg = putArgs[1]
-                                val resolved = (valueArg as? PsiReferenceExpression)?.resolve()
-                                if (resolved is PsiLocalVariable || resolved is PsiParameter || resolved is PsiField) {
-                                    vars.putIfAbsent(varName, VariableInfo(resolved, extractElementType(resolved)))
-                                } else {
-                                    vars.putIfAbsent(varName, VariableInfo(valueArg, null))
-                                }
+                                val varName = resolveRenderArgName(putArgs[0], emptyMap()) ?: return
+                                vars.putIfAbsent(
+                                    varName,
+                                    VariableInfo(putExpr, extractExpressionType(putArgs[1], emptyMap()))
+                                )
                             }
                         })
                 }
             })
         }
         return result
+    }
+
+    private fun shouldFollowHelperCall(origin: PsiMethod, target: PsiMethod): Boolean {
+        val originClass = origin.containingClass ?: return false
+        val targetClass = target.containingClass ?: return false
+        if (originClass == targetClass) return true
+        val originQn = originClass.qualifiedName.orEmpty()
+        val targetQn = targetClass.qualifiedName.orEmpty()
+        if (originQn.startsWith("controllers.") && targetQn.startsWith("controllers.")) return true
+        return originClass.isInheritor(targetClass, true) || targetClass.isInheritor(originClass, true)
+    }
+
+    private fun bindArguments(
+        method: PsiMethod,
+        args: Array<PsiExpression>,
+        parentBindings: Map<String, PsiExpression>
+    ): Map<String, PsiExpression> {
+        val out = linkedMapOf<String, PsiExpression>()
+        method.parameterList.parameters.forEachIndexed { index, parameter ->
+            val arg = args.getOrNull(index) ?: return@forEachIndexed
+            out[parameter.name] = substituteExpression(arg, parentBindings)
+        }
+        return out
+    }
+
+    private fun substituteExpression(
+        expression: PsiExpression,
+        bindings: Map<String, PsiExpression>
+    ): PsiExpression {
+        if (expression is PsiReferenceExpression) {
+            val resolved = expression.resolve()
+            if (resolved is PsiParameter) {
+                bindings[resolved.name]?.let { return it }
+            }
+        }
+        return expression
+    }
+
+    private fun evaluateStringExpression(
+        expression: PsiExpression?,
+        bindings: Map<String, PsiExpression>
+    ): String? {
+        if (expression == null) return null
+        JavaPsiFacade.getInstance(project).constantEvaluationHelper.computeConstantExpression(expression)
+            ?.let { constant ->
+                if (constant is String) return constant
+            }
+
+        return when (expression) {
+            is PsiLiteralExpression -> expression.value as? String
+            is PsiReferenceExpression -> {
+                val resolved = expression.resolve()
+                when (resolved) {
+                    is PsiParameter -> evaluateStringExpression(bindings[resolved.name], bindings)
+                    is PsiField -> {
+                        val fieldConstant = resolved.initializer?.let {
+                            JavaPsiFacade.getInstance(project).constantEvaluationHelper.computeConstantExpression(it)
+                        }
+                        if (fieldConstant is String) {
+                            fieldConstant
+                        } else {
+                            evaluateStringExpression(resolved.initializer, bindings)
+                        }
+                    }
+                    is PsiLocalVariable -> evaluateStringExpression(resolved.initializer, bindings)
+                    else -> null
+                }
+            }
+            is PsiPolyadicExpression -> {
+                if (expression.operationTokenType != JavaTokenType.PLUS) return null
+                expression.operands.map { evaluateStringExpression(it, bindings) }
+                    .takeIf { it.all { part -> part != null } }
+                    ?.joinToString("")
+            }
+            else -> null
+        }
+    }
+
+    private fun resolveRenderArgName(
+        expression: PsiExpression?,
+        bindings: Map<String, PsiExpression>
+    ): String? {
+        val evaluated = evaluateStringExpression(expression, bindings)
+        if (!evaluated.isNullOrBlank()) return evaluated
+
+        val reference = expression as? PsiReferenceExpression ?: return null
+        return when (val resolved = reference.resolve()) {
+            is PsiField -> {
+                val initializer = resolved.initializer as? PsiLiteralExpression
+                initializer?.value as? String
+            }
+            is PsiParameter -> bindings[resolved.name]?.let { resolveRenderArgName(it, bindings) }
+            is PsiLocalVariable -> resolveRenderArgName(resolved.initializer, bindings)
+            else -> null
+        }
+    }
+
+    private fun renderArgNameMatches(
+        expression: PsiExpression?,
+        variableName: String,
+        bindings: Map<String, PsiExpression>
+    ): Boolean =
+        resolveRenderArgName(expression, bindings) == variableName
+
+    private fun extractExpressionType(
+        expression: PsiExpression?,
+        bindings: Map<String, PsiExpression>
+    ): PsiType? {
+        if (expression == null) return null
+        return when (expression) {
+            is PsiReferenceExpression -> {
+                when (val resolved = expression.resolve()) {
+                    is PsiParameter -> bindings[resolved.name]?.let { extractExpressionType(it, bindings) } ?: resolved.type
+                    is PsiLocalVariable -> resolved.type
+                    is PsiField -> resolved.type
+                    else -> expression.type
+                }
+            }
+            else -> expression.type
+        }
     }
 
     private fun inferListItemType(knownTypes: Map<String, VariableInfo>, itemsExpr: String): PsiType? {

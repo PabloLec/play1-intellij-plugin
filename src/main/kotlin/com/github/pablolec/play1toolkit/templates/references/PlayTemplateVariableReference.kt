@@ -18,7 +18,7 @@ class PlayTemplateVariableReference(
     override fun resolve(): PsiElement? {
         val resolver = PlayTemplateVariableResolver.getInstance(element.project)
         if (qualifierName == null) {
-            return resolver.resolveVariableDeclarations(element.containingFile)[variableName]
+            return resolver.resolveVariableInfo(element.containingFile, variableName)?.declaration
         }
         val qualifierType = resolver.resolveVariableType(element.containingFile, qualifierName)
         return resolver.resolveMember(element, qualifierType, variableName, methodCall)

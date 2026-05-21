@@ -1,5 +1,7 @@
 package com.github.pablolec.play1toolkit.routes
 
+import com.github.pablolec.play1toolkit.playcache.model.PlayCacheTtl
+import com.github.pablolec.play1toolkit.playcache.service.PlayCacheService
 import com.github.pablolec.play1toolkit.response.PlayActionResponseService
 import com.github.pablolec.play1toolkit.response.PlayResponseIcons
 import com.github.pablolec.play1toolkit.response.PlayResponsePresentation
@@ -59,7 +61,8 @@ class Play1RoutesResponseInlayHintsProvider : InlayHintsProvider<NoSettings> {
 
                 val factory = PresentationFactory(editor)
                 val icon = factory.smallScaledIcon(PlayResponseIcons.forKind(info.kind))
-                val text = factory.smallText(" ${PlayResponsePresentation.shortLabel(info.kind)}")
+                val cachedSuffix = cachedActionSuffix(file.project, method)
+                val text = factory.smallText(" ${PlayResponsePresentation.shortLabel(info.kind)}$cachedSuffix")
                 val content = factory.seq(icon, text)
                 val clickable = factory.psiSingleReference(content) { method }
                 val presentation = factory.withTooltip(PlayResponsePresentation.tooltip(info), clickable)
@@ -75,4 +78,14 @@ class Play1RoutesResponseInlayHintsProvider : InlayHintsProvider<NoSettings> {
     }
 
     override fun isLanguageSupported(language: Language): Boolean = language == RoutesLanguage
+
+    private fun cachedActionSuffix(project: com.intellij.openapi.project.Project, method: com.intellij.psi.PsiMethod): String {
+        val info = runCatching { PlayCacheService.getInstance(project).findCachedAction(method) }.getOrNull() ?: return ""
+        val ttl = when (val t = info.ttl) {
+            is PlayCacheTtl.Static -> if (t.value.isEmpty()) "no expiration" else t.value
+            is PlayCacheTtl.Dynamic -> "dynamic ttl"
+            PlayCacheTtl.Absent -> "no expiration"
+        }
+        return " · cached $ttl"
+    }
 }

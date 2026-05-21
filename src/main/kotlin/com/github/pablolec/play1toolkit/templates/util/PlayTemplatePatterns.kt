@@ -25,6 +25,9 @@ object PlayTemplatePatterns {
 
     val TAG_PARAM = Regex("""\$\{_(\w+)\}""")
 
+    val TAG_CACHE_OPEN = Regex("""#\{cache\s+([^,}]+?)(?:\s*,\s*for\s*:\s*([^}]+?))?\s*\}""")
+    val TAG_CACHE_CLOSE = Regex("""#\{/cache\}""")
+
     val SCRIPT_BLOCK = Regex("""%\{(.*?)}%""", setOf(RegexOption.DOT_MATCHES_ALL))
     val SCRIPT_ASSIGNMENT = Regex("""(?:^|[\s;])(?:def\s+)?([A-Za-z_]\w*)\s*=""")
 

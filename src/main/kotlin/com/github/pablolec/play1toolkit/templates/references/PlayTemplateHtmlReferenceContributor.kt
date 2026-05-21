@@ -5,7 +5,6 @@ import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
 import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.psi.*
-import com.intellij.psi.xml.XmlText
 import com.intellij.util.ProcessingContext
 
 class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
@@ -20,21 +19,20 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
 
     override fun registerReferenceProviders(registrar: PsiReferenceRegistrar) {
         registrar.registerReferenceProvider(
-            PlatformPatterns.psiElement(PsiElement::class.java).inside(XmlText::class.java),
+            PlatformPatterns.psiElement(PsiElement::class.java),
             object : PsiReferenceProvider() {
                 override fun getReferencesByElement(element: PsiElement, context: ProcessingContext): Array<PsiReference> {
                     if (!PlayTemplateFileUtils.isInViewsDirectory(element)) return PsiReference.EMPTY_ARRAY
-                    val xmlText = element.parent as? XmlText ?: return PsiReference.EMPTY_ARRAY
-                    val leafRange = element.textRange
-                    return referencesInXmlText(element, xmlText).toTypedArray()
+                    val file = element.containingFile ?: return PsiReference.EMPTY_ARRAY
+                    val text = file.text ?: return PsiReference.EMPTY_ARRAY
+                    return referencesInFileText(element, text).toTypedArray()
                 }
             },
             PsiReferenceRegistrar.LOWER_PRIORITY
         )
     }
 
-    private fun referencesInXmlText(element: PsiElement, xmlText: XmlText): List<PsiReference> {
-        val text = xmlText.text
+    private fun referencesInFileText(element: PsiElement, text: String): List<PsiReference> {
         val leafStart = element.textRange.startOffset
         val leafEnd = element.textRange.endOffset
         val refs = mutableListOf<PsiReference>()
@@ -53,7 +51,7 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val path = match.groupValues[1]
             val quotePos = match.value.indexOf('\'').takeIf { it >= 0 }
                 ?: match.value.indexOf('"').takeIf { it >= 0 } ?: return@forEach
-            val keyStart = xmlText.textRange.startOffset + match.range.first + quotePos + 1
+            val keyStart = match.range.first + quotePos + 1
             val keyEnd = keyStart + path.length
             addReferenceIfInside(keyStart, keyEnd) { range -> PlayTemplatePathReference(element, range, path) }
         }
@@ -63,16 +61,16 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val path = match.groupValues[1]
             val quotePos = match.value.indexOf('\'').takeIf { it >= 0 }
                 ?: match.value.indexOf('"').takeIf { it >= 0 } ?: return@forEach
-            val keyStart = xmlText.textRange.startOffset + match.range.first + quotePos + 1
+            val keyStart = match.range.first + quotePos + 1
             val keyEnd = keyStart + path.length
             addReferenceIfInside(keyStart, keyEnd) { range -> PlayTemplatePathReference(element, range, path) }
         }
 
         // #{tagname ...} — custom tags only
         PlayTemplatePatterns.TAG_NAME_AT.findAll(text).forEach { match ->
-            val tagName = match.groupValues[1]
-            if (tagName !in PlayTemplatePatterns.BUILTIN_TAGS) {
-                val nameStart = xmlText.textRange.startOffset + match.range.first + 2 // skip #{
+                val tagName = match.groupValues[1]
+                if (tagName !in PlayTemplatePatterns.BUILTIN_TAGS) {
+                val nameStart = match.range.first + 2 // skip #{
                 val nameEnd = nameStart + tagName.length
                 addReferenceIfInside(nameStart, nameEnd) { range -> PlayTemplateTagFileReference(element, range, tagName) }
             }
@@ -83,8 +81,8 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val bodyRange = match.groups[1]?.range ?: return@forEach
             val bodyText = match.groupValues[1]
             extractExpressionTokens(bodyText, bodyRange.first).forEach { token ->
-                val nameStart = xmlText.textRange.startOffset + token.start
-                val nameEnd = xmlText.textRange.startOffset + token.end
+                val nameStart = token.start
+                val nameEnd = token.end
                 addReferenceIfInside(nameStart, nameEnd) { range ->
                     PlayTemplateVariableReference(
                         element,
@@ -104,7 +102,7 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             if (dotIdx > 0) {
                 val controllerName = fullRef.substring(0, dotIdx)
                 val actionName = fullRef.substring(dotIdx + 1)
-                val refStart = xmlText.textRange.startOffset + match.range.first + match.value.indexOf(fullRef)
+                val refStart = match.range.first + match.value.indexOf(fullRef)
                 val controllerEnd = refStart + controllerName.length
                 val actionStart = controllerEnd + 1
                 val actionEnd = actionStart + actionName.length
@@ -134,8 +132,8 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val bodyRange = match.groups[1]?.range ?: return@forEach
             val bodyText = match.groupValues[1]
             extractExpressionTokens(bodyText, bodyRange.first).forEach { token ->
-                val nameStart = xmlText.textRange.startOffset + token.start
-                val nameEnd = xmlText.textRange.startOffset + token.end
+                val nameStart = token.start
+                val nameEnd = token.end
                 addReferenceIfInside(nameStart, nameEnd) { range ->
                     PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
                 }
@@ -147,8 +145,8 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val bodyRange = blockMatch.groups[1]?.range ?: return@forEach
             val bodyText = blockMatch.groupValues[1]
             extractExpressionTokens(bodyText, bodyRange.first, skipAssignmentLhs = true).forEach { token ->
-                val nameStart = xmlText.textRange.startOffset + token.start
-                val nameEnd = xmlText.textRange.startOffset + token.end
+                val nameStart = token.start
+                val nameEnd = token.end
                 addReferenceIfInside(nameStart, nameEnd) { range ->
                     PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
                 }
@@ -160,8 +158,8 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             val itemsRange = match.groups[1]?.range ?: return@forEach
             val itemsText = match.groupValues[1]
             extractExpressionTokens(itemsText, itemsRange.first).forEach { token ->
-                val nameStart = xmlText.textRange.startOffset + token.start
-                val nameEnd = xmlText.textRange.startOffset + token.end
+                val nameStart = token.start
+                val nameEnd = token.end
                 addReferenceIfInside(nameStart, nameEnd) { range ->
                     PlayTemplateVariableReference(element, range, token.name, token.qualifierName, token.methodCall)
                 }
@@ -174,7 +172,7 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             if (path.startsWith("/public/") || path.startsWith("public/")) {
                 val quotePos = match.value.indexOf('\'').takeIf { it >= 0 }
                     ?: match.value.indexOf('"').takeIf { it >= 0 } ?: return@forEach
-                val pathStart = xmlText.textRange.startOffset + match.range.first + quotePos + 1
+                val pathStart = match.range.first + quotePos + 1
                 val pathEnd = pathStart + path.length
                 addReferenceIfInside(pathStart, pathEnd) { range -> PlayTemplateStaticAssetReference(element, range, path) }
             }

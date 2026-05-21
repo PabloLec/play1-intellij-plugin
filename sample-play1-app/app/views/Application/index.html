@@ -3,7 +3,9 @@
 
 #{if frontPost}
 
-    #{display post:frontPost, as:'home' /}
+    #{cache 'home-page', for:'10mn'}
+        #{display post:frontPost, as:'home' /}
+    #{/cache}
 
     #{if olderPosts.size()}
 
@@ -11,7 +13,9 @@
             <h3>Older posts <span class="from">from this blog</span></h3>
 
             #{list items:olderPosts, as:'oldPost'}
-                #{display post:oldPost, as:'teaser' /}
+                #{cache "teaser:${'$'}{oldPost.id}", for:'5mn'}
+                    #{display post:oldPost, as:'teaser' /}
+                #{/cache}
             #{/list}
         </div>
 

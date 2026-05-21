@@ -341,7 +341,7 @@ class PlayTemplateVariableResolver(private val project: Project) {
             if (file.findElementAt(groupRange.first) == null) return@forEach
             val itemType = inferListItemType(knownTypes, itemsExpr)
             result[name] = VariableInfo(
-                com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, groupRange.first),
+                com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, groupRange.first, name),
                 itemType,
                 groupRange.first
             )
@@ -360,7 +360,7 @@ class PlayTemplateVariableResolver(private val project: Project) {
                 val absoluteOffset = bodyRange.first + nameRange.first
                 if (file.findElementAt(absoluteOffset) == null) return@forEach
                 result[name] = VariableInfo(
-                    com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, absoluteOffset),
+                    com.github.pablolec.play1toolkit.templates.references.PlayTemplateScriptBlockElement(file, absoluteOffset, name),
                     null,
                     absoluteOffset
                 )

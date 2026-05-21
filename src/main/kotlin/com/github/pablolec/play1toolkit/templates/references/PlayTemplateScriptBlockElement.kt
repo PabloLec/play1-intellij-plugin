@@ -7,7 +7,8 @@ import com.intellij.psi.impl.FakePsiElement
 
 class PlayTemplateScriptBlockElement(
     private val file: PsiFile,
-    private val offset: Int
+    private val offset: Int,
+    private val variableName: String
 ) : FakePsiElement() {
 
     override fun getParent(): PsiElement = file
@@ -19,8 +20,8 @@ class PlayTemplateScriptBlockElement(
 
     override fun canNavigate() = true
     override fun canNavigateToSource() = true
-    override fun getName(): String? = null
-    override fun getPresentableText(): String? = null
+    override fun getName(): String = variableName
+    override fun getPresentableText(): String = variableName
     override fun getLocationString(): String? = null
     override fun getIcon(open: Boolean) = null
 }

@@ -8,6 +8,7 @@ import play.cache.*;
  
 import java.util.*;
 import models.*;
+import jobs.MailerJob;
  
 public class Application extends Controller {
     
@@ -46,6 +47,7 @@ public class Application extends Controller {
         post.addComment(author, content);
         flash.success("Thanks for posting %s", author);
         Cache.delete(randomID);
+        new MailerJob(author).now();
         show(postId);
     }
     

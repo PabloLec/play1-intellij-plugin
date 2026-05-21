@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.actions.Play1CliActionSupport
 import com.github.pablolec.play1toolkit.actions.Play1SyncDepsAction
 import com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction
 import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.playjobs.toolwindow.PlayJobsPanel
 import com.github.pablolec.play1toolkit.playjpa.toolwindow.PlayJpaModelsPanel
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.intellij.openapi.actionSystem.ActionPlaces
@@ -30,6 +31,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         val routesPanel = RoutesTreePanel(project)
         val templatesPanel = TemplatesTreePanel(project)
         val modelsPanel = PlayJpaModelsPanel(project)
+        val jobsPanel = PlayJobsPanel(project)
         val diagnosticsPanel = DiagnosticsPanel(project)
         val uiDisposable = Disposer.newDisposable("Play v1 Toolkit tool window")
 
@@ -38,6 +40,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
             addTab("Routes", routesPanel)
             addTab("Templates", templatesPanel)
             addTab("Models", modelsPanel)
+            addTab("Jobs", jobsPanel)
             addTab("Diagnostics", diagnosticsPanel)
         }
 
@@ -46,6 +49,7 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
             routesPanel.refresh()
             templatesPanel.refresh()
             modelsPanel.refresh()
+            jobsPanel.refresh()
             diagnosticsPanel.refresh()
         }
 

@@ -505,6 +505,53 @@
         <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaRenameProcessor"/>
         <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayJpaFieldRenameProcessor"/>
         <renamePsiElementProcessor implementation="com.github.pablolec.play1toolkit.playjpa.references.PlayYamlFixtureAliasRenameProcessor"/>
+
+        <!-- Play Jobs support -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.playjobs.service.PlayJobService"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.lineMarker.PlayJobLineMarkerProvider"/>
+        <codeInsight.lineMarkerProvider language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.lineMarker.PlayJobInvocationLineMarkerProvider"/>
+        <platform.backend.documentation.targetProvider
+            implementation="com.github.pablolec.play1toolkit.playjobs.documentation.PlayJobDocumentationTargetProvider"/>
+        <completion.contributor language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.completion.PlayJobEveryCompletionContributor"
+            order="last"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.inspection.PlayJobMissingDoJobInspection"
+            displayName="Play Job without doJob() method"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJobMissingDoJob"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.inspection.PlayJobSuspiciousEveryValueInspection"
+            displayName="Suspicious Play job schedule value"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJobSuspiciousEveryValue"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.inspection.PlayJobAnnotationOnNonJobInspection"
+            displayName="Play job annotation on class not extending play.jobs.Job"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJobAnnotationOnNonJob"
+            enabledByDefault="true"
+            level="WEAK WARNING"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.inspection.PlayJobUnreferencedInspection"
+            displayName="Play job with no trigger or manual invocation"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJobUnreferenced"
+            enabledByDefault="false"
+            level="INFORMATION"/>
+        <localInspection language="JAVA"
+            implementationClass="com.github.pablolec.play1toolkit.playjobs.inspection.PlayJobBlockingStartupInspection"
+            displayName="Startup job may perform blocking work"
+            groupName="Play v1 Toolkit"
+            shortName="PlayJobBlockingStartup"
+            enabledByDefault="false"
+            level="INFORMATION"/>
     </extensions>
 
     <actions>

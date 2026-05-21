@@ -41,12 +41,16 @@ class PlayTemplateTagBalanceInspection : LocalInspectionTool() {
                         "self" -> Unit
                         "open" -> {
                             val tagName = match.groupValues[1]
-                            if (tagName == "else" || tagName == "elseif") return@forEach
                             if (match.value.trimEnd().endsWith("/}")) return@forEach
                             stack += tagName to match.range.first
                         }
                         "close" -> {
                             val tagName = match.groupValues[1]
+                            if (tagName == "if") {
+                                while (stack.lastOrNull()?.first in setOf("else", "elseif")) {
+                                    stack.removeLast()
+                                }
+                            }
                             val last = stack.lastOrNull()
                             if (last == null || last.first != tagName) {
                                 registerAt(file, holder, match.range.first + 3, tagName,

@@ -150,22 +150,24 @@ class PlayTemplateRouteMethodReferencesSearcher : QueryExecutorBase<PsiReference
         PlayTemplateService.getInstance(project).getAllTemplates().forEach { template ->
             val psiFile = psiManager.findFile(template.virtualFile) ?: return@forEach
             val text = psiFile.text
-            PlayTemplatePatterns.REVERSE_ROUTE.findAll(text).forEach { match ->
-                val fullRef = match.groupValues[1]
-                val dotIndex = fullRef.lastIndexOf('.')
-                if (dotIndex < 0) return@forEach
-                if (fullRef.substring(0, dotIndex).substringAfterLast('.') != controllerName) return@forEach
-                if (fullRef.substring(dotIndex + 1) != actionName) return@forEach
-                val actionStart = match.range.first + match.value.indexOf(actionName)
-                val leaf = psiFile.findElementAt(actionStart) ?: return@forEach
-                consumer.process(
-                    PlayTemplateMethodUsageReference(
-                        leaf,
-                        TextRange(0, leaf.textLength),
-                        controllerName,
-                        actionName
+            sequenceOf(PlayTemplatePatterns.REVERSE_ROUTE, PlayTemplatePatterns.BARE_ACTION_REF).forEach { pattern ->
+                pattern.findAll(text).forEach { match ->
+                    val fullRef = match.groupValues[1]
+                    val dotIndex = fullRef.lastIndexOf('.')
+                    if (dotIndex < 0) return@forEach
+                    if (fullRef.substring(0, dotIndex).substringAfterLast('.') != controllerName) return@forEach
+                    if (fullRef.substring(dotIndex + 1) != actionName) return@forEach
+                    val actionStart = match.range.first + match.value.indexOf(actionName)
+                    val leaf = psiFile.findElementAt(actionStart) ?: return@forEach
+                    consumer.process(
+                        PlayTemplateMethodUsageReference(
+                            leaf,
+                            TextRange(0, leaf.textLength),
+                            controllerName,
+                            actionName
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -189,15 +191,17 @@ class PlayTemplateRouteActionUsageSearcher : QueryExecutorBase<PsiReference, Ref
         PlayTemplateService.getInstance(project).getAllTemplates().forEach { template ->
             val psiFile = psiManager.findFile(template.virtualFile) ?: return@forEach
             val text = psiFile.text
-            PlayTemplatePatterns.REVERSE_ROUTE.findAll(text).forEach { match ->
-                val fullRef = match.groupValues[1]
-                val dotIndex = fullRef.lastIndexOf('.')
-                if (dotIndex < 0) return@forEach
-                if (fullRef.substring(0, dotIndex).substringAfterLast('.') != controllerName) return@forEach
-                if (fullRef.substring(dotIndex + 1) != actionName) return@forEach
-                val actionStart = match.range.first + match.value.indexOf(actionName)
-                val leaf = psiFile.findElementAt(actionStart) ?: return@forEach
-                consumer.process(PlayTemplateMethodUsageReference(leaf, TextRange(0, leaf.textLength), controllerName, actionName))
+            sequenceOf(PlayTemplatePatterns.REVERSE_ROUTE, PlayTemplatePatterns.BARE_ACTION_REF).forEach { pattern ->
+                pattern.findAll(text).forEach { match ->
+                    val fullRef = match.groupValues[1]
+                    val dotIndex = fullRef.lastIndexOf('.')
+                    if (dotIndex < 0) return@forEach
+                    if (fullRef.substring(0, dotIndex).substringAfterLast('.') != controllerName) return@forEach
+                    if (fullRef.substring(dotIndex + 1) != actionName) return@forEach
+                    val actionStart = match.range.first + match.value.indexOf(actionName)
+                    val leaf = psiFile.findElementAt(actionStart) ?: return@forEach
+                    consumer.process(PlayTemplateMethodUsageReference(leaf, TextRange(0, leaf.textLength), controllerName, actionName))
+                }
             }
         }
     }
@@ -213,20 +217,22 @@ class PlayTemplateRouteClassReferencesSearcher : QueryExecutorBase<PsiReference,
         PlayTemplateService.getInstance(project).getAllTemplates().forEach { template ->
             val psiFile = psiManager.findFile(template.virtualFile) ?: return@forEach
             val text = psiFile.text
-            PlayTemplatePatterns.REVERSE_ROUTE.findAll(text).forEach { match ->
-                val fullRef = match.groupValues[1]
-                val dotIndex = fullRef.lastIndexOf('.')
-                val controllerRef = if (dotIndex > 0) fullRef.substring(0, dotIndex) else fullRef
-                if (controllerRef.substringAfterLast('.') != controllerName) return@forEach
-                val start = match.range.first + match.value.indexOf(controllerRef)
-                val leaf = psiFile.findElementAt(start) ?: return@forEach
-                consumer.process(
-                    PlayTemplateClassUsageReference(
-                        leaf,
-                        TextRange(0, leaf.textLength),
-                        controllerRef
+            sequenceOf(PlayTemplatePatterns.REVERSE_ROUTE, PlayTemplatePatterns.BARE_ACTION_REF).forEach { pattern ->
+                pattern.findAll(text).forEach { match ->
+                    val fullRef = match.groupValues[1]
+                    val dotIndex = fullRef.lastIndexOf('.')
+                    val controllerRef = if (dotIndex > 0) fullRef.substring(0, dotIndex) else fullRef
+                    if (controllerRef.substringAfterLast('.') != controllerName) return@forEach
+                    val start = match.range.first + match.value.indexOf(controllerRef)
+                    val leaf = psiFile.findElementAt(start) ?: return@forEach
+                    consumer.process(
+                        PlayTemplateClassUsageReference(
+                            leaf,
+                            TextRange(0, leaf.textLength),
+                            controllerRef
+                        )
                     )
-                )
+                }
             }
         }
     }

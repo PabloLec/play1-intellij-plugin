@@ -39,21 +39,23 @@ class PlayTemplateUnknownRouteInspection : LocalInspectionTool() {
                 }
 
                 // Fallback when reference stitching has not attached to the current leaf.
-                PlayTemplatePatterns.REVERSE_ROUTE.findAll(xmlText.text).forEach { match ->
-                    val fullRef = match.groupValues[1]
-                    if (fullRef.isBlank()) return@forEach
-                    val absoluteStart = xmlText.textRange.startOffset + match.range.first
-                    val routeElement = holder.file.findElementAt(absoluteStart) ?: return@forEach
-                    val routeRef = routeElement.references.filterIsInstance<PsiReference>()
-                        .firstOrNull { it.rangeInElement.length == fullRef.length || it.canonicalText.contains(fullRef) }
-                    if (routeRef?.resolve() == null) {
-                        val refStart = match.range.first + match.value.indexOf(fullRef)
-                        holder.registerProblem(
-                            xmlText,
-                            "Unknown reverse route target",
-                            ProblemHighlightType.WEAK_WARNING,
-                            TextRange(refStart, refStart + fullRef.length)
-                        )
+                sequenceOf(PlayTemplatePatterns.REVERSE_ROUTE, PlayTemplatePatterns.BARE_ACTION_REF).forEach { pattern ->
+                    pattern.findAll(xmlText.text).forEach { match ->
+                        val fullRef = match.groupValues[1]
+                        if (fullRef.isBlank()) return@forEach
+                        val absoluteStart = xmlText.textRange.startOffset + match.range.first
+                        val routeElement = holder.file.findElementAt(absoluteStart) ?: return@forEach
+                        val routeRef = routeElement.references.filterIsInstance<PsiReference>()
+                            .firstOrNull { it.rangeInElement.length == fullRef.length || it.canonicalText.contains(fullRef) }
+                        if (routeRef?.resolve() == null) {
+                            val refStart = match.range.first + match.value.indexOf(fullRef)
+                            holder.registerProblem(
+                                xmlText,
+                                "Unknown reverse route target",
+                                ProblemHighlightType.WEAK_WARNING,
+                                TextRange(refStart, refStart + fullRef.length)
+                            )
+                        }
                     }
                 }
             }

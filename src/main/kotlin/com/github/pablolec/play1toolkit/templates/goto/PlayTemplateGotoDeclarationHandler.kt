@@ -63,6 +63,24 @@ class PlayTemplateGotoDeclarationHandler : GotoDeclarationHandler {
             }
         }
 
+        // @Controller.action(args) bare — inside tag arguments, not wrapped in @{...}
+        PlayTemplatePatterns.BARE_ACTION_REF.findAll(text).forEach { match ->
+            if (offset in match.range) {
+                val fullRef = match.groupValues[1]
+                val dotIdx = fullRef.lastIndexOf('.')
+                if (dotIdx > 0) {
+                    val controllerName = fullRef.substring(0, dotIdx)
+                    val actionName = fullRef.substring(dotIdx + 1)
+                    RoutesControllerResolver.resolveMethod(project, controllerName, actionName)
+                        ?.let { targets.add(it) }
+                } else {
+                    RoutesControllerResolver.resolveClass(project, fullRef)
+                        ?.let { targets.add(it) }
+                }
+                return targets.toTypedArray()
+            }
+        }
+
         // @{'/public/path'} — static asset
         PlayTemplatePatterns.STATIC_ASSET.findAll(text).forEach { match ->
             if (offset in match.range) {

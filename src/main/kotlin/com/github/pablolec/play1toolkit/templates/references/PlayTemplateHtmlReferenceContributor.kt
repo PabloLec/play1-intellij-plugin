@@ -127,6 +127,38 @@ class PlayTemplateHtmlReferenceContributor : PsiReferenceContributor() {
             }
         }
 
+        // @Controller.action(args) bare — inside tag arguments, not wrapped in @{...}
+        PlayTemplatePatterns.BARE_ACTION_REF.findAll(text).forEach { match ->
+            val fullRef = match.groupValues[1]
+            val dotIdx = fullRef.lastIndexOf('.')
+            if (dotIdx > 0) {
+                val controllerName = fullRef.substring(0, dotIdx)
+                val actionName = fullRef.substring(dotIdx + 1)
+                val refStart = match.range.first + 1 // +1 to skip the @
+                val controllerEnd = refStart + controllerName.length
+                val actionStart = controllerEnd + 1
+                val actionEnd = actionStart + actionName.length
+                addReferenceIfInside(controllerEnd - controllerName.length, controllerEnd) { range ->
+                    PlayTemplateRouteReference(
+                        element,
+                        range,
+                        controllerName,
+                        actionName,
+                        PlayTemplateRouteReference.Kind.CONTROLLER
+                    )
+                }
+                addReferenceIfInside(actionStart, actionEnd) { range ->
+                    PlayTemplateRouteReference(
+                        element,
+                        range,
+                        controllerName,
+                        actionName,
+                        PlayTemplateRouteReference.Kind.ACTION
+                    )
+                }
+            }
+        }
+
         // ${variable.property} and nested identifiers inside groovy expressions
         PlayTemplatePatterns.GROOVY_EXPR_BLOCK.findAll(text).forEach { match ->
             val bodyRange = match.groups[1]?.range ?: return@forEach

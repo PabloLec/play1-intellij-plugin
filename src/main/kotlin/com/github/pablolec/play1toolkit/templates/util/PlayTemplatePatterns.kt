@@ -17,6 +17,8 @@ object PlayTemplatePatterns {
 
     val REVERSE_ROUTE = Regex("""@@?\{([A-Z]\w*(?:\.\w+)*)\(([^)]*)\)\}""")
 
+    val BARE_ACTION_REF = Regex("""@([A-Za-z]\w*(?:\.\w+)+)\(([^)]*)\)""")
+
     val STATIC_ASSET = Regex("""@@?\{['"]([^'"]*)['"]\}""")
 
     val LIST_TAG_VAR = Regex("""#\{list\s+[^}]*as\s*:\s*['"](\w+)['"]""")

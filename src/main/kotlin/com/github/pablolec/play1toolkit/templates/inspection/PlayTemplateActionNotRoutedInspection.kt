@@ -27,28 +27,29 @@ class PlayTemplateActionNotRoutedInspection : LocalInspectionTool() {
         return object : PsiElementVisitor() {
             override fun visitElement(element: PsiElement) {
                 val xmlText = element as? XmlText ?: return
-                PlayTemplatePatterns.REVERSE_ROUTE.findAll(xmlText.text).forEach { match ->
-                    val fullRef = match.groupValues[1]
-                    val dotIndex = fullRef.lastIndexOf('.')
-                    if (dotIndex < 0) return@forEach
-                    val controllerName = fullRef.substring(0, dotIndex)
-                    val actionName = fullRef.substring(dotIndex + 1)
-                    val project = holder.project
-                    // If method does not resolve, PlayTemplateUnknownRouteInspection already reports it
-                    RoutesControllerResolver.resolveMethod(project, controllerName, actionName) ?: return@forEach
-                    val routes = Play1ViewUtils.findRoutesForAction(
-                        project,
-                        controllerName.substringAfterLast('.'),
-                        actionName
-                    )
-                    if (routes.isEmpty()) {
-                        val refStart = match.range.first + match.value.indexOf(fullRef)
-                        holder.registerProblem(
-                            xmlText,
-                            "Action '$fullRef' exists but is not declared in conf/routes",
-                            ProblemHighlightType.WEAK_WARNING,
-                            TextRange(refStart, refStart + fullRef.length)
+                sequenceOf(PlayTemplatePatterns.REVERSE_ROUTE, PlayTemplatePatterns.BARE_ACTION_REF).forEach { pattern ->
+                    pattern.findAll(xmlText.text).forEach { match ->
+                        val fullRef = match.groupValues[1]
+                        val dotIndex = fullRef.lastIndexOf('.')
+                        if (dotIndex < 0) return@forEach
+                        val controllerName = fullRef.substring(0, dotIndex)
+                        val actionName = fullRef.substring(dotIndex + 1)
+                        val project = holder.project
+                        RoutesControllerResolver.resolveMethod(project, controllerName, actionName) ?: return@forEach
+                        val routes = Play1ViewUtils.findRoutesForAction(
+                            project,
+                            controllerName.substringAfterLast('.'),
+                            actionName
                         )
+                        if (routes.isEmpty()) {
+                            val refStart = match.range.first + match.value.indexOf(fullRef)
+                            holder.registerProblem(
+                                xmlText,
+                                "Action '$fullRef' exists but is not declared in conf/routes",
+                                ProblemHighlightType.WEAK_WARNING,
+                                TextRange(refStart, refStart + fullRef.length)
+                            )
+                        }
                     }
                 }
             }

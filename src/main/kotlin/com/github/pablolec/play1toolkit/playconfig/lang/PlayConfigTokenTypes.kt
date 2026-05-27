@@ -3,8 +3,8 @@ package com.github.pablolec.play1toolkit.playconfig.lang
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 
-class PlayConfigTokenType(debugName: String) : IElementType(debugName, PlayConfigLanguage) {
-    override fun toString(): String = "PlayConfigTokenType.$debugName"
+class PlayConfigTokenType(private val tokenName: String) : IElementType(tokenName, PlayConfigLanguage) {
+    override fun toString(): String = "PlayConfigTokenType.$tokenName"
 }
 
 object PlayConfigTokenTypes {

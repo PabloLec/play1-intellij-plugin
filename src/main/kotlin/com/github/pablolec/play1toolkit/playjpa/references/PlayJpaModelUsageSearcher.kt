@@ -2,7 +2,7 @@ package com.github.pablolec.play1toolkit.playjpa.references
 
 import com.github.pablolec.play1toolkit.playjpa.util.PlayJpaModelUtils
 import com.github.pablolec.play1toolkit.playjpa.util.PlayYamlFixtureUtils
-import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiManager
@@ -41,7 +41,7 @@ class PlayJpaModelUsageSearcher : QueryExecutor<PsiReference, ReferencesSearch.S
         val project = psiClass.project
         if (DumbService.isDumb(project)) return true
 
-        runReadAction {
+        ApplicationManager.getApplication().runReadAction {
             if (!PlayJpaModelUtils.isPlayJpaModel(psiClass)) return@runReadAction
             val className = psiClass.name ?: return@runReadAction
             val scope = GlobalSearchScope.projectScope(project)

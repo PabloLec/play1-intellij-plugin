@@ -58,7 +58,7 @@ object PlayTemplateFileUtils {
                 .findFileByPath(Paths.get(basePath, "app", "views", normalized).toString())
         }
         val fileName = normalized.substringAfterLast('/')
-        return FilenameIndex.getVirtualFilesByName(project, fileName, GlobalSearchScope.projectScope(project))
+        return FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
             .firstOrNull { logicalPath(project, it) == normalized }
     }
 
@@ -70,7 +70,7 @@ object PlayTemplateFileUtils {
                 .findFileByPath(Paths.get(basePath, relative).toString())
         }
         val fileName = relative.substringAfterLast('/')
-        return FilenameIndex.getVirtualFilesByName(project, fileName, GlobalSearchScope.projectScope(project))
+        return FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
             .firstOrNull { it.path.replace('\\', '/').endsWith("/$relative") }
     }
 

@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.toolwindow
 
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
@@ -29,10 +30,13 @@ class Play1WarCommandDialog(project: Project) : DialogWrapper(project) {
             outputField.text = projectDir.resolveSibling("${projectDir.fileName}-war").toString()
         }
         outputField.addBrowseFolderListener(
-            "WAR Output Directory",
-            "Choose a directory outside the project where the WAR structure will be generated.",
-            project,
-            FileChooserDescriptorFactory.createSingleFolderDescriptor()
+            TextBrowseFolderListener(
+                FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
+                    title = "WAR Output Directory"
+                    description = "Choose a directory outside the project where the WAR structure will be generated."
+                },
+                project
+            )
         )
         init()
     }

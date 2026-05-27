@@ -28,6 +28,7 @@ import com.intellij.psi.PsiNewExpression
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiPolyadicExpression
 import com.intellij.psi.PsiReferenceExpression
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiStatement
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiVariable
@@ -690,12 +691,25 @@ object PlayCacheTemplateValueResolver {
 
     private fun findConfigValueFallback(project: Project, key: String): String? =
         PlayConfigService.getInstance(project).keysForLogical(key).firstOrNull()?.value
-            ?: FilenameIndex.getFilesByName(project, "application.conf", GlobalSearchScope.projectScope(project))
-                .asSequence()
-                .mapNotNull { it as? PlayConfigFile }
-                .flatMap { it.getProperties().asSequence() }
-                .firstOrNull { it.logicalKey == key }
-                ?.valueText
+            ?: run {
+                val psiManager = PsiManager.getInstance(project)
+                var resolved: String? = null
+                FilenameIndex.processFilesByName(
+                    "application.conf",
+                    true,
+                    GlobalSearchScope.projectScope(project)
+                ) { virtualFile ->
+                    if (!virtualFile.path.replace('\\', '/').endsWith("/conf/application.conf")) {
+                        return@processFilesByName true
+                    }
+                    val configFile = psiManager.findFile(virtualFile) as? PlayConfigFile ?: return@processFilesByName true
+                    resolved = configFile.getProperties()
+                        .firstOrNull { it.logicalKey == key }
+                        ?.valueText
+                    resolved == null
+                }
+                resolved
+            }
 
     private fun Boolean?.orFalse(): Boolean = this == true
 }

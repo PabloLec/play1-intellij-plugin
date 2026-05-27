@@ -8,13 +8,12 @@ import com.github.pablolec.play1toolkit.playcache.toolwindow.PlayCachePanel
 import com.github.pablolec.play1toolkit.playjobs.toolwindow.PlayJobsPanel
 import com.github.pablolec.play1toolkit.playjpa.toolwindow.PlayJpaModelsPanel
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
-import com.intellij.openapi.actionSystem.ActionPlaces
-import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.actionSystem.ex.ActionUtil
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBTabbedPane
@@ -26,6 +25,13 @@ import javax.swing.JButton
 import javax.swing.JPanel
 
 class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
+
+    override suspend fun isApplicableAsync(project: Project): Boolean = true
+
+    override fun isApplicable(project: Project): Boolean = true
+
+    override val isDoNotActivateOnStart: Boolean
+        get() = false
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val statusPanel = ProjectStatusPanel(project)
@@ -76,17 +82,12 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
 
         val repairButton = JButton("⚙ Repair").apply {
             toolTipText = "Repair Play v1 project setup"
-            addActionListener { e ->
-                val action = RepairProjectSetupAction()
-                val dataContext = com.intellij.ide.DataManager.getInstance()
-                    .getDataContext(e.source as? java.awt.Component)
-                @Suppress("DEPRECATION")
-                val event = AnActionEvent.createFromDataContext(
-                    ActionPlaces.TOOLWINDOW_TOOLBAR_BAR,
-                    null,
-                    dataContext
-                )
-                ActionUtil.performAction(action, event)
+            addActionListener {
+                if (Play1Settings.getInstance().playHome.isBlank()) {
+                    showSettingsRequired(project)
+                } else {
+                    RepairProjectSetupAction.runRepair(project, silent = false)
+                }
             }
         }
 
@@ -127,5 +128,21 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         panel.add(stopButton)
         panel.add(refreshButton)
         return panel
+    }
+
+    private fun showSettingsRequired(project: Project) {
+        ApplicationManager.getApplication().invokeLater {
+            val result = Messages.showOkCancelDialog(
+                project,
+                "Play Home is not configured.\nPlease select your Play 1 installation directory.",
+                "Play Home Required",
+                "Open Settings",
+                "Cancel",
+                Messages.getWarningIcon()
+            )
+            if (result == Messages.OK) {
+                ShowSettingsUtil.getInstance().showSettingsDialog(project, "play1toolkit.settings")
+            }
+        }
     }
 }

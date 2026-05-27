@@ -8,6 +8,7 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
@@ -37,9 +38,10 @@ class Play1SettingsPanel {
                     .resizableColumn()
                     .also {
                         playHomeField.addBrowseFolderListener(
-                            null,
-                            FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                                .apply { title = "Select Play Home Directory" }
+                            TextBrowseFolderListener(
+                                FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                                    .apply { title = "Select Play Home Directory" }
+                            )
                         )
                     }
                 button("Auto-detect") {
@@ -90,9 +92,10 @@ class Play1SettingsPanel {
                     .resizableColumn()
                     .also {
                         depsPlayHomeField.addBrowseFolderListener(
-                            null,
-                            FileChooserDescriptorFactory.createSingleFolderDescriptor()
-                                .apply { title = "Select Play Home for Dependency Resolution" }
+                            TextBrowseFolderListener(
+                                FileChooserDescriptorFactory.createSingleFolderDescriptor()
+                                    .apply { title = "Select Play Home for Dependency Resolution" }
+                            )
                         )
                     }
                 button("Download Play 1.5.3") { downloadRecommended() }

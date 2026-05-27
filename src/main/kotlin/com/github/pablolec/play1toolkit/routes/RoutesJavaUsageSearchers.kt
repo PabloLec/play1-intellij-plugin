@@ -2,7 +2,7 @@ package com.github.pablolec.play1toolkit.routes
 
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
-import com.intellij.openapi.application.runReadAction
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiMethod
@@ -24,7 +24,7 @@ class RoutesClassReferencesSearcher : QueryExecutor<PsiReference, ReferencesSear
         val project = psiClass.project
         if (DumbService.isDumb(project)) return true
 
-        runReadAction {
+        ApplicationManager.getApplication().runReadAction {
             if (!Play1ViewUtils.isPlayControllerClass(psiClass)) return@runReadAction
             val routesFile = loadRoutesFile(project) ?: return@runReadAction
             val shortName = psiClass.name ?: return@runReadAction
@@ -51,7 +51,7 @@ class RoutesMethodReferencesSearcher : QueryExecutor<PsiReference, MethodReferen
         val project = method.project
         if (DumbService.isDumb(project)) return true
 
-        runReadAction {
+        ApplicationManager.getApplication().runReadAction {
             if (!method.hasModifierProperty(PsiModifier.PUBLIC) || !method.hasModifierProperty(PsiModifier.STATIC)) return@runReadAction
             val containingClass = method.containingClass ?: return@runReadAction
             if (!Play1ViewUtils.isPlayControllerClass(containingClass)) return@runReadAction

@@ -3,8 +3,8 @@ package com.github.pablolec.play1toolkit.routes
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 
-class RoutesTokenType(debugName: String) : IElementType(debugName, RoutesLanguage) {
-    override fun toString(): String = "RoutesTokenType.$debugName"
+class RoutesTokenType(private val typeName: String) : IElementType(typeName, RoutesLanguage) {
+    override fun toString(): String = "RoutesTokenType.$typeName"
 }
 
 object RoutesTokenTypes {

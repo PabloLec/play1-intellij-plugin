@@ -1,21 +1,25 @@
-<idea-plugin>
+<idea-plugin url="https://github.com/PabloLec/play1-intellij-plugin">
     <id>com.github.pablolec.play1toolkit</id>
     <name>Play v1 Toolkit</name>
     <vendor url="https://github.com/PabloLec">PabloLec</vendor>
 
     <description><![CDATA[
         <p>Modern IntelliJ IDEA support for legacy Play Framework 1.x applications.</p>
-        <br/>
-        <p>Features:</p>
+        <p>Play v1 Toolkit helps IntelliJ understand the parts of a Play 1 application that usually degrade into plain text and broken navigation.</p>
         <ul>
-            <li>Automatic Play 1 project detection</li>
-            <li>Play Framework library attachment (resolves <code>import play.mvc.*</code>)</li>
-            <li>Source root configuration (<code>app/</code>, <code>test/</code>, <code>conf/</code>)</li>
-            <li>Play 1 run and debug configuration</li>
-            <li>conf/routes syntax highlighting and navigation</li>
-            <li>Diagnostic report and repair action</li>
+            <li>Automatic Play 1 project detection and repair</li>
+            <li>Framework and project library attachment</li>
+            <li>Play 1 run, debug, and CLI integration</li>
+            <li>Deep support for <code>conf/routes</code>, <code>application.conf</code>, and <code>messages*</code></li>
+            <li>Navigation, completion, and inspections for templates, reverse routes, assets, and render() calls</li>
+            <li>Static analysis for JPA models, jobs, cached fragments, and action response types</li>
+            <li>Dedicated tool window with status, routes, templates, models, jobs, cache, and diagnostics views</li>
         </ul>
     ]]></description>
+
+    <change-notes><![CDATA[
+        <p>See the GitHub release for details.</p>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>

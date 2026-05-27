@@ -1,0 +1,133 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish to JetBrains Marketplace
+    if: ${{ !github.event.release.prerelease && vars.INTELLIJ_MARKETPLACE_PUBLISH == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      RELEASE_BODY: ${{ github.event.release.body }}
+      MARKETPLACE_PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+      MARKETPLACE_CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+      MARKETPLACE_PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      MARKETPLACE_PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+
+      - name: Validate release inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$RELEASE_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            echo "Release tag must match vX.Y.Z, got: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          for secret_name in \
+            MARKETPLACE_PUBLISH_TOKEN \
+            MARKETPLACE_CERTIFICATE_CHAIN \
+            MARKETPLACE_PRIVATE_KEY \
+            MARKETPLACE_PRIVATE_KEY_PASSWORD
+          do
+            if [[ -z "${!secret_name}" ]]; then
+              echo "Missing required secret: ${secret_name#MARKETPLACE_}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Derive release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${RELEASE_TAG#v}"
+          notes_source="${RELEASE_BODY:-}"
+
+          if [[ -z "$notes_source" ]]; then
+            notes_html="<p>Release ${version}</p>"
+          else
+            notes_html="$(
+              printf '%s' "$notes_source" \
+                | perl -0pe 's/\r\n/\n/g; s/\r/\n/g; s/&/&amp;/g; s/</&lt;/g; s/>/&gt;/g; s/\n{2,}/<\/p><p>/g; s/\n/<br \/>/g; $_ = "<p>".$_."</p>" unless $_ =~ /\A<p>.*<\/p>\z/s;'
+            )"
+          fi
+
+          {
+            echo "version=$version"
+            echo "change_notes<<EOF"
+            echo "$notes_html"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-cleanup: on-success
+
+      - name: Verify, sign, and publish plugin
+        env:
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+          CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
+          PLUGIN_VERSION: ${{ steps.release_meta.outputs.version }}
+          PLUGIN_CHANGE_NOTES: ${{ steps.release_meta.outputs.change_notes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ./gradlew \
+            verifyPluginProjectConfiguration \
+            test \
+            verifyPlugin \
+            buildPlugin \
+            publishPlugin \
+            "-PpluginVersion=$PLUGIN_VERSION" \
+            "-PpluginChangeNotes=$PLUGIN_CHANGE_NOTES"
+
+      - name: Upload published plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-release-${{ steps.release_meta.outputs.version }}
+          path: build/distributions/*.zip
+
+      - name: Attach plugin ZIP to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" build/distributions/*.zip --clobber
+
+      - name: Clean build outputs
+        if: always()
+        run: ./gradlew clean

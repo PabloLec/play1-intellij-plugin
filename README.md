@@ -26,10 +26,10 @@ Play v1 Toolkit fills that gap.
 | Item | Value |
 | --- | --- |
 | Plugin version | `0.1.0-SNAPSHOT` |
-| IntelliJ IDEA | builds `241` to `263.*` |
+| IntelliJ IDEA | builds `261+` |
 | IDE edition | Ultimate |
 | Required bundled plugins | Java, YAML |
-| JDK for the IDE | 17+ |
+| JDK for the IDE | 21+ |
 | Plugin build toolchain | Java/Kotlin 21 |
 | Target applications | Play Framework 1.x |
 
@@ -485,6 +485,40 @@ It is there so you can open a small Play 1 codebase in a sandbox IDE and verify 
 ./gradlew test
 ./gradlew verifyPlugin
 ```
+
+## Marketplace Publishing
+
+The repository is prepared for JetBrains Marketplace publishing through GitHub Releases.
+
+- Only a published GitHub release with a stable tag in the form `vX.Y.Z` can trigger Marketplace publication.
+- GitHub prereleases are ignored on purpose.
+- The published plugin version is taken from the release tag, not from the `-SNAPSHOT` version kept in `gradle.properties`.
+- The workflow is gated by the `INTELLIJ_MARKETPLACE_PUBLISH` repository variable, so it can stay merged without publishing anything until you are ready.
+
+There is one unavoidable manual step: JetBrains requires the first Marketplace upload to be created manually. After that first approved version exists, the release workflow can publish the next versions automatically.
+
+### Manual Setup Required Before the First Automated Release
+
+1. Create your JetBrains account and vendor profile on JetBrains Marketplace.
+2. Accept the Marketplace developer agreement and complete the vendor information JetBrains asks for.
+3. Generate a permanent Marketplace token.
+4. Generate the plugin signing key, password, and certificate chain.
+5. Store these GitHub secrets:
+   - `PUBLISH_TOKEN`
+   - `PRIVATE_KEY`
+   - `PRIVATE_KEY_PASSWORD`
+   - `CERTIFICATE_CHAIN`
+6. Create the repository variable `INTELLIJ_MARKETPLACE_PUBLISH` and leave it set to `false` until the first manual upload has been approved.
+7. Upload the first signed plugin version manually in Marketplace and complete the listing fields there: license, source code link, screenshots, tags, documentation, and issue tracker.
+8. After that first version is approved, set `INTELLIJ_MARKETPLACE_PUBLISH=true`.
+
+### Automated Release Flow
+
+Once the manual setup is done, the publication flow is simple:
+
+1. Bump the code as needed and merge to `main`.
+2. Create a GitHub Release tagged `vX.Y.Z`.
+3. The release workflow verifies the plugin, signs it, uploads the ZIP to the GitHub Release, and publishes the same version to the JetBrains Marketplace.
 
 ### Repository Structure
 

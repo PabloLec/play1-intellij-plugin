@@ -1,5 +1,9 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
+val pluginVersionProvider = providers.gradleProperty("pluginVersion")
+val pluginChangeNotesProvider = providers.gradleProperty("pluginChangeNotes")
+    .orElse("<p>See the GitHub release for details.</p>")
+
 plugins {
     id("java")
     alias(libs.plugins.kotlin.jvm)
@@ -7,7 +11,7 @@ plugins {
 }
 
 group = providers.gradleProperty("pluginGroup").get()
-version = providers.gradleProperty("pluginVersion").get()
+version = pluginVersionProvider.get()
 
 kotlin {
     jvmToolchain(21)
@@ -37,10 +41,11 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         name = providers.gradleProperty("pluginName")
-        version = providers.gradleProperty("pluginVersion")
+        version = pluginVersionProvider
+        changeNotes = pluginChangeNotesProvider
         ideaVersion {
             sinceBuild = providers.gradleProperty("pluginSinceBuild")
-            untilBuild = providers.gradleProperty("pluginUntilBuild")
+            providers.gradleProperty("pluginUntilBuild").orNull?.let { untilBuild = it }
         }
     }
 

@@ -1,38 +1,66 @@
 # sample-play1-app
 
-A minimal Play Framework 1.x sample application used for testing the Play v1 Toolkit plugin.
+This is a small Play Framework 1.x application included in the repository so you can test **Play v1 Toolkit** manually inside a sandbox IntelliJ instance.
 
-Based on the `yabe` (Yet Another Blog Engine) example from the official Play Framework 1 repository.
+## Why It Exists
+
+This project is not meant to be a realistic business app, and it is not the main plugin documentation either. Its job is much simpler: give the plugin a real Play 1 project layout to work with, so the core setup and navigation features can be checked quickly.
+
+It is useful for verifying:
+
+- Play 1 project detection
+- IntelliJ project repair
+- Play library attachment
+- source root configuration
+- `conf/routes` support
+- navigation between routes, controllers, and views
+- basic scenarios for models, jobs, and templates
 
 ## Structure
 
-```
+```text
 app/
   controllers/
-    Application.java   — main controller
-    Posts.java         — posts controller
+    Application.java
+    Posts.java
+  jobs/
+    BillingJob.java
+    BootstrapJob.java
+    CleanupJob.java
+    ImportJob.java
+    MailerJob.java
   models/
-    Post.java          — Post JPA entity
+    Post.java
   views/
     Application/index.html
     Application/show.html
     Posts/show.html
 conf/
-  application.conf     — app config (dev mode, in-memory DB)
-  routes               — HTTP routes
-  dependencies.yml     — Ivy dependencies
+  application.conf
+  dependencies.yml
+  routes
+public/
+  images/logo.png
+  stylesheets/main.css
 test/
-  ApplicationTest.java — functional test (Play test framework)
-lib/                   — empty, for additional JARs
+  ApplicationTest.java
 ```
 
-## Purpose
+## Suggested Use
 
-This sample is used to:
-- Test Play 1 project detection
-- Test library attachment (import play.mvc.*)
-- Test source root configuration
-- Test routes parsing and navigation
-- Test conf/routes syntax highlighting
+1. Start a sandbox IDE with `./gradlew runIde`.
+2. Open `sample-play1-app/` in that sandbox.
+3. Check that the plugin detects the project as Play 1.
+4. Configure `Play Home` if needed.
+5. Run **Repair Project Setup**.
+6. Then check navigation, inspections, and the tool window.
 
-It is NOT intended to be run as a real application (requires a Play 1 installation and database).
+## Limits
+
+- Some plugin features work without a full Play installation, but not all of them do.
+- Run/debug, `play deps`, and classpath-dependent features still require a valid Play 1 distribution.
+- This sample is deliberately small. It is good for smoke testing, not for demonstrating every edge case the plugin supports.
+
+## Main Documentation
+
+The full plugin documentation lives in the [root README](/home/pablo/projets/play1-intellij-plugin/README.md).

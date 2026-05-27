@@ -1,280 +1,544 @@
 # Play v1 Toolkit
 
-> Modern IntelliJ IDEA support for legacy Play Framework 1.x applications.
+Play v1 Toolkit is an IntelliJ IDEA plugin for teams still maintaining **Play Framework 1.x** applications.
 
-## Overview
+At a practical level, it does two things.
 
-Play v1 Toolkit is an IntelliJ IDEA plugin that provides a complete IDE experience for Java applications built with Play Framework 1.x — a framework that predates modern build tools and has no official IntelliJ support.
+First, it helps IntelliJ treat an old Play 1 project like a real project again: libraries, source roots, run configuration, dependency sync, and basic project repair. Second, it adds IDE support for the parts of Play 1 that IntelliJ does not understand on its own: routes, templates, `application.conf`, message bundles, JPA models, jobs, and cache usage.
 
-**The problem:** Opening a Play 1 project in IntelliJ gives you red imports (`import play.mvc.*;`), no run configuration, unrecognised configuration files, and no navigation between routes, controllers, views, or message keys.
+If you work on a legacy Play 1 codebase, that is the whole point of the plugin: less manual setup, less guesswork, and much faster navigation through code that would otherwise feel half-broken in the IDE.
 
-**The solution:** Play v1 Toolkit detects Play 1 projects automatically, repairs the project setup, and adds deep language intelligence for every Play 1 file type.
+## What Problem It Solves
 
----
+Opening a Play 1 project in IntelliJ usually gives you a familiar mess:
+
+- `play.*` imports do not resolve
+- `app/`, `test/`, and `conf/` are not configured the way Play expects
+- there is no dedicated run/debug setup
+- `conf/routes`, `conf/application.conf`, and `conf/messages*` are treated like plain text
+- navigation between routes, controllers, views, and templates is mostly gone
+- Play 1-specific concepts such as `render()`, jobs, YAML fixtures, and cache tags are invisible to the IDE
+
+Play v1 Toolkit fills that gap.
 
 ## Compatibility
 
-| Dimension | Value |
-|---|---|
-| Plugin version | 0.1.0-SNAPSHOT |
-| IntelliJ IDEA | 2024.1 – 2026.3 (build 241–263) |
-| IDE edition | Ultimate (Java plugin required) |
-| Play Framework | 1.x (any minor version) |
-| JDK (for the IDE) | 17+ |
+| Item | Value |
+| --- | --- |
+| Plugin version | `0.1.0-SNAPSHOT` |
+| IntelliJ IDEA | builds `241` to `263.*` |
+| IDE edition | Ultimate |
+| Required bundled plugins | Java, YAML |
+| JDK for the IDE | 17+ |
+| Plugin build toolchain | Java/Kotlin 21 |
+| Target applications | Play Framework 1.x |
 
----
+The current build targets `IU 2026.1.2` through the Gradle IntelliJ Platform Plugin.
 
-## Features
+## Core Features
 
-### Project Setup
+### Project Detection and Repair
 
-**Auto-detection**
-On project open, the plugin heuristically detects Play 1 projects by looking for `conf/application.conf`, `conf/routes`, and `app/controllers/`. When detected, a notification balloon offers to repair the setup.
+The plugin detects Play 1 projects heuristically when a project is opened. It looks for the usual markers of a Play 1 layout and, when it finds them, it can guide or automate the initial setup.
 
-**Repair Project Setup** (`Tools > Play v1 Toolkit > Repair Project Setup`)
-One-click repair that:
-- Attaches Play framework JARs and all dependencies from `lib/` and `lib/managed/`
-- Marks `app/` as source root, `test/` as test root, `conf/` as resources root
-- Creates a Play 1 run/debug configuration
+The **Repair Project Setup** action handles the tedious part:
 
-**Sync Dependencies** (`Tools > Play v1 Toolkit > Sync Dependencies`)
-Runs `play deps` to download project dependencies and attaches the resulting JARs.
+- validate the configured Play installation
+- run `play deps` when it makes sense
+- attach Play framework jars
+- attach project jars from `lib/`
+- supplement the classpath from `conf/dependencies.yml` using local Maven and Ivy caches
+- mark `app/` as a source root
+- mark `test/` as a test root
+- mark `conf/` as a resources root
+- create a dedicated Play run configuration
+- assign a Java SDK if the project does not already have one
 
-**Play Home Settings** (`Settings > Tools > Play v1 Toolkit`)
-Configure the path to your Play 1 installation with auto-detection from `PLAY_HOME` or common installation paths.
+The plugin can also repair the project silently on open when Play has already been configured and the managed libraries are still missing.
 
-**Library watcher**
-Monitors `lib/` for JAR additions/removals and updates the project classpath automatically.
+There is also a watcher on `lib/`, so when new jars appear after a dependency sync, the classpath can be refreshed without making you repeat the whole setup by hand.
 
----
+### Play CLI Integration
 
-### Run / Debug
+The tool window exposes a small set of Play commands that matter in day-to-day maintenance work:
 
-A dedicated Play 1 run configuration type launches `play run` (or `play debug`) through IntelliJ's run/debug infrastructure. Full debugger support including breakpoints and variable inspection.
+- `clean`
+- `test`
+- `auto-test`
+- `precompile`
+- `war`
+- `deps`
 
----
+That sounds simple, but old Play installations are not always simple to execute anymore. The plugin handles a few ugly cases for you:
 
-### `conf/routes` — Custom Language
+- native `play` launchers
+- Python-based `play` launchers
+- Play versions that still expect Python 2
+- fallback to a managed **PyPy 2.7** runtime
+- fallback to a separate **Play 1.2+ home just for `play deps`** when the target project runs on Play 1.1.x
+- download of a recommended Play distribution for dependency resolution
 
-Full custom language support for Play 1 route files.
+### Run and Debug
 
-| Capability | Details |
-|---|---|
-| Syntax highlighting | HTTP method, URL path, controller class, action method — each in distinct colour |
-| Ctrl+Click navigation | `Application.index` in routes → jumps to `Application.java`, `index()` method |
-| Reverse navigation | Ctrl+Click a controller method → navigates to the matching route entry |
-| Completion | Controller class names and action method names with live filtering |
-| Annotator | Highlights unresolved controllers and actions as errors |
-| Gutter icons (routes) | `←` icon on each route line → navigate to the Java action method |
-| Gutter icons (Java) | `→` icon on each public static controller method → navigate to the route |
-| Find Usages integration | Controller classes and action methods show usages from `conf/routes` |
-| Implicit usage suppression | Public static controller actions are not flagged as "unused" by IntelliJ |
-| Response inlay hints | Each route shows an inline annotation of the action's response type (render, redirect, JSON, status, mixed…) |
+The plugin contributes a dedicated IntelliJ run configuration type for Play 1 applications.
 
----
+That configuration lets you control:
 
-### `render()` — View Navigation
+- application path
+- active `play.id`
+- HTTP port
+- debug port
+- JVM options
+- environment variables
 
-**Goto Declaration from `render()`**
-Ctrl+Click on a `render()` call in a controller opens the corresponding HTML view file (`app/views/Controller/action.html`). Works for the implicit view (no-argument `render()`) and explicit view names.
+Internally, the launch path is built around `play.server.Server`, with the Play and project classpath reconstructed in the order the runtime expects.
 
-**Missing view inspection** (JAVA, WARNING)
-Flags `render()` calls whose target view file does not exist. Quick fix `Create view` generates the file at the expected path.
+## Language and Code Intelligence
 
----
+### `conf/routes`
 
-### `conf/application.conf` — Configuration Intelligence
+`conf/routes` is not treated as plain text. The plugin defines a proper IntelliJ language for it, with its own lexer, parser, PSI model, and IDE integrations.
 
-Full custom language support for Play 1 application configuration files.
+What you get in practice:
 
-| Capability | Details |
-|---|---|
-| Syntax highlighting | Keys, values, comments, profile prefixes, environment variable references |
-| Ctrl+Click navigation | `Play.configuration.get("key")` in Java → jumps to the key definition in `application.conf` |
-| Reverse navigation | Key in `application.conf` → find all Java usages |
-| Completion (Java) | String literals in configuration access calls propose all known keys |
-| Completion (conf) | Key name completion against known Play framework keys |
-| Rename refactoring | Rename a key in `application.conf` → propagates to all Java references |
-| Inlay hints (Java) | `Play.configuration.get("key") /* = value */` shown inline |
-| Inlay hints (conf) | Profile override keys show the effective resolved value inline |
-| Quick documentation | Hover a key in Java or conf → shows value, profile variants, usages count |
-| Gutter icons | Keys with profile overrides show navigation to all variants |
-| Settings | Per-project active profile selection (`Settings > Play v1 Toolkit > Configuration Intelligence`) |
+- syntax highlighting
+- route PSI parsing
+- navigation from routes to controllers and actions
+- reverse navigation from controllers and actions back to matching routes
+- completion for controller names and action names
+- annotations for unresolved controllers and actions
+- gutter icons on route entries
+- gutter icons on Java controllers and actions
+- Find Usages support from Java into `conf/routes`
+- suppression of false "unused" warnings on routed controller actions
+- inlay hints that show the likely response type of each action
 
-**Inspections for `application.conf`:**
+The route model also distinguishes normal dynamic routes from `staticDir` and `module` entries.
 
-| Inspection | Level | Description |
-|---|---|---|
-| Unresolved Play config key (Java) | WEAK WARNING | `configuration.get("missing.key")` — key not declared in conf |
-| Unused Play config key | INFORMATION | Key declared in conf but never read from Java |
-| Duplicate Play config key | WARNING | Same key defined twice in the same file |
-| Profile override without default | INFORMATION | `%prod.key=value` with no `key=value` default |
-| Unresolved environment variable | WEAK WARNING | `${ENV_VAR}` reference that isn't set in the environment |
-| Suspicious profile prefix | WEAK WARNING | Profile prefix that doesn't match any known environment |
-| Unknown Play framework key | WEAK WARNING | Key not in the built-in list of Play 1 framework keys |
+### Action Response Analysis
 
----
+The plugin performs static analysis on Play controller actions and tries to classify the dominant response shape:
 
-### `conf/messages` — i18n Intelligence
+- HTML render
+- redirect
+- JSON
+- text
+- XML
+- binary
+- HTTP status
+- mixed outcomes
 
-Full custom language support for Play 1 internationalisation files (`conf/messages` for the default locale, `conf/messages.fr`, `conf/messages.en-US`, etc.).
+This is used in route inlay hints, route views inside the tool window, and quick documentation. The analysis does not stop at the immediate method body either; it can follow some helper methods so the result stays useful on real code, not only on toy examples.
 
-| Capability | Details |
-|---|---|
-| Syntax highlighting | Keys in bold, values as strings, `%s`/`%d` placeholders highlighted, `#` comments in italics |
-| Ctrl+Click from Java | `Messages.get("key")` → jumps to the key declaration in `conf/messages` |
-| Ctrl+Click from HTML | `&{'key'}` in an `app/views/` template → jumps to the key declaration |
-| Find Usages (messages → Java) | Key in conf/messages → lists all `Messages.get("key")` call sites |
-| Find Usages (messages → HTML) | Key in conf/messages → lists all `&{'key'}` usages in view templates |
-| Completion (Java) | String literals in `Messages.get(…)` propose all known message keys with their default value as tail text |
-| Completion (HTML) | `&{'<caret>'}` in view templates proposes all known message keys |
-| Rename refactoring | Renaming a key in any locale file automatically renames it in all other locale files and all Java/HTML usages |
-| Inlay hints (Java) | `Messages.get("key") /* = Hello World */` shown inline; `[N locales]` appended when multiple translations exist |
-| Inlay hints (HTML) | `&{'key'} /* = Hello World */` shown inline in view templates |
-| Quick documentation | Hover a key → shows value for each locale, plus usage count |
-| Gutter icons | Keys with locale variants show a globe icon navigating to all translations; keys with Java/HTML usages show a usages icon |
+### `render()` and View Navigation
 
-**Inspections for messages:**
+The Java side of Play view rendering is understood well enough to make navigation usable again.
 
-| Inspection | Level | Description |
-|---|---|---|
-| Unknown message key (Java) | WEAK WARNING | `Messages.get("missing")` — key not declared in `conf/messages` |
-| Unknown message key (HTML) | WEAK WARNING | `&{'missing'}` — key not declared in `conf/messages` |
-| Duplicate message key | WARNING | Same key defined twice in the same messages file |
-| Missing locale translation | INFORMATION (off by default) | Key present in default `conf/messages` but absent from a locale file |
-| Placeholder count mismatch | WEAK WARNING | `Messages.get("fmt", arg)` where `fmt=Hello %s %s` has 2 placeholders but only 1 argument passed |
+Supported behavior includes:
 
----
+- `Ctrl+Click` from `render()` to the implicit view path
+- `Ctrl+Click` from `renderTemplate("...")` to the explicit template
+- an inspection for missing Play views
+- quick fixes to create the missing view
+- template skeleton generation in the creation flow
 
-### Tool Window
+### Play Templates
 
-A dedicated **Play v1 Toolkit** panel in the right sidebar with three tabs:
+Template support covers `app/views/**`, including custom tags under `app/views/tags`.
 
-- **Status** — Play detection result, configured Play Home, library attachment state
-- **Routes** — Tree view of all routes grouped by controller
-- **Diagnostics** — Unresolved controllers and actions in `conf/routes`
+#### Navigation and References
 
----
+- navigation to templates referenced by `#{include ...}` and `#{extends ...}`
+- navigation to reverse routes used inside templates
+- navigation to Play static assets
+- Java-to-template and template-to-Java navigation depending on context
+- usages for templates and routes referenced from views
 
-## Development
+#### Completion
 
-### Prerequisites
+- built-in tag names
+- custom tags
+- template paths
+- reverse routes
+- assets under `public/`
+- template variables
+- tag parameters in supported contexts
 
-- JDK 17+
-- Gradle (wrapper included — `./gradlew`)
+#### Variable Resolution
 
-### Build commands
+This part goes further than simple text matching. The plugin resolves template variables from several places:
+
+- Play implicit variables
+- values passed to `render()`
+- `renderArgs.put(...)`
+- helper method propagation
+- some include and extends flows
+- variables injected by the cache support
+- JPA-derived type information when a template variable maps back to a model
+
+#### Template Inspections
+
+Registered inspections include:
+
+- missing template file
+- unknown template tag
+- unknown reverse route
+- missing static asset
+- unknown template variable
+- unbalanced Play tag
+- unrouted action
+- suspicious reverse route argument count
+
+#### Quick Documentation
+
+The template documentation provider covers the things you usually need to inspect quickly:
+
+- templates
+- custom tags
+- reverse routes
+- assets
+- variables
+- built-in tags
+
+### `conf/application.conf`
+
+The plugin implements a dedicated language for `application.conf`, with PSI parsing and project-level indexing of configuration keys.
+
+Supported behavior includes:
+
+- syntax highlighting
+- PSI parsing
+- key indexing
+- support for profile-prefixed keys such as `%dev` and `%prod`
+- effective value resolution
+- environment variable resolution
+- Java completion for config access calls
+- config-side completion for known Play keys
+- Java-to-conf references
+- conf-to-Java usages
+- key rename support
+- Java inlay hints
+- conf inlay hints
+- quick documentation
+- gutter markers for profile variants
+
+Environment resolution is done in a sane order:
+
+- environment variables from the selected Play run configuration
+- then system environment variables
+
+#### Configuration Intelligence Settings
+
+The plugin adds a project-level **Configuration Intelligence** page where you can:
+
+- choose the active framework id
+- register custom wrapper methods for config access
+- add extra prefixes
+
+#### `application.conf` Inspections
+
+- config key used in Java but missing from the file
+- config key declared but never used
+- duplicate key
+- profile override without a default value
+- unresolved environment variable
+- suspicious profile prefix
+- unknown Play framework key
+
+### `conf/messages` and Locale Files
+
+The plugin supports the usual Play message files:
+
+- `conf/messages`
+- `conf/messages.fr`
+- `conf/messages.en-US`
+- other locale variants following the same pattern
+
+It provides:
+
+- syntax highlighting
+- PSI parsing
+- key and locale indexing
+- Java references through `Messages.get(...)`
+- template references through `&{'key'}`
+- Java and template usage search
+- Java completion
+- template completion
+- rename across locale variants and usages
+- inlay hints
+- quick documentation
+- gutter icons for variants and usages
+
+#### Message Inspections
+
+- unknown message key in Java
+- unknown message key in templates
+- duplicate message key
+- missing locale translation
+- placeholder count mismatch
+
+### Play JPA Models and YAML Fixtures
+
+The plugin indexes Play/JPA models under `app/models/`.
+
+That support includes:
+
+- detection of classes that correctly extend `play.db.jpa.Model`
+- extraction of fields, id field, and relations
+- finder-string completion in Java
+- references from finder strings to model fields
+- model and field usages
+- rename support for models and fields
+- support for YAML fixtures
+- YAML completion for models, fields, and relation targets
+- YAML inspections for unknown models, fields, relation targets, and duplicate aliases
+- quick documentation for models and relations
+- inlay hints for supported finder patterns
+- a **Models** panel in the tool window
+
+There is also a broader model-classification service for `app/models/`, which helps separate actual entities from DTO-like or service-like classes placed in the same directory.
+
+### Play Jobs
+
+The plugin analyzes Play jobs and how they are invoked.
+
+Supported behavior includes:
+
+- job detection
+- trigger classification
+- discovery of manual invocations
+- quick documentation
+- gutter icons
+- completion for supported annotation values such as `@Every`
+- a **Jobs** panel in the tool window
+
+#### Job Inspections
+
+- missing `doJob`
+- suspicious `@Every` value
+- job annotation on an invalid job class
+- unreferenced job
+- blocking startup job
+
+### Play Cache
+
+Cache support covers both Java code and templates.
+
+#### Java Cache Calls
+
+The plugin detects and classifies cache operations such as:
+
+- reads
+- writes
+- conditional writes
+- invalidations
+- global clears
+- read-or-compute patterns
+
+When possible, it also extracts:
+
+- cache key
+- TTL
+- value type
+- config-key dependencies used to build the key or TTL
+
+#### Template Cache Tags
+
+The plugin scans `#{cache ...}` tags in templates and tracks:
+
+- key
+- expiration
+- included fragments
+- injected variables such as `cacheName`, `cacheExpiration`, and `isCached`
+
+#### Cached Actions
+
+`@CacheFor` on Play actions is also indexed and exposed through the cache model.
+
+#### Cache IDE Support
+
+- Java completion for cache keys
+- template completion for cache keys
+- Java and template inlay hints
+- line markers
+- quick documentation
+- a dedicated **Cache** panel in the tool window
+
+#### Cache Inspections
+
+- cache tag without a key
+- cache tag without an expiration
+- empty expiration
+- `Cache.set(...)` without TTL
+- risky `Cache.clear()`
+- suspicious TTL
+- key read without a writer
+- key written without a reader
+- key written without an invalidation path
+
+## Tool Window
+
+The plugin adds a **Play v1 Toolkit** tool window with these tabs:
+
+- `Status`
+- `Routes`
+- `Templates`
+- `Models`
+- `Jobs`
+- `Cache`
+- `Diagnostics`
+
+This is not just a dashboard. It is the place where setup, execution, and structural inspection of the Play project come together.
+
+### Status
+
+The **Status** tab shows:
+
+- whether the project was detected as Play 1
+- the current `Play Home`
+- detected Play version
+- CLI runtime information
+- dependency-resolution mode
+- whether the Play run configuration exists
+- Run and Debug entry points
+- buttons for Play CLI commands
+- current command state
+
+### Routes
+
+The **Routes** tab offers:
+
+- a route tree
+- grouping by controller or by path
+- navigation to either the route line or the Java action
+- response information derived from action analysis
+
+### Templates
+
+The **Templates** tab gives you a structured view of templates and custom tags with quick navigation.
+
+### Models
+
+The **Models** tab summarizes detected JPA models.
+
+### Jobs
+
+The **Jobs** tab summarizes detected Play jobs and how they are triggered.
+
+### Cache
+
+The **Cache** tab gathers static and dynamic cache usages, cached fragments, cached actions, and cache-focused diagnostics.
+
+### Diagnostics
+
+The **Diagnostics** tab currently focuses on route integrity:
+
+- controllers referenced in `conf/routes` but not found in the project
+- actions referenced in `conf/routes` but missing from the controller
+
+## Settings
+
+Under **Settings > Tools > Play v1 Toolkit**, the plugin exposes:
+
+- the main `Play Home`
+- automatic Play Home detection
+- Play Home validation
+- default `Play ID`
+- default HTTP port
+- default debug port
+- auto-repair on project open
+- an optional `Play Home for deps`
+- download of a recommended Play distribution for dependency sync
+
+## What Needs a Real Play Installation
+
+Some features are naturally much better once a valid Play installation is configured and the project has been repaired:
+
+- framework library attachment
+- Play CLI execution
+- application run and debug
+- Java-side features that depend on proper Play class resolution
+
+## What Still Works Without `Play Home`
+
+A fair amount of the PSI-based support still works from project structure alone, even before a full runtime setup:
+
+- `conf/routes`
+- `conf/application.conf`
+- `conf/messages*`
+- part of the template support
+- part of the JPA, job, and cache analysis
+
+## Sample Application
+
+The repository includes [sample-play1-app/](/home/pablo/projets/play1-intellij-plugin/sample-play1-app/) as a quick manual test project.
+
+It is there so you can open a small Play 1 codebase in a sandbox IDE and verify the plugin end to end without setting up a full production-like application first.
+
+## Developing the Plugin
+
+### Useful Commands
 
 ```bash
-# Build the plugin ZIP
 ./gradlew buildPlugin
-
-# Launch a sandboxed IntelliJ instance with the plugin installed
 ./gradlew runIde
-
-# Run unit tests
 ./gradlew test
-
-# Verify plugin descriptor and API compatibility
 ./gradlew verifyPlugin
 ```
 
-The first `runIde` downloads the full IDE sandbox (~1 GB). Subsequent runs are fast.
+### Repository Structure
 
-### Testing manually
-
-Open `<repo>/sample-play1-app/` in the sandbox IDE for quick smoke testing of most features without needing a real Play installation. For repair, run config, and classpath-dependent features (render navigation, gutter icons) you need a real Play 1 binary distribution and must configure **Play Home** in settings.
-
-**Features that require Play Home configured and Repair run:**
-- `render()` navigation and missing view inspection (need `play.mvc.Controller` on the classpath)
-- Gutter icons on Java controller methods
-- Run/Debug configuration
-
-**Features that work without Play Home:**
-- `conf/routes`, `conf/application.conf`, `conf/messages` — all language intelligence
-- Ctrl+Click navigation in all directions
-- Completions, inlay hints, inspections, rename
-
-### Troubleshooting the sandbox
-
-| Symptom | Cause / Fix |
-|---|---|
-| render() navigation doesn't work | Play JARs not on classpath — run Repair Project Setup |
-| "Play 1 project detected" doesn't appear | Need at least 2 of: `conf/application.conf`, `conf/routes`, `app/controllers/` |
-| Gutter icons missing on controller methods | Same as above — Repair needed so `play.mvc.Controller` resolves |
-| Sandbox hangs on first launch | Downloading IDE — wait for Gradle task completion |
-
----
-
-## Project Structure
-
-```
+```text
 src/main/kotlin/com/github/pablolec/play1toolkit/
-├── actions/            User-triggered actions (Repair, Sync Deps)
-├── config/             Application-level settings (Play Home)
-├── detection/          Play project and Play Home detection (no IntelliJ PSI dependencies)
-├── inspection/         Missing view inspection + quick fix
-├── lineMarker/         Gutter icons for controller ↔ routes navigation + response markers
-├── model/              Shared data models
-├── project/            Library manager, source root manager, run config manager, lib watcher, CLI runner
-├── render/             render() → view navigation
-├── response/           Action response analysis (render / redirect / JSON / status classification)
-├── routes/             conf/routes custom language
-│   ├── psi/            PSI node types (RoutesFile, RoutesRouteElement)
-│   ├── RoutesLexer     Hand-written state-machine lexer
-│   ├── RoutesParser    Inline parser
-│   ├── …Highlighter    Syntax highlighting
-│   ├── …Annotator      Error annotations for unresolved targets
-│   ├── …Contributor    PSI references (routes → Java)
-│   ├── …Searchers      Find Usages (Java → routes)
-│   └── …InlayHints     Route response type hints
-├── run/                Play 1 run/debug configuration type
-├── services/           Project-level services (project state, command execution)
-├── toolwindow/         Play v1 Toolkit tool window (Status, Routes, Diagnostics panels)
-├── playconfig/         conf/application.conf custom language
-│   ├── lang/           Language, FileType, Lexer, Parser, Highlighter, TokenTypes, ElementTypes
-│   ├── psi/            PlayConfigFile, PlayConfigProperty
-│   ├── model/          PlayConfigEntry, resolution model
-│   ├── service/        PlayConfigService (cached PSI index), PlayConfigKnownKeys
-│   ├── settings/       Per-project active profile setting
-│   ├── references/     Java → conf contributor, conf → Java usage searcher, rename processor
-│   ├── completion/     Java + conf completion contributors
-│   ├── hints/          Java + conf inlay hints providers
-│   ├── lineMarker/     Gutter icons (profile variants)
-│   ├── documentation/  Quick documentation provider
-│   └── inspections/    7 inspections + quick fix
-└── playmessages/       conf/messages custom language
-    ├── lang/           Language, FileType, FileTypeDetector, Lexer, Parser, Highlighter, TokenTypes, ElementTypes
-    ├── psi/            PlayMessagesFile, PlayMessagesProperty
-    ├── model/          PlayMessageEntry
-    ├── service/        PlayMessagesService (cached PSI index per file + locale)
-    ├── references/     Java contributor + HTML contributor + goto handlers + usage searchers + rename processor
-    ├── completion/     Java + HTML completion contributors
-    ├── hints/          Java + HTML inlay hints providers
-    ├── lineMarker/     Gutter icons (locale variants, usages)
-    ├── documentation/  Quick documentation provider
-    └── inspections/    5 inspections + quick fix
+  actions/       User actions and CLI orchestration
+  config/        Application-level settings
+  detection/     Project and Play Home detection
+  inspection/    Cross-cutting Java inspections
+  lineMarker/    Java <-> routes navigation and response markers
+  playcache/     Play cache analysis
+  playconfig/    application.conf support
+  playjobs/      Play job analysis
+  playjpa/       JPA models and YAML fixture support
+  playmessages/  Message bundle support
+  project/       Libraries, roots, CLI, managed runtimes
+  render/        render() -> view navigation
+  response/      Static action response analysis
+  routes/        conf/routes custom language
+  run/           Play 1 run configuration
+  services/      Shared project services
+  templates/     Template and custom tag support
+  toolwindow/    Tool window UI
 
-src/test/kotlin/        Unit tests (JUnit 4, no IntelliJ platform dependency)
-sample-play1-app/       Minimal Play 1 project for sandbox testing
+src/test/kotlin/
+  Unit tests and IntelliJ Platform tests
+
+sample-play1-app/
+  Small Play 1 app for manual verification
 ```
 
-### Key architectural patterns
+### Test Strategy
 
-**Custom languages** — Routes, PlayConfig, and PlayMessages each follow the same pattern: hand-written state-machine lexer → inline recursive parser → `PsiFileBase` + `ASTWrapperPsiElement` PSI nodes → service for indexed data → reference contributors for navigation. No dependency on the IntelliJ Properties or XML language plugins.
+The repository combines:
 
-**Service + cache** — `PlayConfigService` and `PlayMessagesService` index their files using `CachedValuesManager.getCachedValue(file)` per file, with `PsiModificationTracker.MODIFICATION_COUNT` as the invalidation key. This keeps lookups fast and automatically invalidates on any PSI edit.
+- plain unit tests
+- IntelliJ Platform tests through `BasePlatformTestCase`
+- lightweight Play 1 fixtures
+- a sample application for manual checks in the IDE sandbox
 
-**Navigation from Java** — Reference contributors register `PsiLiteralExpression` patterns. Context detectors (`PlayConfigContextDetector`, `PlayMessagesContextDetector`) verify the call site (method name, qualifier class, argument index) before creating references. This avoids polluting every string literal in the project.
+## Known Limits
 
-**Navigation from HTML** — HTML view templates use `GotoDeclarationHandler` (not reference contributors) because IntelliJ's HTML parser creates intermediate `XmlEntityRef` nodes for `&{` syntax, making composite-element reference contributors unreliable for Ctrl+Click. The handler scans raw file text + offset comparison.
+- The plugin is intentionally focused on Play Framework 1.x, not Play 2+.
+- Several analyses rely on PSI heuristics. They are useful in practice, but they are still static analysis.
+- Some features become much more reliable after project repair and dependency resolution.
 
-**Rename cross-locale** — `PlayMessagesRenameProcessor` automatically adds all other locale variants of the same key into `allRenames` during `prepareRenaming()`, so a single rename propagates across all `conf/messages.*` files and all Java/HTML usages simultaneously.
+## Who This Is For
 
-**Response analysis** — `PlayActionResponseAnalyzer` walks the PSI method body recursively to classify the action's response type (`RENDER`, `REDIRECT`, `JSON`, `STATUS`, `MIXED`, `UNKNOWN`). Results are cached per method via `PlayActionResponseService` and displayed as inlay hints in `conf/routes`.
+This plugin is for teams that still own a Play 1 codebase and want IntelliJ to be helpful again instead of merely tolerable.
 
----
+It is especially useful when you need to:
 
-## License
-
-Apache 2.0
+- navigate a large legacy codebase quickly
+- reduce IDE false positives
+- rename things with less fear
+- understand old Play 1 flows without reconstructing everything by hand
+- keep maintenance work moving on an application that modern tooling has mostly forgotten

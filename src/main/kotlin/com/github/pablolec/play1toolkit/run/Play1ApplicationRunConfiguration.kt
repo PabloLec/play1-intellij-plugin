@@ -16,7 +16,6 @@ class Play1ApplicationRunConfiguration(
     name: String
 ) : RunConfigurationBase<Element>(project, factory, name),
     ModuleRunProfile,
-    RunConfigurationWithRunnerSettings,
     WithoutOwnBeforeRunSteps {
 
     var applicationPath: String = Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
@@ -30,8 +29,6 @@ class Play1ApplicationRunConfiguration(
 
     override fun getConfigurationEditor(): com.intellij.openapi.options.SettingsEditor<out RunConfiguration> =
         Play1RunConfigurationEditor()
-
-    override fun isSettingsNeeded(): Boolean = true
 
     override fun getModules(): Array<Module> =
         Play1RunConfigurationSupport.resolveModule(project, applicationPath)?.let { arrayOf(it) } ?: emptyArray()

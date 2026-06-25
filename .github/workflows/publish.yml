@@ -14,7 +14,7 @@ permissions:
 jobs:
   publish:
     name: Publish to JetBrains Marketplace
-    if: ${{ !github.event.release.prerelease && vars.INTELLIJ_MARKETPLACE_PUBLISH == 'true' }}
+    if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     env:
       RELEASE_TAG: ${{ github.event.release.tag_name }}

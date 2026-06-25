@@ -40,6 +40,20 @@ internal object Play1RunConfigurationSupport {
 
     fun parseJvmOptions(jvmOptions: String): List<String> = ParametersListUtil.parse(jvmOptions)
 
+    fun removeDebugJvmOptions(jvmOptions: String): String {
+        if (jvmOptions.isBlank()) {
+            return ""
+        }
+        return parseJvmOptions(jvmOptions)
+            .filterNot { option ->
+                option == "-Xdebug" ||
+                    option.startsWith("-Xrunjdwp:") ||
+                    option.startsWith("-agentlib:jdwp") ||
+                    option.startsWith("-Xjdwp:")
+            }
+            .joinToString(" ")
+    }
+
     fun selectInitialProfile(
         configuredDefault: String,
         availableProfiles: Collection<String>,

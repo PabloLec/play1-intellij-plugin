@@ -34,6 +34,16 @@ class Play1RunConfigurationSupportTest {
     }
 
     @Test
+    fun `removeDebugJvmOptions removes JDWP options and keeps regular JVM options`() {
+        val sanitized = Play1RunConfigurationSupport.removeDebugJvmOptions(
+            "-Xmx2g -Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y,suspend=n " +
+                "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dfoo=bar"
+        )
+
+        assertEquals("-Xmx2g -Dfoo=bar", sanitized)
+    }
+
+    @Test
     fun `selectBestRootPath prefers the deepest matching content root`() {
         val selectedRoot = Play1RunConfigurationSupport.selectBestRootPath(
             applicationPath = "/workspace/root/apps/legacy-app",

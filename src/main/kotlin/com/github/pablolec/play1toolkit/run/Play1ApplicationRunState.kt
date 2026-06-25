@@ -6,7 +6,11 @@ import com.github.pablolec.play1toolkit.runtime.Play1ApplicationRuntimeService
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.configurations.RemoteConnection
+import com.intellij.execution.configurations.RemoteConnectionCreator
+import com.intellij.execution.configurations.RemoteState
 import com.intellij.execution.process.KillableProcessHandler
+import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
@@ -21,7 +25,7 @@ class Play1ApplicationRunState(
     environment: ExecutionEnvironment,
     private val config: Play1ApplicationRunConfiguration,
     @Suppress("unused") private val targetModule: Module?
-) : CommandLineState(environment) {
+) : CommandLineState(environment), RemoteConnectionCreator, RemoteState {
 
     override fun startProcess(): ProcessHandler {
         val settings = Play1Settings.getInstance()
@@ -43,15 +47,17 @@ class Play1ApplicationRunState(
         }
 
         val applicationPath = Paths.get(config.applicationPath).toAbsolutePath().normalize()
-        val command = GeneralCommandLine(buildCommand(playScript.toString(), applicationPath))
+        val debug = Play1RunConfigurationSupport.isDebugExecutor(environment)
+        val command = GeneralCommandLine(buildCommand(playScript.toString(), applicationPath, debug))
             .withWorkDirectory(applicationPath.parent?.toString() ?: config.applicationPath)
             .withEnvironment(config.envVars)
             .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
 
         command.withEnvironment(Play1RunConfigurationSupport.buildJavaSdkEnvironment(sdkHomePath, command.environment))
-        applyJavaOpts(command)
+        applyJavaOpts(command, debug)
 
         val handler = KillableProcessHandler(command)
+        handler.addProcessListener(debugEnvironmentReporter(command))
         val runtimeService = Play1ApplicationRuntimeService.getInstance(environment.project)
         val sessionId = runtimeService.processStarted(config.name, config.httpPort)
         handler.addProcessListener(object : ProcessListener {
@@ -62,13 +68,47 @@ class Play1ApplicationRunState(
         return handler
     }
 
-    private fun buildCommand(playScript: String, applicationPath: Path): List<String> = buildList {
+    private fun buildCommand(playScript: String, applicationPath: Path, debug: Boolean): List<String> = buildList {
         add(playScript)
         add("run")
         add(applicationPath.fileName?.toString() ?: applicationPath.toString())
         config.getActiveProfile()?.let { add("--%$it") }
         add("--http.port=${config.httpPort}")
+        if (debug) {
+            add("--jpda.port=${config.debugPort}")
+        }
     }
+
+    override fun createRemoteConnection(environment: ExecutionEnvironment): RemoteConnection =
+        getRemoteConnection()
+
+    override fun getRemoteConnection(): RemoteConnection =
+        RemoteConnection(
+            true,
+            "127.0.0.1",
+            config.debugPort.toString(),
+            false,
+        )
+
+    override fun isPollConnection(): Boolean = true
+
+    private fun debugEnvironmentReporter(command: GeneralCommandLine): ProcessListener =
+        object : ProcessListener {
+            override fun startNotified(event: ProcessEvent) {
+                if (!Play1RunConfigurationSupport.isDebugExecutor(environment)) return
+                event.processHandler.notifyTextAvailable(
+                    buildString {
+                        appendLine("Play v1 Toolkit debug environment")
+                        appendLine("  Command=${command.commandLineString}")
+                        appendLine("  Debug transport=Play native JPDA (--jpda.port=${config.debugPort})")
+                        appendLine("  JAVA_HOME=${command.environment["JAVA_HOME"] ?: "not set"}")
+                        appendLine("  JAVA_OPTS=${command.environment["JAVA_OPTS"] ?: "not set"}")
+                        appendLine("  IntelliJ debugger attaches to 127.0.0.1:${config.debugPort}")
+                    },
+                    ProcessOutputTypes.SYSTEM,
+                )
+            }
+        }
 
     private fun resolveSdkHomePath(sdk: Sdk): String {
         val sdkHomePath = sdk.homePath?.takeIf { it.isNotBlank() }
@@ -79,18 +119,30 @@ class Play1ApplicationRunState(
         return sdkHomePath
     }
 
-    private fun applyJavaOpts(command: GeneralCommandLine) {
+    private fun applyJavaOpts(command: GeneralCommandLine, debug: Boolean) {
         val parts = mutableListOf<String>()
-        command.environment["JAVA_OPTS"]?.takeIf { it.isNotBlank() }?.let(parts::add)
-        if (command.environment["JAVA_OPTS"].isNullOrBlank()) {
+        command.environment["JAVA_OPTS"]
+            ?.takeIf { it.isNotBlank() }
+            ?.let { javaOpts ->
+                parts.add(if (debug) Play1RunConfigurationSupport.removeDebugJvmOptions(javaOpts) else javaOpts)
+            }
+        if (!debug && command.environment["JAVA_OPTS"].isNullOrBlank()) {
             System.getenv("JAVA_OPTS")?.takeIf { it.isNotBlank() }?.let(parts::add)
         }
-        config.jvmOptions.takeIf { it.isNotBlank() }?.let(parts::add)
-        if (Play1RunConfigurationSupport.isDebugExecutor(environment)) {
-            parts.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:${config.debugPort}")
-        }
-        if (parts.isNotEmpty()) {
-            command.environment["JAVA_OPTS"] = parts.joinToString(" ")
+        config.jvmOptions
+            .takeIf { it.isNotBlank() }
+            ?.let { jvmOptions ->
+                parts.add(if (debug) Play1RunConfigurationSupport.removeDebugJvmOptions(jvmOptions) else jvmOptions)
+            }
+
+        val javaOpts = parts
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+        if (javaOpts.isNotBlank()) {
+            command.environment["JAVA_OPTS"] = javaOpts
+        } else {
+            command.environment.remove("JAVA_OPTS")
         }
     }
 }

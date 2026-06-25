@@ -41,11 +41,15 @@ class Play1ApplicationRuntimeService : Disposable {
         val configurationName: String? = null,
         val message: String = "No Play application process is running.",
         val startedAt: Instant? = null,
+        val readyAt: Instant? = null,
+        val wakeUpDurationMillis: Long? = null,
+        val wakeUpStatusCode: Int? = null,
     )
 
     private val listeners = CopyOnWriteArrayList<(State) -> Unit>()
     private val sessionCounter = AtomicLong()
-    private val probeDeadlineMillis = TimeUnit.MINUTES.toMillis(2)
+    private val startupWarningMillis = TimeUnit.MINUTES.toMillis(2)
+    private val wakeUpReadTimeoutMillis = TimeUnit.MINUTES.toMillis(10)
     private val probeIntervalMillis = TimeUnit.SECONDS.toMillis(2)
 
     @Volatile
@@ -58,11 +62,15 @@ class Play1ApplicationRuntimeService : Disposable {
     @Volatile
     private var probeFuture: ScheduledFuture<*>? = null
 
+    @Volatile
+    private var wakeUpStarted: Boolean = false
+
     @Synchronized
     fun processStarted(configurationName: String, httpPort: Int): Long {
         val sessionId = sessionCounter.incrementAndGet()
         activeSessionId = sessionId
         cancelProbe()
+        wakeUpStarted = false
         update(
             State(
                 serverStatus = ServerStatus.STARTING,
@@ -82,6 +90,7 @@ class Play1ApplicationRuntimeService : Disposable {
         if (activeSessionId != sessionId) return
         activeSessionId = null
         cancelProbe()
+        wakeUpStarted = false
         update(
             state.copy(
                 serverStatus = if (exitCode == 0) ServerStatus.STOPPED else ServerStatus.FAILED,
@@ -114,28 +123,18 @@ class Play1ApplicationRuntimeService : Disposable {
         if (activeSessionId != sessionId) return
 
         val startedAt = state.startedAt ?: Instant.now()
-        if (Instant.now().toEpochMilli() - startedAt.toEpochMilli() > probeDeadlineMillis) {
-            cancelProbe()
-            update(
-                state.copy(
-                    serverStatus = if (state.serverStatus == ServerStatus.RUNNING) {
-                        ServerStatus.RUNNING
-                    } else {
-                        ServerStatus.FAILED
-                    },
-                    applicationStatus = ApplicationStatus.FAILED,
-                    message = "The Play application did not respond to the wake-up request.",
-                )
-            )
-            return
-        }
+        val elapsedMillis = Instant.now().toEpochMilli() - startedAt.toEpochMilli()
 
         if (!isPortOpen(httpPort)) {
             update(
                 state.copy(
                     serverStatus = ServerStatus.STARTING,
                     applicationStatus = ApplicationStatus.WAITING_FOR_SERVER,
-                    message = "Waiting for the Play HTTP server on port $httpPort.",
+                    message = if (elapsedMillis > startupWarningMillis) {
+                        "Still waiting for the Play HTTP server on port $httpPort."
+                    } else {
+                        "Waiting for the Play HTTP server on port $httpPort."
+                    },
                 )
             )
             return
@@ -145,26 +144,39 @@ class Play1ApplicationRuntimeService : Disposable {
             state.copy(
                 serverStatus = ServerStatus.RUNNING,
                 applicationStatus = ApplicationStatus.WAKING,
-                message = "HTTP server is accepting connections; waking the Play application.",
+                message = "HTTP port is open; running the first request that wakes the Play application.",
             )
         )
 
+        if (wakeUpStarted) return
+        wakeUpStarted = true
+
+        val wakeUpStartedAt = Instant.now()
         val wakeUpResult = wakeApplication(httpPort)
-        if (wakeUpResult.responded) {
+        if (wakeUpResult.successful) {
+            val readyAt = Instant.now()
             cancelProbe()
             update(
                 state.copy(
                     serverStatus = ServerStatus.RUNNING,
                     applicationStatus = ApplicationStatus.RUNNING,
-                    message = "Play application responded with HTTP ${wakeUpResult.statusCode}.",
+                    message = "The first readiness request succeeded; the Play application is ready.",
+                    readyAt = readyAt,
+                    wakeUpDurationMillis = readyAt.toEpochMilli() - wakeUpStartedAt.toEpochMilli(),
+                    wakeUpStatusCode = wakeUpResult.statusCode,
                 )
             )
         } else {
+            wakeUpStarted = false
             update(
                 state.copy(
                     serverStatus = ServerStatus.RUNNING,
                     applicationStatus = ApplicationStatus.WAKING,
-                    message = wakeUpResult.message,
+                    message = if (elapsedMillis > startupWarningMillis) {
+                        "${wakeUpResult.message} The process is still running; keeping the readiness probe active."
+                    } else {
+                        wakeUpResult.message
+                    },
                 )
             )
         }
@@ -186,15 +198,23 @@ class Play1ApplicationRuntimeService : Disposable {
             val connection = URI("http://127.0.0.1:$httpPort/").toURL().openConnection() as HttpURLConnection
             connection.instanceFollowRedirects = false
             connection.connectTimeout = 1_000
-            connection.readTimeout = 1_000
+            connection.readTimeout = wakeUpReadTimeoutMillis.toInt()
             connection.requestMethod = "GET"
             connection.useCaches = false
             val statusCode = connection.responseCode
             connection.disconnect()
-            WakeUpResult(responded = true, statusCode = statusCode, message = "Play application responded.")
+            WakeUpResult(
+                successful = statusCode < 500,
+                statusCode = statusCode,
+                message = if (statusCode < 500) {
+                    "Play application responded."
+                } else {
+                    "Readiness request returned HTTP $statusCode."
+                },
+            )
         } catch (e: Exception) {
             WakeUpResult(
-                responded = false,
+                successful = false,
                 statusCode = null,
                 message = e.message?.let { "Wake-up request pending: $it" } ?: "Wake-up request pending.",
             )
@@ -218,7 +238,7 @@ class Play1ApplicationRuntimeService : Disposable {
     }
 
     private data class WakeUpResult(
-        val responded: Boolean,
+        val successful: Boolean,
         val statusCode: Int?,
         val message: String,
     )

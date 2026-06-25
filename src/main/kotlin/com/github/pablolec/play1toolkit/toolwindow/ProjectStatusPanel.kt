@@ -22,14 +22,18 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBTextArea
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.Font
+import java.time.Duration
 import java.nio.file.Paths
 import javax.swing.BoxLayout
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.Timer
 
 class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPanel>(BorderLayout()), Disposable {
 
@@ -47,14 +51,27 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val debugAppButton = JButton("Debug App")
     private val runStatusLabel = JBLabel()
     private val debugStatusLabel = JBLabel()
-    private val serverStatusLabel = JBLabel()
-    private val applicationStatusLabel = JBLabel()
+    private val runtimeReadinessLabel = JBLabel()
+    private val runtimeTimingLabel = JBLabel()
     private val runtimeUrlLabel = JBLabel()
-    private val runtimeMessageLabel = JBLabel()
+    private val runtimeMessageLabel = JBTextArea().apply {
+        isEditable = false
+        isFocusable = false
+        isOpaque = false
+        lineWrap = true
+        wrapStyleWord = true
+        rows = 1
+        columns = 28
+        border = JBUI.Borders.empty()
+    }
     private val commandButtons = linkedMapOf<Play1CliCommandId, JButton>()
     private val commandStatusLabels = linkedMapOf<Play1CliCommandId, JBLabel>()
     private var executionListenerDisposer: (() -> Unit)? = null
     private var runtimeListenerDisposer: (() -> Unit)? = null
+    private var lastRuntimeState: Play1ApplicationRuntimeService.State = Play1ApplicationRuntimeService.State()
+    private val runtimeTimer = Timer(1_000) {
+        refreshRuntimeStatus(lastRuntimeState)
+    }
 
     init {
         border = JBUI.Borders.empty(6)
@@ -167,10 +184,22 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     }
 
     private fun refreshRuntimeStatus(state: Play1ApplicationRuntimeService.State) {
-        serverStatusLabel.text = "Server: ${formatServerStatus(state.serverStatus)}"
-        applicationStatusLabel.text = "Application: ${formatApplicationStatus(state.applicationStatus)}"
-        runtimeUrlLabel.text = "Wake-up URL: ${state.url ?: "—"}"
-        runtimeMessageLabel.text = "Status: ${state.message}"
+        lastRuntimeState = state
+        runtimeReadinessLabel.text = runtimeReadinessText(state)
+        val timingText = runtimeTimingText(state)
+        runtimeTimingLabel.text = timingText
+        runtimeTimingLabel.isVisible = timingText.isNotBlank()
+        val wakeUpUrl = state.url
+        runtimeUrlLabel.text = wakeUpUrl?.let { "↗ Wake-up URL: $it" }.orEmpty()
+        runtimeUrlLabel.isVisible = !wakeUpUrl.isNullOrBlank()
+        val messageText = runtimeMessageText(state)
+        runtimeMessageLabel.text = messageText
+        runtimeMessageLabel.isVisible = messageText.isNotBlank()
+        if (shouldAnimateRuntimeTimer(state)) {
+            if (!runtimeTimer.isRunning) runtimeTimer.start()
+        } else {
+            runtimeTimer.stop()
+        }
         revalidate()
         repaint()
     }
@@ -181,14 +210,11 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             isOpaque = false
         }
 
-        content.add(section("Project", playDetectedLabel, playApplicationPathLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
-        content.add(buttonRow(configureButton, repairButton))
-
         content.add(commandsSection("Run", listOf(
             Triple(runAppButton, runStatusLabel, "Run App"),
             Triple(debugAppButton, debugStatusLabel, "Debug App"),
         )))
-        content.add(section("Application Runtime", serverStatusLabel, applicationStatusLabel, runtimeUrlLabel, runtimeMessageLabel))
+        content.add(readinessSection())
 
         Play1CliCommandGroup.entries.forEach { group ->
             val rows = Play1CliCommandId.entries
@@ -202,10 +228,12 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                     commandButtons[commandId] = button
                     commandStatusLabels[commandId] = status
                     Triple(button, status, commandId.displayName)
-                }
+            }
             content.add(commandsSection(group.title, rows))
         }
 
+        content.add(section("Project", playDetectedLabel, playApplicationPathLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
+        content.add(buttonRow(configureButton, repairButton))
         content.add(section("Activity", lastCommandLabel))
 
         add(content, BorderLayout.NORTH)
@@ -214,7 +242,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private fun section(title: String, vararg components: JComponent): JPanel {
         val panel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = JBUI.Borders.empty(8, 0)
+            border = JBUI.Borders.empty(10, 0)
             alignmentX = LEFT_ALIGNMENT
             isOpaque = false
         }
@@ -223,14 +251,14 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             it.alignmentX = LEFT_ALIGNMENT
             panel.add(it)
         }
-        panel.maximumSize = Dimension(Int.MAX_VALUE, panel.preferredSize.height + 8)
+        panel.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
         return panel
     }
 
     private fun buttonRow(vararg buttons: JButton): JPanel {
         val panel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.X_AXIS)
-            border = JBUI.Borders.empty(6, 0)
+            border = JBUI.Borders.empty(4, 0, 10, 0)
             alignmentX = LEFT_ALIGNMENT
             isOpaque = false
         }
@@ -244,14 +272,14 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             }
             panel.add(button)
         }
-        panel.maximumSize = Dimension(Int.MAX_VALUE, panel.preferredSize.height)
+        panel.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
         return panel
     }
 
     private fun commandsSection(title: String, rows: List<Triple<JButton, JBLabel, String>>): JPanel {
         val panel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            border = JBUI.Borders.empty(8, 0)
+            border = JBUI.Borders.empty(10, 0)
             alignmentX = LEFT_ALIGNMENT
             isOpaque = false
         }
@@ -267,7 +295,36 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             }
             panel.add(row)
         }
-        panel.maximumSize = Dimension(Int.MAX_VALUE, panel.preferredSize.height + 8)
+        panel.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
+        return panel
+    }
+
+    private fun readinessSection(): JPanel {
+        val panel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            border = JBUI.Borders.empty(10, 0)
+            alignmentX = LEFT_ALIGNMENT
+            isOpaque = false
+        }
+
+        panel.add(JBLabel("Readiness").apply {
+            border = JBUI.Borders.emptyBottom(8)
+            font = font.deriveFont(Font.BOLD)
+        })
+        panel.add(runtimeReadinessLabel.apply {
+            alignmentX = LEFT_ALIGNMENT
+            border = JBUI.Borders.empty(2, 0, 6, 0)
+            font = font.deriveFont(Font.BOLD)
+        })
+        listOf<JComponent>(runtimeTimingLabel, runtimeUrlLabel, runtimeMessageLabel).forEach { component ->
+            panel.add(component.apply {
+                alignmentX = LEFT_ALIGNMENT
+                border = JBUI.Borders.empty(2, 12)
+                maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
+            })
+        }
+
+        panel.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
         return panel
     }
 
@@ -321,25 +378,70 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private fun findPlayConfiguration() =
         RunManager.getInstance(project).allSettings.firstOrNull { it.type is Play1RunConfigurationType }
 
-    private fun formatServerStatus(status: Play1ApplicationRuntimeService.ServerStatus): String =
-        when (status) {
-            Play1ApplicationRuntimeService.ServerStatus.DOWN -> "down"
-            Play1ApplicationRuntimeService.ServerStatus.STARTING -> "starting"
-            Play1ApplicationRuntimeService.ServerStatus.RUNNING -> "running"
-            Play1ApplicationRuntimeService.ServerStatus.STOPPED -> "stopped"
-            Play1ApplicationRuntimeService.ServerStatus.FAILED -> "failed"
+    private fun runtimeReadinessText(state: Play1ApplicationRuntimeService.State): String {
+        return when (state.applicationStatus) {
+            Play1ApplicationRuntimeService.ApplicationStatus.RUNNING ->
+                "✅ Ready - first readiness request succeeded${state.wakeUpStatusCode?.let { " (HTTP $it)" } ?: ""}"
+            Play1ApplicationRuntimeService.ApplicationStatus.WAKING ->
+                "⏳ Waking - first request is still running"
+            Play1ApplicationRuntimeService.ApplicationStatus.WAITING_FOR_SERVER ->
+                "🚀 Starting - waiting for the HTTP port"
+            Play1ApplicationRuntimeService.ApplicationStatus.FAILED ->
+                "⚠️ Failed - wake-up request did not complete"
+            Play1ApplicationRuntimeService.ApplicationStatus.UNKNOWN ->
+                when (state.serverStatus) {
+                    Play1ApplicationRuntimeService.ServerStatus.STOPPED -> "⏹ Stopped"
+                    Play1ApplicationRuntimeService.ServerStatus.FAILED -> "⚠️ Failed - process exited"
+                    else -> "— Not running"
+                }
         }
+    }
 
-    private fun formatApplicationStatus(status: Play1ApplicationRuntimeService.ApplicationStatus): String =
-        when (status) {
-            Play1ApplicationRuntimeService.ApplicationStatus.UNKNOWN -> "unknown"
-            Play1ApplicationRuntimeService.ApplicationStatus.WAITING_FOR_SERVER -> "waiting for server"
-            Play1ApplicationRuntimeService.ApplicationStatus.WAKING -> "waking"
-            Play1ApplicationRuntimeService.ApplicationStatus.RUNNING -> "running"
-            Play1ApplicationRuntimeService.ApplicationStatus.FAILED -> "failed"
+    private fun runtimeTimingText(state: Play1ApplicationRuntimeService.State): String {
+        val startedAt = state.startedAt ?: return ""
+        val reference = state.readyAt ?: java.time.Instant.now()
+        val startupTime = Duration.between(startedAt, reference).coerceAtLeast(Duration.ZERO)
+        return if (state.readyAt != null) {
+            "⏱ Startup time: ${formatDuration(startupTime)}"
+        } else {
+            "⏱ Startup time: ${formatDuration(startupTime)} elapsed"
         }
+    }
+
+    private fun runtimeMessageText(state: Play1ApplicationRuntimeService.State): String {
+        val message = state.message.trim()
+        if (message.isBlank() || message == "No Play application process is running.") return ""
+        return when (state.applicationStatus) {
+            Play1ApplicationRuntimeService.ApplicationStatus.WAITING_FOR_SERVER,
+            Play1ApplicationRuntimeService.ApplicationStatus.WAKING -> "ℹ️ $message"
+            Play1ApplicationRuntimeService.ApplicationStatus.FAILED -> "⚠️ $message"
+            Play1ApplicationRuntimeService.ApplicationStatus.RUNNING -> ""
+            Play1ApplicationRuntimeService.ApplicationStatus.UNKNOWN -> when (state.serverStatus) {
+                Play1ApplicationRuntimeService.ServerStatus.FAILED -> "⚠️ $message"
+                else -> ""
+            }
+        }
+    }
+
+    private fun formatDuration(duration: Duration): String {
+        val millis = duration.toMillis()
+        return if (millis < 1_000) {
+            "${millis}ms"
+        } else {
+            "%.1fs".format(java.util.Locale.ROOT, millis / 1_000.0)
+        }
+    }
+
+    private fun shouldAnimateRuntimeTimer(state: Play1ApplicationRuntimeService.State): Boolean =
+        state.startedAt != null &&
+            state.readyAt == null &&
+            state.applicationStatus in setOf(
+                Play1ApplicationRuntimeService.ApplicationStatus.WAITING_FOR_SERVER,
+                Play1ApplicationRuntimeService.ApplicationStatus.WAKING,
+            )
 
     override fun dispose() {
+        runtimeTimer.stop()
         executionListenerDisposer?.invoke()
         executionListenerDisposer = null
         runtimeListenerDisposer?.invoke()

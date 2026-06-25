@@ -1,5 +1,7 @@
 package com.github.pablolec.play1toolkit.runtime
 
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -16,7 +18,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 @Service(Service.Level.PROJECT)
-class Play1ApplicationRuntimeService : Disposable {
+class Play1ApplicationRuntimeService(private val project: Project) : Disposable {
 
     enum class ServerStatus {
         DOWN,
@@ -65,12 +67,16 @@ class Play1ApplicationRuntimeService : Disposable {
     @Volatile
     private var wakeUpStarted: Boolean = false
 
+    @Volatile
+    private var readyNotificationShown: Boolean = false
+
     @Synchronized
     fun processStarted(configurationName: String, httpPort: Int): Long {
         val sessionId = sessionCounter.incrementAndGet()
         activeSessionId = sessionId
         cancelProbe()
         wakeUpStarted = false
+        readyNotificationShown = false
         update(
             State(
                 serverStatus = ServerStatus.STARTING,
@@ -91,17 +97,19 @@ class Play1ApplicationRuntimeService : Disposable {
         activeSessionId = null
         cancelProbe()
         wakeUpStarted = false
-        update(
-            state.copy(
-                serverStatus = if (exitCode == 0) ServerStatus.STOPPED else ServerStatus.FAILED,
-                applicationStatus = ApplicationStatus.UNKNOWN,
-                message = if (exitCode == 0) {
-                    "Play application process stopped."
-                } else {
-                    "Play application process exited with code $exitCode."
-                },
-            )
+        val nextState = state.copy(
+            serverStatus = if (exitCode == 0) ServerStatus.STOPPED else ServerStatus.FAILED,
+            applicationStatus = ApplicationStatus.UNKNOWN,
+            message = if (exitCode == 0) {
+                "Play application process stopped."
+            } else {
+                "Play application process exited with code $exitCode."
+            },
         )
+        update(nextState)
+        if (exitCode != 0 && nextState.readyAt == null) {
+            notifyStartupFailed(nextState, exitCode)
+        }
     }
 
     fun addListener(listener: (State) -> Unit): () -> Unit {
@@ -156,16 +164,16 @@ class Play1ApplicationRuntimeService : Disposable {
         if (wakeUpResult.successful) {
             val readyAt = Instant.now()
             cancelProbe()
-            update(
-                state.copy(
-                    serverStatus = ServerStatus.RUNNING,
-                    applicationStatus = ApplicationStatus.RUNNING,
-                    message = "The first readiness request succeeded; the Play application is ready.",
-                    readyAt = readyAt,
-                    wakeUpDurationMillis = readyAt.toEpochMilli() - wakeUpStartedAt.toEpochMilli(),
-                    wakeUpStatusCode = wakeUpResult.statusCode,
-                )
+            val nextState = state.copy(
+                serverStatus = ServerStatus.RUNNING,
+                applicationStatus = ApplicationStatus.RUNNING,
+                message = "The first readiness request succeeded; the Play application is ready.",
+                readyAt = readyAt,
+                wakeUpDurationMillis = readyAt.toEpochMilli() - wakeUpStartedAt.toEpochMilli(),
+                wakeUpStatusCode = wakeUpResult.statusCode,
             )
+            update(nextState)
+            notifyReady(nextState)
         } else {
             wakeUpStarted = false
             update(
@@ -232,6 +240,36 @@ class Play1ApplicationRuntimeService : Disposable {
         listeners.forEach { it(nextState) }
     }
 
+    private fun notifyReady(readyState: State) {
+        if (readyNotificationShown) return
+        readyNotificationShown = true
+        val startupTime = readyState.startedAt
+            ?.let { DurationFormatter.format(readyState.readyAt ?: Instant.now(), it) }
+        val content = buildString {
+            append("Play application is ready")
+            if (startupTime != null) append(" in $startupTime")
+            readyState.url?.let { append(" at $it") }
+            append(".")
+        }
+        notify("Play application ready", content, NotificationType.INFORMATION)
+    }
+
+    private fun notifyStartupFailed(failedState: State, exitCode: Int) {
+        val configuration = failedState.configurationName?.let { " for \"$it\"" }.orEmpty()
+        notify(
+            "Play application failed",
+            "Play application$configuration exited with code $exitCode before it became ready.",
+            NotificationType.ERROR,
+        )
+    }
+
+    private fun notify(title: String, content: String, type: NotificationType) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup(NOTIFICATION_GROUP_ID)
+            ?.createNotification(title, content, type)
+            ?.notify(project)
+    }
+
     override fun dispose() {
         cancelProbe()
         listeners.clear()
@@ -243,7 +281,20 @@ class Play1ApplicationRuntimeService : Disposable {
         val message: String,
     )
 
+    private object DurationFormatter {
+        fun format(end: Instant, start: Instant): String {
+            val millis = (end.toEpochMilli() - start.toEpochMilli()).coerceAtLeast(0)
+            return if (millis < 1_000) {
+                "${millis}ms"
+            } else {
+                "%.1fs".format(java.util.Locale.ROOT, millis / 1_000.0)
+            }
+        }
+    }
+
     companion object {
+        private const val NOTIFICATION_GROUP_ID = "Play v1 Toolkit"
+
         fun getInstance(project: Project): Play1ApplicationRuntimeService = project.service()
     }
 }

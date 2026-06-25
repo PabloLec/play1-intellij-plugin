@@ -24,7 +24,7 @@ class Play1SettingsPanel {
     private val playIdField = JBTextField()
     private val httpPortField = JBTextField()
     private val debugPortField = JBTextField()
-    private val autoRepairCheckBox = JBCheckBox("Auto-repair on project open")
+    private val autoRepairCheckBox = JBCheckBox("Auto-configure project on open")
     private val statusLabel = JBLabel()
 
     private val depsPlayHomeField = TextFieldWithBrowseButton()

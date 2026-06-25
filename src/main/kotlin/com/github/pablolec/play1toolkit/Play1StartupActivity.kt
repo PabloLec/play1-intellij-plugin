@@ -1,7 +1,7 @@
 package com.github.pablolec.play1toolkit
 
-import com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction
 import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.detection.Play1HomeDetector
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.project.Play1LibWatcher
 import com.github.pablolec.play1toolkit.project.Play1SourceRootManager
@@ -12,10 +12,8 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.components.service
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.LibraryOrderEntry
-import com.intellij.openapi.roots.ModuleRootManager
-import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.startup.ProjectActivity
+import java.nio.file.Paths
 
 class Play1StartupActivity : ProjectActivity {
 
@@ -27,29 +25,35 @@ class Play1StartupActivity : ProjectActivity {
 
         // Start watching lib/ for new JARs (triggers library refresh after play deps)
         project.service<Play1LibWatcher>().start()
-        Play1SourceRootManager.configureSourceRoots(
-            project = project,
-            report = RepairReport(project.name),
-            applicationPath = projectService.playApplicationPath,
-        )
 
         val settings = Play1Settings.getInstance()
+        if (settings.autoRepairOnOpen) {
+            Play1SourceRootManager.configureSourceRoots(
+                project = project,
+                report = RepairReport(project.name),
+                applicationPath = projectService.playApplicationPath,
+            )
+        }
+
+        if (settings.playHome.isBlank()) {
+            Play1HomeDetector.detect(includeUserShell = true)?.let { detectedPlayHome ->
+                settings.playHome = detectedPlayHome.toString()
+            }
+        }
 
         if (settings.playHome.isBlank()) {
             showDetectionNotification(project)
             return
         }
 
-        if (!isFrameworkLibraryAttached(project)) {
-            RepairProjectSetupAction.runRepair(project, silent = true)
+        if (settings.autoRepairOnOpen) {
+            Play1LibraryManager.attachLibraries(
+                project = project,
+                playHome = Paths.get(settings.playHome),
+                report = RepairReport(project.name),
+                applicationPath = projectService.playApplicationPath,
+            )
         }
-    }
-
-    private fun isFrameworkLibraryAttached(project: Project): Boolean {
-        val module = ModuleManager.getInstance(project).modules.firstOrNull() ?: return false
-        return ModuleRootManager.getInstance(module).orderEntries
-            .filterIsInstance<LibraryOrderEntry>()
-            .any { it.libraryName in Play1LibraryManager.managedLibraryNames() }
     }
 
     private fun showDetectionNotification(project: Project) {

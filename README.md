@@ -446,7 +446,7 @@ Under **Settings > Tools > Play v1 Toolkit**, the plugin exposes:
 - default `Play ID`
 - default HTTP port
 - default debug port
-- auto-repair on project open
+- auto-configure project on open
 - an optional `Play Home for deps`
 - download of a recommended Play distribution for dependency sync
 

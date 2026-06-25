@@ -3,6 +3,7 @@ package com.github.pablolec.play1toolkit.detection
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.util.concurrent.TimeUnit
 
 /**
  * Auto-detects a Play Framework 1.x installation directory.
@@ -10,10 +11,11 @@ import java.nio.file.Paths
  */
 object Play1HomeDetector {
 
-    fun detect(): Path? {
+    fun detect(includeUserShell: Boolean = false): Path? {
         return fromEnvironment()
             ?: fromCommonPaths()
             ?: fromPlayCommand()
+            ?: if (includeUserShell) fromUserShell() else null
     }
 
     private fun fromEnvironment(): Path? {
@@ -53,11 +55,61 @@ object Play1HomeDetector {
                 .redirectErrorStream(true)
                 .start()
             val output = process.inputStream.bufferedReader().readLine()?.trim() ?: return null
-            process.waitFor()
+            if (!process.waitFor(2, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                return null
+            }
 
-            val playScript = Paths.get(output).toRealPath()
-            // play script is at $PLAY_HOME/play, so parent is $PLAY_HOME
-            val candidate = playScript.parent
+            resolveCommandOutput(output)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun fromUserShell(): Path? {
+        val shells = listOfNotNull(
+            System.getenv("SHELL"),
+            "/bin/zsh",
+            "/bin/bash",
+        ).distinct()
+
+        return shells.firstNotNullOfOrNull { shell ->
+            val shellPath = Paths.get(shell)
+            if (!Files.isRegularFile(shellPath)) return@firstNotNullOfOrNull null
+            runShellDetection(shellPath)
+        }
+    }
+
+    private fun runShellDetection(shell: Path): Path? {
+        return try {
+            val command = "if [ -n \"\$PLAY_HOME\" ]; then printf '%s\\n' \"\$PLAY_HOME\"; elif command -v play >/dev/null 2>&1; then command -v play; fi"
+            val process = ProcessBuilder(shell.toString(), "-ic", command)
+                .redirectErrorStream(true)
+                .start()
+
+            if (!process.waitFor(2, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+                return null
+            }
+
+            process.inputStream.bufferedReader()
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .firstNotNullOfOrNull(::resolveCommandOutput)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun resolveCommandOutput(output: String): Path? {
+        return try {
+            val path = Paths.get(output).toRealPath()
+            val candidate = if (path.fileName.toString() == "play" && Files.isRegularFile(path)) {
+                path.parent
+            } else {
+                path
+            }
             if (Play1HomeValidator.isValidPlayHome(candidate)) candidate else null
         } catch (_: Exception) {
             null

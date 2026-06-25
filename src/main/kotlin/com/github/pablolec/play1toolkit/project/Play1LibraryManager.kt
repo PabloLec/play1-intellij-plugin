@@ -3,7 +3,7 @@ package com.github.pablolec.play1toolkit.project
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.model.RepairReport
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.module.ModuleManager
+import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.LibraryOrderEntry
 import com.intellij.openapi.roots.ModifiableRootModel
@@ -29,11 +29,13 @@ object Play1LibraryManager {
         report: RepairReport,
         applicationPath: String? = project.basePath,
     ) {
-        val module = ModuleManager.getInstance(project).modules.firstOrNull()
+        val module = Play1ModuleResolver.findModule(project, applicationPath)
         if (module == null) {
             report.skipped("Library attachment", "no IntelliJ module found — open via File > Open to create one")
             return
         }
+        report.ok("IntelliJ module", module.name)
+        report.ok("IntelliJ module root", ModuleUtilCore.getModuleDirPath(module))
 
         val frameworkDir = playHome.resolve("framework")
         val playJar = Play1HomeValidator.findPlayJar(frameworkDir)
@@ -256,6 +258,12 @@ object Play1LibraryManager {
     }
 
     private fun replaceLibraryRoots(library: Library, classRoots: List<String>, sourceRoots: List<String>) {
+        val currentClassRoots = library.getUrls(OrderRootType.CLASSES).toSet()
+        val currentSourceRoots = library.getUrls(OrderRootType.SOURCES).toSet()
+        if (currentClassRoots == classRoots.toSet() && currentSourceRoots == sourceRoots.toSet()) {
+            return
+        }
+
         val libModel = library.modifiableModel
         libModel.getUrls(OrderRootType.CLASSES).forEach { libModel.removeRoot(it, OrderRootType.CLASSES) }
         libModel.getUrls(OrderRootType.SOURCES).forEach { libModel.removeRoot(it, OrderRootType.SOURCES) }

@@ -2,7 +2,6 @@ package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.model.RepairReport
 import com.intellij.openapi.application.WriteAction
-import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -13,7 +12,7 @@ import org.jetbrains.jps.model.java.JavaSourceRootType
 object Play1SourceRootManager {
 
     fun configureSourceRoots(project: Project, report: RepairReport, applicationPath: String? = project.basePath) {
-        val module = ModuleManager.getInstance(project).modules.firstOrNull() ?: run {
+        val module = Play1ModuleResolver.findModule(project, applicationPath) ?: run {
             report.skipped("Source roots", "no IntelliJ module found")
             return
         }

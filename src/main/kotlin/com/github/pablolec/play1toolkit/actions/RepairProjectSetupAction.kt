@@ -68,6 +68,7 @@ class RepairProjectSetupAction : AnAction() {
                 report.error("Project root", "Cannot determine project root")
                 return
             }
+            report.ok("IntelliJ project root", basePath)
 
             indicator.text = "Detecting Play 1 project..."
             val projectService = Play1ProjectService.getInstance(project)

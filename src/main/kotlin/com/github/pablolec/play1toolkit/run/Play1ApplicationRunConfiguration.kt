@@ -14,7 +14,10 @@ class Play1ApplicationRunConfiguration(
     project: Project,
     factory: ConfigurationFactory,
     name: String
-) : RunConfigurationBase<Element>(project, factory, name), ModuleRunProfile, RunConfigurationWithRunnerSettings {
+) : RunConfigurationBase<Element>(project, factory, name),
+    ModuleRunProfile,
+    RunConfigurationWithRunnerSettings,
+    WithoutOwnBeforeRunSteps {
 
     var applicationPath: String = Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
         ?: project.basePath
@@ -64,6 +67,7 @@ class Play1ApplicationRunConfiguration(
     fun getActiveProfile(): String? = playId.takeIf { it.isNotBlank() }
 
     override fun readExternal(element: Element) {
+        stripMakeBeforeRunTask(element)
         super<RunConfigurationBase>.readExternal(element)
         applicationPath = element.getAttributeValue("applicationPath")
             ?: Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
@@ -84,6 +88,7 @@ class Play1ApplicationRunConfiguration(
 
     override fun writeExternal(element: Element) {
         super<RunConfigurationBase>.writeExternal(element)
+        stripMakeBeforeRunTask(element)
         element.setAttribute("applicationPath", applicationPath)
         element.setAttribute("playId", playId)
         element.setAttribute("httpPort", httpPort.toString())
@@ -99,6 +104,19 @@ class Play1ApplicationRunConfiguration(
                 envElement.addContent(entry)
             }
             element.addContent(envElement)
+        }
+    }
+
+    companion object {
+        internal fun stripMakeBeforeRunTask(element: Element) {
+            val method = element.getChild("method") ?: return
+            method.children
+                .filterIsInstance<Element>()
+                .filter { child ->
+                    child.name == "option" && child.getAttributeValue("name") == "Make"
+                }
+                .toList()
+                .forEach { child -> method.removeContent(child) }
         }
     }
 }

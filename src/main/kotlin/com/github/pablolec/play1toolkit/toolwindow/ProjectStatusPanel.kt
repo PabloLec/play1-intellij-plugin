@@ -33,6 +33,7 @@ import javax.swing.JPanel
 class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPanel>(BorderLayout()), Disposable {
 
     private val playDetectedLabel = JBLabel()
+    private val playApplicationPathLabel = JBLabel()
     private val playHomeLabel = JBLabel()
     private val playVersionLabel = JBLabel()
     private val cliRuntimeLabel = JBLabel()
@@ -71,7 +72,9 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         service.refresh()
 
         val isPlay1 = service.isPlay1Project
+        val applicationPath = service.playApplicationPath
         playDetectedLabel.text = if (isPlay1) "✓  Play 1 project detected" else "✗  Not a Play 1 project"
+        playApplicationPathLabel.text = "Application path: ${applicationPath ?: "—"}"
 
         val settings = Play1Settings.getInstance()
         val executionService = Play1CommandExecutionService.getInstance(project)
@@ -106,7 +109,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         val depsPlan = if (validation?.valid == true) {
             Play1CliRunner.plan(
                 request = Play1CliRequest(Play1CliCommandId.DEPS),
-                projectPath = project.basePath ?: "",
+                projectPath = applicationPath ?: "",
                 playHome = playHome,
                 projectPlayVersion = projectVersion,
             )
@@ -132,7 +135,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             val plan = if (isPlay1 && validation?.valid == true) {
                 Play1CliRunner.plan(
                     request = Play1CliRequest(commandId),
-                    projectPath = project.basePath ?: "",
+                    projectPath = applicationPath ?: "",
                     playHome = playHome,
                     projectPlayVersion = projectVersion,
                 )
@@ -160,7 +163,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             isOpaque = false
         }
 
-        content.add(section("Project", playDetectedLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
+        content.add(section("Project", playDetectedLabel, playApplicationPathLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
         content.add(buttonRow(configureButton, repairButton))
 
         content.add(commandsSection("Run", listOf(

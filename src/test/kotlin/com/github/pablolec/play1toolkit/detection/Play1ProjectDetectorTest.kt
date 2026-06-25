@@ -23,7 +23,8 @@ class Play1ProjectDetectorTest {
         val result = detector.detect(root)
 
         assertTrue("Should detect as Play 1", result.isPlay1)
-        assertEquals(3, result.matchedCriteria.size)
+        assertEquals(root, result.projectRoot)
+        assertTrue(result.matchedCriteria.containsAll(listOf("conf/application.conf", "conf/routes", "app/controllers/")))
         assertTrue(result.missingCriteria.isEmpty())
     }
 
@@ -37,8 +38,38 @@ class Play1ProjectDetectorTest {
         val result = detector.detect(root)
 
         assertTrue("2 criteria should be enough", result.isPlay1)
+        assertEquals(root, result.projectRoot)
         assertEquals(2, result.matchedCriteria.size)
         assertEquals(1, result.missingCriteria.size)
+    }
+
+    @Test
+    fun `detects nested Play 1 application under repository root`() {
+        val repoRoot = tempDir.root.toPath()
+        createFile("README.md")
+        createFile("legacy-app/conf/application.conf")
+        createFile("legacy-app/conf/routes")
+        createDir("legacy-app/app/controllers")
+        createDir("legacy-app/app/views")
+
+        val result = detector.detect(repoRoot)
+
+        assertTrue("Nested Play 1 app should be detected", result.isPlay1)
+        assertEquals(repoRoot.resolve("legacy-app"), result.projectRoot)
+        assertTrue(result.matchedCriteria.contains("app/views/"))
+    }
+
+    @Test
+    fun `detects Play 1 application two levels under repository root`() {
+        val repoRoot = tempDir.root.toPath()
+        createFile("apps/legacy-app/conf/application.conf")
+        createFile("apps/legacy-app/conf/routes")
+        createDir("apps/legacy-app/app/controllers")
+
+        val result = detector.detect(repoRoot)
+
+        assertTrue("Two-level nested Play 1 app should be detected", result.isPlay1)
+        assertEquals(repoRoot.resolve("apps/legacy-app"), result.projectRoot)
     }
 
     @Test
@@ -59,6 +90,7 @@ class Play1ProjectDetectorTest {
 
         assertFalse(result.isPlay1)
         assertEquals(3, result.missingCriteria.size)
+        assertNull(result.projectRoot)
     }
 
     @Test

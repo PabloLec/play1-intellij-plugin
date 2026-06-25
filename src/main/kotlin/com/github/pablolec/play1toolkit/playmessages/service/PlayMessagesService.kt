@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.playmessages.service
 
 import com.github.pablolec.play1toolkit.playmessages.model.PlayMessageEntry
 import com.github.pablolec.play1toolkit.playmessages.psi.PlayMessagesFile
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -49,7 +50,7 @@ class PlayMessagesService(private val project: Project) {
 
     fun getMessagesFiles(): List<PlayMessagesFile> {
         if (DumbService.isDumb(project)) return emptyList()
-        val basePath = project.basePath ?: return emptyList()
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return emptyList()
         val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
         val confDir = baseDir.findChild("conf") ?: return emptyList()
         return confDir.children

@@ -150,7 +150,7 @@ class PlayConfigLexerTest {
 
     @Test
     fun `linux profile property tokenizes correctly`() {
-        val tokens = tokenize("%linux.db.url=jdbc:mysql://localhost:3306/gmvet\n")
+        val tokens = tokenize("%linux.db.url=jdbc:mysql://localhost:3306/legacydb\n")
         val key = tokens.first { it.first == KEY }
         assertEquals("%linux.db.url", key.second)
     }

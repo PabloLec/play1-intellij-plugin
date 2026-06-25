@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.toolwindow
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
@@ -24,7 +25,7 @@ class Play1WarCommandDialog(project: Project) : DialogWrapper(project) {
 
     init {
         title = "Build Play v1 WAR"
-        val basePath = project.basePath.orEmpty()
+        val basePath = Play1ProjectPaths.applicationPath(project).orEmpty()
         if (basePath.isNotBlank()) {
             val projectDir = Paths.get(basePath)
             outputField.text = projectDir.resolveSibling("${projectDir.fileName}-war").toString()

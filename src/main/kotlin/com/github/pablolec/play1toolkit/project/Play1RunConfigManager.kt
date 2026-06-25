@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.model.RepairReport
+import com.github.pablolec.play1toolkit.run.Play1ApplicationRunConfiguration
 import com.github.pablolec.play1toolkit.run.Play1RunConfigurationType
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.ConfigurationTypeUtil
@@ -10,7 +11,7 @@ object Play1RunConfigManager {
 
     private const val RUN_CONFIG_NAME = "Play v1 App"
 
-    fun createRunConfiguration(project: Project, report: RepairReport) {
+    fun createRunConfiguration(project: Project, report: RepairReport, applicationPath: String? = project.basePath) {
         val runManager = RunManager.getInstance(project)
 
         val existing = runManager.allSettings.find {
@@ -23,11 +24,6 @@ object Play1RunConfigManager {
         }
 
         val configurationType = ConfigurationTypeUtil.findConfigurationType(Play1RunConfigurationType::class.java)
-        if (configurationType == null) {
-            report.error("Run configuration", "Play1RunConfigurationType not found")
-            return
-        }
-
         val factory = configurationType.configurationFactories.firstOrNull()
         if (factory == null) {
             report.error("Run configuration", "Configuration factory not found")
@@ -35,6 +31,9 @@ object Play1RunConfigManager {
         }
 
         val settings = runManager.createConfiguration(RUN_CONFIG_NAME, factory)
+        (settings.configuration as? Play1ApplicationRunConfiguration)?.let { configuration ->
+            configuration.applicationPath = applicationPath ?: project.basePath.orEmpty()
+        }
         runManager.addConfiguration(settings)
 
         if (runManager.selectedConfiguration == null) {

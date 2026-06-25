@@ -6,6 +6,7 @@ import com.github.pablolec.play1toolkit.playconfig.model.PlayConfigValueSource
 import com.github.pablolec.play1toolkit.playconfig.psi.PlayConfigFile
 import com.github.pablolec.play1toolkit.playconfig.settings.PlayConfigProjectSettings
 import com.github.pablolec.play1toolkit.run.Play1ApplicationRunConfiguration
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.execution.RunManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
@@ -29,7 +30,9 @@ class PlayConfigService(private val project: Project) {
 
     fun getConfigFile(): PlayConfigFile? {
         if (DumbService.isDumb(project)) return null
-        val baseDir = project.basePathAsVirtualFile() ?: return null
+        val baseDir = Play1ProjectPaths.applicationPath(project)
+            ?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
+            ?: return null
         val confFile = baseDir.findFileByRelativePath("conf/application.conf") ?: return null
         val psiFile = PsiManager.getInstance(project).findFile(confFile) ?: return null
         return psiFile as? PlayConfigFile
@@ -140,7 +143,4 @@ class PlayConfigService(private val project: Project) {
         val value = resolution.effectiveValue ?: return "unresolved config key"
         return if (value.length > 40) value.take(37) + "..." else value
     }
-
-    private fun Project.basePathAsVirtualFile() =
-        basePath?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
 }

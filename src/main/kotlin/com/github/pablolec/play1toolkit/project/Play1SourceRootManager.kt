@@ -13,12 +13,12 @@ import org.jetbrains.jps.model.java.JavaSourceRootType
 
 object Play1SourceRootManager {
 
-    fun configureSourceRoots(project: Project, report: RepairReport) {
+    fun configureSourceRoots(project: Project, report: RepairReport, applicationPath: String? = project.basePath) {
         val module = ModuleManager.getInstance(project).modules.firstOrNull() ?: run {
             report.skipped("Source roots", "no IntelliJ module found")
             return
         }
-        val basePath = project.basePath ?: return
+        val basePath = applicationPath ?: return
 
         WriteAction.runAndWait<Exception> {
             val rootModel = ModuleRootManager.getInstance(module).modifiableModel

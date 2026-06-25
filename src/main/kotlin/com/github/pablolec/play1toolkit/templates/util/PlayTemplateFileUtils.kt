@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.templates.util
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
@@ -24,7 +25,7 @@ object PlayTemplateFileUtils {
         isInViewsDirectory(file) && !file.isDirectory && file.extension in TEMPLATE_EXTENSIONS
 
     fun logicalPath(project: Project, virtualFile: VirtualFile): String? {
-        val basePath = project.basePath
+        val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             return logicalPath(basePath, virtualFile)
         }
@@ -52,7 +53,7 @@ object PlayTemplateFileUtils {
 
     fun resolveTemplatePath(project: Project, logicalPath: String): VirtualFile? {
         val normalized = normalizeTemplatePath(logicalPath)
-        val basePath = project.basePath
+        val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             return com.intellij.openapi.vfs.LocalFileSystem.getInstance()
                 .findFileByPath(Paths.get(basePath, "app", "views", normalized).toString())
@@ -64,7 +65,7 @@ object PlayTemplateFileUtils {
 
     fun resolvePublicAsset(project: Project, publicPath: String): VirtualFile? {
         val relative = publicPath.removePrefix("/")
-        val basePath = project.basePath
+        val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             return com.intellij.openapi.vfs.LocalFileSystem.getInstance()
                 .findFileByPath(Paths.get(basePath, relative).toString())

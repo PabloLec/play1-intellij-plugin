@@ -10,6 +10,7 @@ import com.github.pablolec.play1toolkit.project.Play1CliResultReason
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
+import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
@@ -38,7 +39,9 @@ object Play1CliActionSupport {
         }
         val settings = Play1Settings.getInstance()
         val playHome = settings.playHome
-        val basePath = project.basePath
+        val projectService = Play1ProjectService.getInstance(project)
+        projectService.refresh()
+        val basePath = projectService.playApplicationPath
         if (playHome.isBlank() || basePath == null) {
             executionService.finish()
             return
@@ -92,7 +95,7 @@ object Play1CliActionSupport {
                         requiredPythonMajor = plan.requiredPythonMajor,
                         detail = plan.detail,
                     )
-                    finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome)
+                    finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome, basePath)
                     executionService.finish()
                     onFinished?.let { callback -> ApplicationManager.getApplication().invokeLater { callback(result) } }
                     return
@@ -122,7 +125,7 @@ object Play1CliActionSupport {
                     },
                 )
 
-                finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome)
+                finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome, basePath)
                 executionService.finish()
                 onFinished?.let { callback -> ApplicationManager.getApplication().invokeLater { callback(result) } }
             }
@@ -143,6 +146,7 @@ object Play1CliActionSupport {
         result: Play1CliResult,
         print: (String, ConsoleViewContentType) -> Unit,
         playHome: String,
+        applicationPath: String,
     ) {
         print("", ConsoleViewContentType.NORMAL_OUTPUT)
         when {
@@ -157,7 +161,7 @@ object Play1CliActionSupport {
                 print("✓  ${result.message}", ConsoleViewContentType.LOG_INFO_OUTPUT)
                 if (commandId == Play1CliCommandId.DEPS) {
                     val report = RepairReport(project.name)
-                    Play1LibraryManager.attachLibraries(project, Paths.get(playHome), report)
+                    Play1LibraryManager.attachLibraries(project, Paths.get(playHome), report, applicationPath)
                 }
                 notifySuccess(project, commandId)
             }

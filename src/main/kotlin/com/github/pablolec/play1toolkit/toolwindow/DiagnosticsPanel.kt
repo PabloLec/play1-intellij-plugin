@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.toolwindow
 
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
@@ -104,7 +105,7 @@ class DiagnosticsPanel(private val project: Project) : JBPanel<DiagnosticsPanel>
     }
 
     private fun findRoutesFile(): RoutesFile? {
-        val basePath = project.basePath ?: return null
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
         val vFile = VirtualFileManager.getInstance()
             .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return null
         return PsiManager.getInstance(project).findFile(vFile) as? RoutesFile

@@ -36,14 +36,14 @@ class Play1RunConfigurationSupportTest {
     @Test
     fun `selectBestRootPath prefers the deepest matching content root`() {
         val selectedRoot = Play1RunConfigurationSupport.selectBestRootPath(
-            applicationPath = "/workspace/root/apps/gmvet-light",
+            applicationPath = "/workspace/root/apps/legacy-app",
             contentRoots = listOf(
                 "/workspace",
                 "/workspace/root",
-                "/workspace/root/apps/gmvet-light"
+                "/workspace/root/apps/legacy-app"
             )
         )
 
-        assertEquals("/workspace/root/apps/gmvet-light", selectedRoot)
+        assertEquals("/workspace/root/apps/legacy-app", selectedRoot)
     }
 }

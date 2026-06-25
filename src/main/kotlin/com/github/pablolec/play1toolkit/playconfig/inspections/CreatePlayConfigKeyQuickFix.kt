@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.playconfig.inspections
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.playconfig.psi.PlayConfigFile
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
@@ -27,5 +28,6 @@ class CreatePlayConfigKeyQuickFix(private val key: String) : LocalQuickFix {
     }
 
     private fun Project.basePathAsVirtualFile() =
-        basePath?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
+        Play1ProjectPaths.applicationPath(this)
+            ?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
 }

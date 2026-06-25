@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.response.PlayResponsePresentation
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -110,7 +111,7 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
     }
 
     private fun findRoutesFile(): RoutesFile? {
-        val basePath = project.basePath ?: return null
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
         val vFile = VirtualFileManager.getInstance()
             .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return null
         return PsiManager.getInstance(project).findFile(vFile) as? RoutesFile
@@ -237,7 +238,7 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
     }
 
     private fun navigateToRoutesLine(entry: RouteTreeNode.RouteEntry) {
-        val basePath = project.basePath ?: return
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
         val vFile = VirtualFileManager.getInstance()
             .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return
         ReadAction.nonBlocking<Int> {

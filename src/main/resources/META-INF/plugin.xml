@@ -39,7 +39,14 @@
                 displayName="Play v1 Toolkit"
                 instance="com.github.pablolec.play1toolkit.config.Play1SettingsConfigurable"/>
 
+        <projectConfigurable
+                parentId="play1toolkit.settings"
+                id="play1toolkit.project"
+                displayName="Project"
+                instance="com.github.pablolec.play1toolkit.config.Play1ProjectSettingsConfigurable"/>
+
         <!-- Project Services -->
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.config.Play1ProjectSettings"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1LibWatcher"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.response.PlayActionResponseService"/>

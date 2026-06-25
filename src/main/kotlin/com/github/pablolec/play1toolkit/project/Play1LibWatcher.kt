@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.model.RepairReport
+import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -23,7 +24,9 @@ class Play1LibWatcher(private val project: Project) : BulkFileListener {
     }
 
     override fun after(events: List<VFileEvent>) {
-        val basePath = project.basePath ?: return
+        val projectService = Play1ProjectService.getInstance(project)
+        projectService.refresh()
+        val basePath = projectService.playApplicationPath ?: return
         val libPath = Paths.get(basePath, "lib").toString()
 
         val hasNewJar = events.any { event ->
@@ -44,7 +47,7 @@ class Play1LibWatcher(private val project: Project) : BulkFileListener {
                 override fun run(indicator: ProgressIndicator) {
                     indicator.text = "Attaching new JARs from lib/..."
                     val report = RepairReport(project.name)
-                    Play1LibraryManager.attachLibraries(project, Paths.get(settings.playHome), report)
+                    Play1LibraryManager.attachLibraries(project, Paths.get(settings.playHome), report, basePath)
 
                     ApplicationManager.getApplication().invokeLater {
                         NotificationGroupManager.getInstance()

@@ -394,12 +394,12 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             """
         )
         addProjectFile(
-            "app/controllers/GmvetNotSecuredController.java",
+            "app/controllers/BasePublicController.java",
             """
             package controllers;
             import models.core.GMUtils;
             import play.mvc.Controller;
-            public class GmvetNotSecuredController extends Controller {
+            public class BasePublicController extends Controller {
                 private static final String KEY_CACHE_EXPIRATION = "cacheExpiration";
                 private static final String KEY_CACHE_NAME = "cacheName";
                 private static final String VAR_ISCACHED = "isCached";
@@ -417,7 +417,7 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             "app/controllers/StaticCtl.java",
             """
             package controllers;
-            public class StaticCtl extends GmvetNotSecuredController {
+            public class StaticCtl extends BasePublicController {
                 private static void screen(String name) {
                     setDefaultParamsGroovyTemplate(name);
                 }
@@ -464,12 +464,12 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             """
         )
         addProjectFile(
-            "app/controllers/GmvetNotSecuredController.java",
+            "app/controllers/BasePublicController.java",
             """
             package controllers;
             import models.core.GMUtils;
             import play.mvc.Controller;
-            public class GmvetNotSecuredController extends Controller {
+            public class BasePublicController extends Controller {
                 private static final String KEY_CACHE_EXPIRATION = "cacheExpiration";
                 private static final String KEY_CACHE_NAME = "cacheName";
                 protected static void setDefaultParamsGroovyTemplate(String tplName) {
@@ -485,7 +485,7 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             "app/controllers/StaticCtl.java",
             """
             package controllers;
-            public class StaticCtl extends GmvetNotSecuredController {
+            public class StaticCtl extends BasePublicController {
                 private static void screen(String name) {
                     setDefaultParamsGroovyTemplate(name);
                 }
@@ -535,12 +535,12 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             """
         )
         addProjectFile(
-            "app/controllers/GmvetNotSecuredController.java",
+            "app/controllers/BasePublicController.java",
             """
             package controllers;
             import models.core.GMUtils;
             import play.mvc.Controller;
-            public class GmvetNotSecuredController extends Controller {
+            public class BasePublicController extends Controller {
                 private static final String KEY_CACHE_EXPIRATION = "cacheExpiration";
                 private static final String KEY_CACHE_NAME = "cacheName";
                 protected static void setDefaultParamsGroovyTemplate(String tplName) {
@@ -556,7 +556,7 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
             "app/controllers/StaticCtl.java",
             """
             package controllers;
-            public class StaticCtl extends GmvetNotSecuredController {
+            public class StaticCtl extends BasePublicController {
                 private static void screen(String name) {
                     setDefaultParamsGroovyTemplate(name);
                 }

@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.render
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 import com.intellij.openapi.project.Project
@@ -19,14 +20,14 @@ object Play1ViewUtils {
         "app/views/$controllerName/$actionName.html"
 
     fun findViewFile(project: Project, controllerName: String, actionName: String): VirtualFile? {
-        val basePath = project.basePath ?: return null
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
         val vfm = VirtualFileManager.getInstance()
         return vfm.findFileByNioPath(Paths.get(basePath, "app", "views", controllerName, "$actionName.html"))
             ?: vfm.findFileByNioPath(Paths.get(basePath, "app", "views", controllerName, "$actionName.groovy"))
     }
 
     fun findRoutesFile(project: Project): VirtualFile? {
-        val basePath = project.basePath ?: return null
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
         return VirtualFileManager.getInstance().findFileByNioPath(Paths.get(basePath, "conf", "routes"))
     }
 

@@ -65,11 +65,11 @@ class PlayTemplateSupportTest {
     @Test
     fun `bare action ref detects Controller action inside tag arguments`() {
         val template = """
-            var route1 = #{gmv.jsReversibleAction @login.LoginCtl.getConnectionState()/}
-            var route2 = #{gmv.jsReversibleAction @organization.SiteCtl.getImage(':siteId', ':defaultImageType') /}
-            var route3 = #{gmv.jsReversibleAction @login.LoginCtl.administratorLoginQRCode(':qrcode', ':rememberAccount')/}
-            var route4 = #{gmv.jsReversibleAction @login.LoginCtl.userLoginQRCode( ':qrcode')/}
-            var route5 = #{gmv.jsReversibleAction @login.LoginCtl.getAllSitesByUserId() /}
+            var route1 = #{custom.jsReversibleAction @login.LoginCtl.getConnectionState()/}
+            var route2 = #{custom.jsReversibleAction @organization.SiteCtl.getImage(':siteId', ':defaultImageType') /}
+            var route3 = #{custom.jsReversibleAction @login.LoginCtl.administratorLoginQRCode(':qrcode', ':rememberAccount')/}
+            var route4 = #{custom.jsReversibleAction @login.LoginCtl.userLoginQRCode( ':qrcode')/}
+            var route5 = #{custom.jsReversibleAction @login.LoginCtl.getAllSitesByUserId() /}
         """.trimIndent()
 
         val matches = PlayTemplatePatterns.BARE_ACTION_REF.findAll(template).toList()
@@ -112,10 +112,10 @@ class PlayTemplateSupportTest {
 
     @Test
     fun `tag name at detects namespaced custom tags`() {
-        val template = "#{gmv.jsReversibleAction @login.LoginCtl.getConnectionState()/}"
+        val template = "#{custom.jsReversibleAction @login.LoginCtl.getConnectionState()/}"
         val tagMatches = PlayTemplatePatterns.TAG_NAME_AT.findAll(template).toList()
         assertEquals(1, tagMatches.size)
-        assertEquals("gmv.jsReversibleAction", tagMatches[0].groupValues[1])
+        assertEquals("custom.jsReversibleAction", tagMatches[0].groupValues[1])
     }
 
     @Test
@@ -123,7 +123,7 @@ class PlayTemplateSupportTest {
         val template = """
             #{extends 'main.html' /}
             @{Users.show(user.id)}
-            #{gmv.jsReversibleAction @login.LoginCtl.getConnectionState()/}
+            #{custom.jsReversibleAction @login.LoginCtl.getConnectionState()/}
             @{'/public/stylesheets/main.css'}
         """.trimIndent()
 

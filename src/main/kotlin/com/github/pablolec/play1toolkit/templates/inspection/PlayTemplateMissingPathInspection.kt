@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.templates.inspection
 
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.codeInspection.*
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.project.DumbService
@@ -56,7 +57,7 @@ class CreateMissingTemplateQuickFix(private val path: String) : LocalQuickFix {
     override fun getFamilyName() = "Create Play 1 template"
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val basePath = project.basePath ?: return
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
         val projectRoot = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return
         val fullPath = "app/views/$path"
         val dirPath = fullPath.substringBeforeLast('/')

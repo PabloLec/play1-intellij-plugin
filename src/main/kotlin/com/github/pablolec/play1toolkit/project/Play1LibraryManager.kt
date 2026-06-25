@@ -23,7 +23,12 @@ object Play1LibraryManager {
     internal const val PROJECT_LIBRARY_NAME = "Play v1 Project Libraries"
     internal const val LEGACY_LIBRARY_NAME = "Play 1 Framework"
 
-    fun attachLibraries(project: Project, playHome: Path, report: RepairReport) {
+    fun attachLibraries(
+        project: Project,
+        playHome: Path,
+        report: RepairReport,
+        applicationPath: String? = project.basePath,
+    ) {
         val module = ModuleManager.getInstance(project).modules.firstOrNull()
         if (module == null) {
             report.skipped("Library attachment", "no IntelliJ module found — open via File > Open to create one")
@@ -41,11 +46,9 @@ object Play1LibraryManager {
 
         val libDir = frameworkDir.resolve("lib")
         val srcDir = frameworkDir.resolve("src")
-        val projectLibDir = Paths.get(project.basePath ?: "").resolve("lib")
-
         val sourceRoots = mutableListOf<String>()
 
-        val classpathJars = buildProjectClasspathJars(playHome, project.basePath)
+        val classpathJars = buildProjectClasspathJars(playHome, applicationPath)
         val projectJarRoots = (classpathJars.projectJars + classpathJars.supplementalProjectJars).map(::toJarUrl)
         val frameworkJarRoots = buildList {
             add(toJarUrl(playJar))

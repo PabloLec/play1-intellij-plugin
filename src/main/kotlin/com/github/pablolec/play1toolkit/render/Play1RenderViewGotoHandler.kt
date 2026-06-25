@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.render
 
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.editor.Editor
@@ -36,7 +37,7 @@ class Play1RenderViewGotoHandler : GotoDeclarationHandler {
                 if (templatePath != null) {
                     PlayTemplateFileUtils.resolveTemplatePath(project, templatePath)
                         ?: run {
-                            val basePath = project.basePath ?: return null
+                            val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
                             VirtualFileManager.getInstance()
                                 .findFileByNioPath(java.nio.file.Paths.get(basePath, "app", "views", templatePath))
                         }

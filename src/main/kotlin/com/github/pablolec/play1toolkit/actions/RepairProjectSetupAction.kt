@@ -70,13 +70,15 @@ class RepairProjectSetupAction : AnAction() {
             }
 
             indicator.text = "Detecting Play 1 project..."
-            val detector = Play1ProjectDetector()
-            val detection = detector.detect(Paths.get(basePath))
+            val projectService = Play1ProjectService.getInstance(project)
+            projectService.refresh()
+            val detection = projectService.detectionResult ?: Play1ProjectDetector().detect(Paths.get(basePath))
             if (!detection.isPlay1) {
                 report.error("Play project", "Not detected — missing: ${detection.missingCriteria.joinToString()}")
                 return
             }
-            report.ok("Play project", "detected")
+            val applicationPath = detection.projectRoot?.toString() ?: basePath
+            report.ok("Play project", "detected at $applicationPath")
 
             indicator.text = "Validating Play Home..."
             val settings = Play1Settings.getInstance()
@@ -97,7 +99,7 @@ class RepairProjectSetupAction : AnAction() {
 
             indicator.text = "Resolving dependencies..."
             val depsResult = Play1DepsRunner.run(
-                projectPath = basePath,
+                projectPath = applicationPath,
                 playHome = playHomePath,
                 playVersion = validation.playVersion,
                 indicator = indicator,
@@ -115,15 +117,15 @@ class RepairProjectSetupAction : AnAction() {
             configureProjectSdk(project, report)
 
             indicator.text = "Attaching Play libraries..."
-            Play1LibraryManager.attachLibraries(project, playHome, report)
+            Play1LibraryManager.attachLibraries(project, playHome, report, applicationPath)
 
             indicator.text = "Configuring source roots..."
-            Play1SourceRootManager.configureSourceRoots(project, report)
+            Play1SourceRootManager.configureSourceRoots(project, report, applicationPath)
 
             indicator.text = "Creating run configuration..."
-            Play1RunConfigManager.createRunConfiguration(project, report)
+            Play1RunConfigManager.createRunConfiguration(project, report, applicationPath)
 
-            val confDir = Paths.get(basePath, "conf")
+            val confDir = Paths.get(applicationPath, "conf")
             if (confDir.resolve("routes").toFile().exists()) {
                 report.ok("Routes file", "found")
             } else {
@@ -136,7 +138,7 @@ class RepairProjectSetupAction : AnAction() {
                 report.error("Application config", "conf/application.conf not found")
             }
 
-            Play1ProjectService.getInstance(project).refresh()
+            projectService.refresh()
         }
 
         private fun configureProjectSdk(project: Project, report: RepairReport) {

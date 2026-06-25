@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.templates.completion
 
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.playjpa.service.PlayJpaModelService
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateService
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
@@ -173,7 +174,7 @@ class PlayTemplateCompletionContributor : CompletionContributor() {
             val prefixResult = result.withPrefixMatcher(prefix)
 
             val project = element.project
-            val basePath = project.basePath ?: return
+            val basePath = Play1ProjectPaths.applicationPath(project) ?: return
             val publicDir = LocalFileSystem.getInstance().findFileByPath("$basePath/public") ?: return
             collectPublicFiles(publicDir, "/public", prefixResult)
         }

@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.inspection
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -18,7 +19,7 @@ class CreateMissingViewQuickFix(
     override fun getFamilyName(): String = "Create Play 1 view"
 
     override fun applyFix(project: Project, descriptor: ProblemDescriptor) {
-        val basePath = project.basePath ?: return
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
         val projectRoot = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return
 
         val viewsDir = VfsUtil.createDirectoryIfMissing(projectRoot, "app/views/$controllerName") ?: return

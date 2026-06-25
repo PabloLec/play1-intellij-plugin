@@ -52,10 +52,9 @@ class Play1ProjectDetectorFixturesTest {
     fun `play1-standard fixture has all 3 strong criteria`() {
         val root = fixtureRoot("play1-standard") ?: return
         val result = detector.detect(root)
-        assertEquals(
-            "play1-standard should match all 3 criteria",
-            3,
-            result.matchedCriteria.size
+        assertTrue(
+            "play1-standard should match all 3 strong criteria",
+            result.matchedCriteria.containsAll(listOf("conf/application.conf", "conf/routes", "app/controllers/"))
         )
     }
 }

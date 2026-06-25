@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.run
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
+import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -15,7 +16,9 @@ class Play1ApplicationRunConfiguration(
     name: String
 ) : RunConfigurationBase<Element>(project, factory, name), ModuleRunProfile, RunConfigurationWithRunnerSettings {
 
-    var applicationPath: String = project.basePath ?: ""
+    var applicationPath: String = Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
+        ?: project.basePath
+        ?: ""
     var playId: String = Play1Settings.getInstance().defaultPlayId
     var httpPort: Int = Play1Settings.getInstance().defaultHttpPort
     var debugPort: Int = Play1Settings.getInstance().defaultDebugPort
@@ -62,7 +65,10 @@ class Play1ApplicationRunConfiguration(
 
     override fun readExternal(element: Element) {
         super<RunConfigurationBase>.readExternal(element)
-        applicationPath = element.getAttributeValue("applicationPath") ?: project.basePath ?: ""
+        applicationPath = element.getAttributeValue("applicationPath")
+            ?: Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
+            ?: project.basePath
+            ?: ""
         playId = element.getAttributeValue("playId") ?: "dev"
         httpPort = element.getAttributeValue("httpPort")?.toIntOrNull() ?: 9000
         debugPort = element.getAttributeValue("debugPort")?.toIntOrNull() ?: 5005

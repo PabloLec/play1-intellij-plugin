@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.templates.model.PlayCustomTagInfo
 import com.github.pablolec.play1toolkit.templates.model.PlayTemplateFile
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -70,7 +71,7 @@ class PlayTemplateService(private val project: Project) {
     }
 
     private fun buildTemplates(): List<PlayTemplateFile> {
-        val basePath = project.basePath
+        val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             val viewsDir = PlayTemplateFileUtils.resolveTemplatePath(project, "") ?: run {
                 val root = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath("$basePath/app/views")
@@ -84,7 +85,7 @@ class PlayTemplateService(private val project: Project) {
     }
 
     private fun buildTags(): List<PlayCustomTagInfo> {
-        val basePath = project.basePath
+        val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             val tagsDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
                 .findFileByPath("$basePath/app/views/tags") ?: return emptyList()

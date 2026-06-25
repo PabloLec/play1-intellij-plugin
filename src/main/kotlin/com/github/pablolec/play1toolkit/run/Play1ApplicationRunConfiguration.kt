@@ -9,6 +9,8 @@ import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
 import com.intellij.psi.search.GlobalSearchScope
 import org.jdom.Element
+import java.nio.file.Files
+import java.nio.file.Paths
 
 class Play1ApplicationRunConfiguration(
     project: Project,
@@ -50,6 +52,12 @@ class Play1ApplicationRunConfiguration(
         if (sdk == null) {
             throw RuntimeConfigurationError(
                 "No Java SDK configured for Play v1 App. Configure a module SDK or a project SDK."
+            )
+        }
+        val sdkHomePath = sdk.homePath
+        if (sdkHomePath.isNullOrBlank() || !Files.isDirectory(Paths.get(sdkHomePath))) {
+            throw RuntimeConfigurationError(
+                "The configured Java SDK home is invalid. Configure a valid module SDK or project SDK."
             )
         }
     }

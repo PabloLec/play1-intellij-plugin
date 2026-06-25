@@ -11,6 +11,7 @@ import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.execution.ParametersListUtil
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -86,6 +87,32 @@ internal object Play1RunConfigurationSupport {
     fun resolveSdk(project: Project, module: Module?): Sdk? {
         return module?.let { ModuleRootManager.getInstance(it).sdk }
             ?: ProjectRootManager.getInstance(project).projectSdk
+    }
+
+    fun buildJavaSdkEnvironment(
+        sdkHomePath: String,
+        configuredEnv: Map<String, String>,
+        inheritedPath: String? = System.getenv("PATH"),
+        pathSeparator: String = File.pathSeparator,
+    ): Map<String, String> {
+        val javaBinPath = Paths.get(sdkHomePath).resolve("bin").toString()
+        val pathKey = configuredEnv.keys.firstOrNull { it.equals("PATH", ignoreCase = true) } ?: "PATH"
+        val configuredPath = configuredEnv[pathKey]?.takeIf { it.isNotBlank() }
+        val existingPath = configuredPath ?: inheritedPath.orEmpty()
+        val pathEntries = existingPath
+            .split(pathSeparator)
+            .filter { it.isNotBlank() }
+
+        val resolvedPath = if (javaBinPath in pathEntries) {
+            pathEntries.joinToString(pathSeparator)
+        } else {
+            (listOf(javaBinPath) + pathEntries).joinToString(pathSeparator)
+        }
+
+        return mapOf(
+            "JAVA_HOME" to sdkHomePath,
+            pathKey to resolvedPath,
+        )
     }
 
     fun selectBestRootPath(applicationPath: String, contentRoots: Collection<String>): String? {

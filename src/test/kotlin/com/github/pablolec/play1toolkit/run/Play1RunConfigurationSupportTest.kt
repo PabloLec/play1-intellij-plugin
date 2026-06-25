@@ -79,4 +79,41 @@ class Play1RunConfigurationSupportTest {
 
         assertEquals("dev", selected)
     }
+
+    @Test
+    fun `buildJavaSdkEnvironment uses sdk as java home and prepends java bin to configured path`() {
+        val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
+            sdkHomePath = "/jdks/current",
+            configuredEnv = mapOf("PATH" to "/custom/bin:/usr/bin"),
+            inheritedPath = "/ignored/bin",
+            pathSeparator = ":",
+        )
+
+        assertEquals("/jdks/current", env["JAVA_HOME"])
+        assertEquals("/jdks/current/bin:/custom/bin:/usr/bin", env["PATH"])
+    }
+
+    @Test
+    fun `buildJavaSdkEnvironment falls back to inherited path`() {
+        val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
+            sdkHomePath = "/jdks/current",
+            configuredEnv = emptyMap(),
+            inheritedPath = "/usr/local/bin:/usr/bin",
+            pathSeparator = ":",
+        )
+
+        assertEquals("/jdks/current/bin:/usr/local/bin:/usr/bin", env["PATH"])
+    }
+
+    @Test
+    fun `buildJavaSdkEnvironment does not duplicate sdk bin path`() {
+        val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
+            sdkHomePath = "/jdks/current",
+            configuredEnv = mapOf("PATH" to "/jdks/current/bin:/usr/bin"),
+            inheritedPath = "/ignored/bin",
+            pathSeparator = ":",
+        )
+
+        assertEquals("/jdks/current/bin:/usr/bin", env["PATH"])
+    }
 }

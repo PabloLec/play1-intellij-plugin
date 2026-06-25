@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.project.Play1CliCommandId
 import com.github.pablolec.play1toolkit.project.Play1CliRequest
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
 import com.github.pablolec.play1toolkit.run.Play1RunConfigurationType
+import com.github.pablolec.play1toolkit.runtime.Play1ApplicationRuntimeService
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.execution.ProgramRunnerUtil
@@ -46,9 +47,14 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val debugAppButton = JButton("Debug App")
     private val runStatusLabel = JBLabel()
     private val debugStatusLabel = JBLabel()
+    private val serverStatusLabel = JBLabel()
+    private val applicationStatusLabel = JBLabel()
+    private val runtimeUrlLabel = JBLabel()
+    private val runtimeMessageLabel = JBLabel()
     private val commandButtons = linkedMapOf<Play1CliCommandId, JButton>()
     private val commandStatusLabels = linkedMapOf<Play1CliCommandId, JBLabel>()
     private var executionListenerDisposer: (() -> Unit)? = null
+    private var runtimeListenerDisposer: (() -> Unit)? = null
 
     init {
         border = JBUI.Borders.empty(6)
@@ -63,6 +69,9 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         debugAppButton.addActionListener { launchRunConfiguration(debug = true) }
         executionListenerDisposer = Play1CommandExecutionService.getInstance(project).addListener {
             com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater { refresh() }
+        }
+        runtimeListenerDisposer = Play1ApplicationRuntimeService.getInstance(project).addListener {
+            com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater { refreshRuntimeStatus(it) }
         }
         refresh()
     }
@@ -157,6 +166,15 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         repaint()
     }
 
+    private fun refreshRuntimeStatus(state: Play1ApplicationRuntimeService.State) {
+        serverStatusLabel.text = "Server: ${formatServerStatus(state.serverStatus)}"
+        applicationStatusLabel.text = "Application: ${formatApplicationStatus(state.applicationStatus)}"
+        runtimeUrlLabel.text = "Wake-up URL: ${state.url ?: "—"}"
+        runtimeMessageLabel.text = "Status: ${state.message}"
+        revalidate()
+        repaint()
+    }
+
     private fun buildLayout() {
         val content = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
@@ -170,6 +188,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             Triple(runAppButton, runStatusLabel, "Run App"),
             Triple(debugAppButton, debugStatusLabel, "Debug App"),
         )))
+        content.add(section("Application Runtime", serverStatusLabel, applicationStatusLabel, runtimeUrlLabel, runtimeMessageLabel))
 
         Play1CliCommandGroup.entries.forEach { group ->
             val rows = Play1CliCommandId.entries
@@ -302,8 +321,28 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private fun findPlayConfiguration() =
         RunManager.getInstance(project).allSettings.firstOrNull { it.type is Play1RunConfigurationType }
 
+    private fun formatServerStatus(status: Play1ApplicationRuntimeService.ServerStatus): String =
+        when (status) {
+            Play1ApplicationRuntimeService.ServerStatus.DOWN -> "down"
+            Play1ApplicationRuntimeService.ServerStatus.STARTING -> "starting"
+            Play1ApplicationRuntimeService.ServerStatus.RUNNING -> "running"
+            Play1ApplicationRuntimeService.ServerStatus.STOPPED -> "stopped"
+            Play1ApplicationRuntimeService.ServerStatus.FAILED -> "failed"
+        }
+
+    private fun formatApplicationStatus(status: Play1ApplicationRuntimeService.ApplicationStatus): String =
+        when (status) {
+            Play1ApplicationRuntimeService.ApplicationStatus.UNKNOWN -> "unknown"
+            Play1ApplicationRuntimeService.ApplicationStatus.WAITING_FOR_SERVER -> "waiting for server"
+            Play1ApplicationRuntimeService.ApplicationStatus.WAKING -> "waking"
+            Play1ApplicationRuntimeService.ApplicationStatus.RUNNING -> "running"
+            Play1ApplicationRuntimeService.ApplicationStatus.FAILED -> "failed"
+        }
+
     override fun dispose() {
         executionListenerDisposer?.invoke()
         executionListenerDisposer = null
+        runtimeListenerDisposer?.invoke()
+        runtimeListenerDisposer = null
     }
 }

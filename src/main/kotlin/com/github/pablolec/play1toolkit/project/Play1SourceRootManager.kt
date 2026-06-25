@@ -5,7 +5,6 @@ import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
-import com.intellij.openapi.roots.SourceFolder
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import org.jetbrains.jps.model.java.JavaResourceRootType
@@ -23,18 +22,20 @@ object Play1SourceRootManager {
         WriteAction.runAndWait<Exception> {
             val rootModel = ModuleRootManager.getInstance(module).modifiableModel
             try {
-                val contentEntry = rootModel.contentEntries.firstOrNull()
-                    ?: run {
-                        val projectRoot = LocalFileSystem.getInstance().findFileByPath(basePath)
-                            ?: return@runAndWait Unit.also {
-                                report.error("Source roots", "Cannot locate project root on disk")
-                            }
-                        rootModel.addContentEntry(projectRoot)
+                val applicationRoot = LocalFileSystem.getInstance().findFileByPath(basePath)
+                    ?: return@runAndWait Unit.also {
+                        report.error("Source roots", "Cannot locate Play application root on disk")
                     }
+                val contentEntry = rootModel.contentEntries.firstOrNull { entry ->
+                    val rootFile = entry.file ?: return@firstOrNull false
+                    rootFile == applicationRoot || VfsUtil.isAncestor(rootFile, applicationRoot, false)
+                } ?: rootModel.addContentEntry(applicationRoot)
 
                 configureRoot(contentEntry, "$basePath/app", JavaSourceRootType.SOURCE, report, "Source root app/")
                 configureRoot(contentEntry, "$basePath/test", JavaSourceRootType.TEST_SOURCE, report, "Test root test/")
                 configureResourceRoot(contentEntry, "$basePath/conf", report, "Resources root conf/")
+                configureTestResourceRoot(contentEntry, "$basePath/test/resources", report, "Test resources root test/resources/")
+                configureTestResourceRoot(contentEntry, "$basePath/test/conf", report, "Test resources root test/conf/")
 
                 rootModel.commit()
             } catch (e: Exception) {
@@ -58,11 +59,11 @@ object Play1SourceRootManager {
         }
 
         val alreadyConfigured = contentEntry.sourceFolders.any {
-            VfsUtil.isAncestor(vFile, it.file ?: return@any false, false) &&
-                    it.rootType == type
+            it.file == vFile && it.rootType == type
         }
 
         if (!alreadyConfigured) {
+            removeConflictingSourceFolders(contentEntry, vFile)
             contentEntry.addSourceFolder(vFile, type)
         }
         report.ok(label, "configured")
@@ -81,13 +82,45 @@ object Play1SourceRootManager {
         }
 
         val alreadyConfigured = contentEntry.sourceFolders.any {
-            VfsUtil.isAncestor(vFile, it.file ?: return@any false, false) &&
-                    it.rootType == JavaResourceRootType.RESOURCE
+            it.file == vFile && it.rootType == JavaResourceRootType.RESOURCE
         }
 
         if (!alreadyConfigured) {
+            removeConflictingSourceFolders(contentEntry, vFile)
             contentEntry.addSourceFolder(vFile, JavaResourceRootType.RESOURCE)
         }
         report.ok(label, "configured")
+    }
+
+    private fun configureTestResourceRoot(
+        contentEntry: com.intellij.openapi.roots.ContentEntry,
+        path: String,
+        report: RepairReport,
+        label: String
+    ) {
+        val vFile = LocalFileSystem.getInstance().findFileByPath(path)
+        if (vFile == null || !vFile.exists()) {
+            report.skipped(label, "directory not found")
+            return
+        }
+
+        val alreadyConfigured = contentEntry.sourceFolders.any {
+            it.file == vFile && it.rootType == JavaResourceRootType.TEST_RESOURCE
+        }
+
+        if (!alreadyConfigured) {
+            removeConflictingSourceFolders(contentEntry, vFile)
+            contentEntry.addSourceFolder(vFile, JavaResourceRootType.TEST_RESOURCE)
+        }
+        report.ok(label, "configured")
+    }
+
+    private fun removeConflictingSourceFolders(
+        contentEntry: com.intellij.openapi.roots.ContentEntry,
+        vFile: com.intellij.openapi.vfs.VirtualFile,
+    ) {
+        contentEntry.sourceFolders
+            .filter { it.file == vFile }
+            .forEach { contentEntry.removeSourceFolder(it) }
     }
 }

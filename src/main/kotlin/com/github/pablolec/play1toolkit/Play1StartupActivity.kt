@@ -4,6 +4,8 @@ import com.github.pablolec.play1toolkit.actions.RepairProjectSetupAction
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.project.Play1LibWatcher
+import com.github.pablolec.play1toolkit.project.Play1SourceRootManager
+import com.github.pablolec.play1toolkit.model.RepairReport
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -25,6 +27,11 @@ class Play1StartupActivity : ProjectActivity {
 
         // Start watching lib/ for new JARs (triggers library refresh after play deps)
         project.service<Play1LibWatcher>().start()
+        Play1SourceRootManager.configureSourceRoots(
+            project = project,
+            report = RepairReport(project.name),
+            applicationPath = projectService.playApplicationPath,
+        )
 
         val settings = Play1Settings.getInstance()
 

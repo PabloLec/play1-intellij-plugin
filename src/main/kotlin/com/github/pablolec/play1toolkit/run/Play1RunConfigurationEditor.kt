@@ -21,8 +21,8 @@ class Play1RunConfigurationEditor : SettingsEditor<Play1ApplicationRunConfigurat
         row("Application path:") {
             cell(applicationPathField).resizableColumn()
         }
-        row("Play ID (profile):") {
-            cell(playIdCombo).comment("Active Play profile, e.g. dev, prod, docker")
+        row("Profile:") {
+            cell(playIdCombo).comment("Passed to Play as --%profile; leave empty for default configuration")
         }
         row("HTTP port:") {
             cell(httpPortField)

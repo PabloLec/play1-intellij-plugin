@@ -46,4 +46,37 @@ class Play1RunConfigurationSupportTest {
 
         assertEquals("/workspace/root/apps/legacy-app", selectedRoot)
     }
+
+    @Test
+    fun `selectInitialProfile prefers configured profile when it exists`() {
+        val selected = Play1RunConfigurationSupport.selectInitialProfile(
+            configuredDefault = "dev",
+            availableProfiles = listOf("dev", "linux"),
+            osName = "Linux",
+        )
+
+        assertEquals("dev", selected)
+    }
+
+    @Test
+    fun `selectInitialProfile falls back to current operating system profile`() {
+        val selected = Play1RunConfigurationSupport.selectInitialProfile(
+            configuredDefault = "dev",
+            availableProfiles = listOf("linux", "prod"),
+            osName = "Linux",
+        )
+
+        assertEquals("linux", selected)
+    }
+
+    @Test
+    fun `selectInitialProfile keeps configured default when profiles are unavailable`() {
+        val selected = Play1RunConfigurationSupport.selectInitialProfile(
+            configuredDefault = "dev",
+            availableProfiles = emptyList(),
+            osName = "Linux",
+        )
+
+        assertEquals("dev", selected)
+    }
 }

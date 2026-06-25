@@ -48,6 +48,21 @@ internal object Play1RunConfigurationSupport {
 
     fun parseJvmOptions(jvmOptions: String): List<String> = ParametersListUtil.parse(jvmOptions)
 
+    fun selectInitialProfile(
+        configuredDefault: String,
+        availableProfiles: Collection<String>,
+        osName: String = System.getProperty("os.name"),
+    ): String {
+        val profiles = availableProfiles.mapTo(linkedSetOf()) { it.trim() }.filter { it.isNotBlank() }.toSet()
+        val configured = configuredDefault.trim()
+        if (configured.isNotBlank() && (profiles.isEmpty() || configured in profiles)) {
+            return configured
+        }
+
+        currentOsProfileCandidates(osName).firstOrNull { it in profiles }?.let { return it }
+        return configured
+    }
+
     fun resolveModule(project: Project, applicationPath: String): Module? {
         val modules = ModuleManager.getInstance(project).modules
         if (modules.isEmpty()) {
@@ -129,6 +144,16 @@ internal object Play1RunConfigurationSupport {
             Paths.get(FileUtil.toSystemIndependentName(path)).normalize()
         } catch (_: Exception) {
             null
+        }
+    }
+
+    private fun currentOsProfileCandidates(osName: String): List<String> {
+        val normalized = osName.lowercase()
+        return when {
+            "linux" in normalized -> listOf("linux")
+            "mac" in normalized || "darwin" in normalized -> listOf("macos", "mac", "osx", "darwin")
+            "windows" in normalized -> listOf("windows", "win")
+            else -> emptyList()
         }
     }
 }

@@ -6,6 +6,11 @@ object Play1ProjectPaths {
 
     fun applicationPath(project: Project): String? {
         val service = Play1ProjectService.getInstance(project)
+        return service.playApplicationPath ?: project.basePath
+    }
+
+    fun refreshAndGetApplicationPath(project: Project): String? {
+        val service = Play1ProjectService.getInstance(project)
         service.refresh()
         return service.playApplicationPath ?: project.basePath
     }

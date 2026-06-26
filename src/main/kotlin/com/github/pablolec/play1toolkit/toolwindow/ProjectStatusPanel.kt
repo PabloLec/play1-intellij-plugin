@@ -95,7 +95,6 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
 
     fun refresh() {
         val service = Play1ProjectService.getInstance(project)
-        service.refresh()
 
         val isPlay1 = service.isPlay1Project
         val applicationPath = service.playApplicationPath

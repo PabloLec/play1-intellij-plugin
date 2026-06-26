@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeDetector
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.project.Play1LibWatcher
+import com.github.pablolec.play1toolkit.project.Play1ProjectStructureWatcher
 import com.github.pablolec.play1toolkit.project.Play1SourceRootManager
 import com.github.pablolec.play1toolkit.model.RepairReport
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
@@ -19,7 +20,10 @@ class Play1StartupActivity : ProjectActivity {
 
     override suspend fun execute(project: Project) {
         val projectService = Play1ProjectService.getInstance(project)
-        projectService.refresh()
+        projectService.refreshNow(reason = "project startup", force = true)
+
+        // Keep Play detection fresh, but only for files that can affect the project structure.
+        project.service<Play1ProjectStructureWatcher>().start()
 
         if (!projectService.isPlay1Project) return
 

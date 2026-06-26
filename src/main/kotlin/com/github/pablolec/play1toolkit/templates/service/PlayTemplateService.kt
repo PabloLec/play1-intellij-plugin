@@ -14,17 +14,22 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
-import com.intellij.psi.util.PsiModificationTracker
 
 @Service(Service.Level.PROJECT)
 class PlayTemplateService(private val project: Project) {
 
     private val templatesCache = CachedValuesManager.getManager(project).createCachedValue({
-        CachedValueProvider.Result.create(buildTemplates(), PsiModificationTracker.MODIFICATION_COUNT)
+        CachedValueProvider.Result.create(
+            buildTemplates(),
+            PlayTemplateModificationTracker.getInstance(project).modificationTracker()
+        )
     }, false)
 
     private val tagsCache = CachedValuesManager.getManager(project).createCachedValue({
-        CachedValueProvider.Result.create(buildTags(), PsiModificationTracker.MODIFICATION_COUNT)
+        CachedValueProvider.Result.create(
+            buildTags(),
+            PlayTemplateModificationTracker.getInstance(project).modificationTracker()
+        )
     }, false)
 
     companion object {
@@ -98,6 +103,7 @@ class PlayTemplateService(private val project: Project) {
 
     private fun collectTemplates(dir: VirtualFile): List<PlayTemplateFile> {
         val result = mutableListOf<PlayTemplateFile>()
+        val basePath = Play1ProjectPaths.applicationPath(project)
         for (child in dir.children) {
             if (child.isDirectory) {
                 if (child.name == "tags" && PlayTemplateFileUtils.isInViewsDirectory(child)) {
@@ -105,7 +111,9 @@ class PlayTemplateService(private val project: Project) {
                 }
                 result.addAll(collectTemplates(child))
             } else if (PlayTemplateFileUtils.isPlayTemplateFile(child)) {
-                val logicalPath = PlayTemplateFileUtils.logicalPath(project, child) ?: continue
+                val logicalPath = basePath?.let { PlayTemplateFileUtils.logicalPath(it, child) }
+                    ?: PlayTemplateFileUtils.logicalPath(project, child)
+                    ?: continue
                 result.add(
                     PlayTemplateFile(
                         logicalPath = logicalPath,
@@ -121,11 +129,14 @@ class PlayTemplateService(private val project: Project) {
 
     private fun collectTags(dir: VirtualFile): List<PlayCustomTagInfo> {
         val result = mutableListOf<PlayCustomTagInfo>()
+        val basePath = Play1ProjectPaths.applicationPath(project)
         for (child in dir.children) {
             if (child.isDirectory) {
                 result.addAll(collectTags(child))
             } else if (PlayTemplateFileUtils.isPlayTemplateFile(child)) {
-                val logicalPath = PlayTemplateFileUtils.logicalPath(project, child) ?: continue
+                val logicalPath = basePath?.let { PlayTemplateFileUtils.logicalPath(it, child) }
+                    ?: PlayTemplateFileUtils.logicalPath(project, child)
+                    ?: continue
                 val qualifiedName = PlayTemplateFileUtils.tagQualifiedName(logicalPath)
                 if (qualifiedName.isEmpty()) continue
                 val dotIdx = qualifiedName.lastIndexOf('.')

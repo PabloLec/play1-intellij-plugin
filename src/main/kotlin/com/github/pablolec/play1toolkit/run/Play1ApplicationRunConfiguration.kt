@@ -1,7 +1,7 @@
 package com.github.pablolec.play1toolkit.run
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
-import com.github.pablolec.play1toolkit.services.Play1ProjectService
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -20,7 +20,7 @@ class Play1ApplicationRunConfiguration(
     ModuleRunProfile,
     WithoutOwnBeforeRunSteps {
 
-    var applicationPath: String = Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
+    var applicationPath: String = Play1ProjectPaths.applicationPath(project)
         ?: project.basePath
         ?: ""
     var playId: String = Play1Settings.getInstance().defaultPlayId
@@ -75,7 +75,7 @@ class Play1ApplicationRunConfiguration(
         stripMakeBeforeRunTask(element)
         super<RunConfigurationBase>.readExternal(element)
         applicationPath = element.getAttributeValue("applicationPath")
-            ?: Play1ProjectService.getInstance(project).also { it.refresh() }.playApplicationPath
+            ?: Play1ProjectPaths.applicationPath(project)
             ?: project.basePath
             ?: ""
         playId = element.getAttributeValue("playId") ?: "dev"

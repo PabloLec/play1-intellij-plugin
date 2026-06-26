@@ -49,9 +49,11 @@
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.config.Play1ProjectSettings"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.services.Play1ProjectService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1LibWatcher"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.project.Play1ProjectStructureWatcher"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.runtime.Play1ApplicationRuntimeService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.response.PlayActionResponseService"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.templates.service.PlayTemplateService"/>
+        <projectService serviceImplementation="com.github.pablolec.play1toolkit.templates.service.PlayTemplateModificationTracker"/>
         <projectService serviceImplementation="com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver"/>
 
         <!-- Startup Activity -->

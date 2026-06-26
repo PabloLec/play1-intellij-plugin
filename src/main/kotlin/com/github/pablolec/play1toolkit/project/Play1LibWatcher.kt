@@ -2,7 +2,7 @@ package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.model.RepairReport
-import com.github.pablolec.play1toolkit.services.Play1ProjectService
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
@@ -19,14 +19,16 @@ import java.nio.file.Paths
 @Service(Service.Level.PROJECT)
 class Play1LibWatcher(private val project: Project) : BulkFileListener {
 
+    private var started = false
+
     fun start() {
-        project.messageBus.connect().subscribe(com.intellij.openapi.vfs.VirtualFileManager.VFS_CHANGES, this)
+        if (started) return
+        started = true
+        project.messageBus.connect(project).subscribe(com.intellij.openapi.vfs.VirtualFileManager.VFS_CHANGES, this)
     }
 
     override fun after(events: List<VFileEvent>) {
-        val projectService = Play1ProjectService.getInstance(project)
-        projectService.refresh()
-        val basePath = projectService.playApplicationPath ?: return
+        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
         val libPath = Paths.get(basePath, "lib").toString()
 
         val hasNewJar = events.any { event ->

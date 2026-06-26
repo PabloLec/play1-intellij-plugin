@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.config
 
 import com.github.pablolec.play1toolkit.detection.Play1ProjectDetector
+import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
@@ -57,6 +58,7 @@ class Play1ProjectSettingsPanel(private val project: Project) {
 
     fun apply() {
         settings.playApplicationPath = applicationPathField.text
+        Play1ProjectService.getInstance(project).scheduleRefresh("Play application path setting changed")
     }
 
     fun reset() {

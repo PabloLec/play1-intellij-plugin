@@ -17,7 +17,7 @@ object Play1CliRunner {
         return if (isPythonScript(script)) {
             Play1PythonRuntimeResolver.describe(script)
         } else {
-            "native play script"
+            "Native launcher"
         }
     }
 
@@ -169,7 +169,7 @@ object Play1CliRunner {
                 effectivePlayVersion = effectiveVersion,
                 commandName = commandName,
                 args = args,
-                runtimeDescription = "native play script",
+                runtimeDescription = "Native launcher",
             )
         }
     }
@@ -423,7 +423,7 @@ object Play1CliRunner {
             CommandBuildResult(
                 command = nativeLauncherCommand(playScript),
                 requiredPythonMajor = null,
-                runtimeDescription = "native play script",
+                runtimeDescription = "Native launcher",
             )
         }
     }
@@ -443,12 +443,7 @@ object Play1CliRunner {
     }
 
     private fun isPythonScript(script: File): Boolean {
-        if (!script.exists() || !script.isFile) return false
-        if (script.extension.equals("bat", ignoreCase = true) || script.extension.equals("cmd", ignoreCase = true)) {
-            return false
-        }
-        val first = script.bufferedReader().use { it.readLine() } ?: return false
-        return first.startsWith("#!") && first.contains("python")
+        return Play1PythonRuntimeResolver.isPythonLauncher(script)
     }
 
     private fun findPlayLauncher(playHome: Path): File? {

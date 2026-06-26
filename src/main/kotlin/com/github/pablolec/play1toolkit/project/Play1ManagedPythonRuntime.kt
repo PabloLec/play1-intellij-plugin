@@ -134,6 +134,14 @@ object Play1ManagedPythonRuntime {
             pythonMajor = pythonMajor,
         )
 
+    fun findManagedExecutable(pythonMajor: Int): Path? {
+        val artifact = detectArtifactForCurrentPlatform(pythonMajor) ?: return null
+        return findExecutable(cacheDir().resolve(artifact.cacheKey), artifact)
+    }
+
+    fun managedRuntimeName(pythonMajor: Int): String? =
+        detectArtifactForCurrentPlatform(pythonMajor)?.displayName
+
     internal fun detectArtifact(osName: String, archName: String, pythonMajor: Int = 2): RuntimeArtifact? {
         val os = osName.lowercase(Locale.ROOT)
         val arch = archName.lowercase(Locale.ROOT)

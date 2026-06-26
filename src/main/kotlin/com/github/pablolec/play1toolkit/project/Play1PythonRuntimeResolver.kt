@@ -26,24 +26,9 @@ object Play1PythonRuntimeResolver {
         val local = resolveLocal(requirement)
         if (local != null) return local.description ?: local.commandPrefix?.joinToString(" ").orEmpty()
         return when (requirement) {
-            Requirement.PYTHON_2 ->
-                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 2) != null) {
-                    "Managed PyPy 2.7 fallback"
-                } else {
-                    "Python 2 unavailable"
-                }
-            Requirement.PYTHON_3 ->
-                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 3) != null) {
-                    "Managed PyPy 3.11 fallback"
-                } else {
-                    "Python 3 unavailable"
-                }
-            Requirement.ANY_PYTHON ->
-                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 3) != null) {
-                    "Python unavailable; managed PyPy 3.11 fallback available"
-                } else {
-                    "Python unavailable"
-                }
+            Requirement.PYTHON_2 -> describeManagedFallback(2) ?: "Python 2 unavailable"
+            Requirement.PYTHON_3 -> describeManagedFallback(3) ?: "Python 3 unavailable"
+            Requirement.ANY_PYTHON -> describeManagedFallback(3) ?: "Python unavailable"
         }
     }
 
@@ -88,6 +73,15 @@ object Play1PythonRuntimeResolver {
         return Requirement.ANY_PYTHON
     }
 
+    fun isPythonLauncher(script: File): Boolean {
+        if (!script.exists() || !script.isFile) return false
+        if (script.extension.equals("bat", ignoreCase = true) || script.extension.equals("cmd", ignoreCase = true)) {
+            return false
+        }
+        val firstLine = runCatching { script.bufferedReader().use { it.readLine() } }.getOrNull().orEmpty()
+        return firstLine.startsWith("#!") && firstLine.contains("python", ignoreCase = true)
+    }
+
     private fun resolveLocal(requirement: Requirement): Resolution? {
         val candidates = when (requirement) {
             Requirement.PYTHON_2 -> python2Candidates() + genericPythonCandidates()
@@ -110,10 +104,20 @@ object Play1PythonRuntimeResolver {
                     Requirement.PYTHON_3 -> 3
                     Requirement.ANY_PYTHON -> version.major
                 },
-                description = "Python ${version.major} (${candidate.command.joinToString(" ")})",
+                description = "System Python ${version.major} (${candidate.command.joinToString(" ")})",
             )
         }
         return null
+    }
+
+    private fun describeManagedFallback(pythonMajor: Int): String? {
+        val name = Play1ManagedPythonRuntime.managedRuntimeName(pythonMajor) ?: return null
+        val executable = Play1ManagedPythonRuntime.findManagedExecutable(pythonMajor)
+        return if (executable != null) {
+            "Managed $name ($executable)"
+        } else {
+            "Managed $name (download on first use)"
+        }
     }
 
     private data class Candidate(

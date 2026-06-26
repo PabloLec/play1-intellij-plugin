@@ -2,6 +2,8 @@ package com.github.pablolec.play1toolkit.run
 
 import com.github.pablolec.play1toolkit.config.Play1Settings
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
+import com.github.pablolec.play1toolkit.project.Play1CliResultReason
+import com.github.pablolec.play1toolkit.project.Play1PythonRuntimeResolver
 import com.github.pablolec.play1toolkit.runtime.Play1ApplicationRuntimeService
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.CommandLineState
@@ -67,17 +69,40 @@ class Play1ApplicationRunState(
     }
 
     private fun buildCommand(playScript: Path, applicationPath: Path, debug: Boolean): List<String> = buildList {
-        if (isWindowsBatch(playScript)) {
-            add("cmd.exe")
-            add("/c")
-        }
-        add(playScript.toString())
+        addAll(buildLauncherCommand(playScript))
         add("run")
         add(applicationPath.fileName?.toString() ?: applicationPath.toString())
         config.getActiveProfile()?.let { add("--%$it") }
         add("--http.port=${config.httpPort}")
         if (debug) {
             add("--jpda.port=${config.debugPort}")
+        }
+    }
+
+    private fun buildLauncherCommand(playScript: Path): List<String> {
+        val scriptFile = playScript.toFile()
+        if (Play1PythonRuntimeResolver.isPythonLauncher(scriptFile)) {
+            val resolution = Play1PythonRuntimeResolver.resolve(
+                script = scriptFile,
+                indicator = null,
+                onLine = { _, _ -> },
+            )
+            val commandPrefix = resolution.commandPrefix
+                ?: throw ExecutionException(
+                    when (resolution.reason) {
+                        Play1CliResultReason.MANAGED_RUNTIME_UNAVAILABLE ->
+                            "Could not provision ${resolution.description ?: "a managed Python runtime"}: ${resolution.detail ?: "unknown error"}"
+                        else ->
+                            "Could not find a compatible Python runtime for $playScript"
+                    }
+                )
+            return commandPrefix + playScript.toString()
+        }
+
+        return if (isWindowsBatch(playScript)) {
+            listOf("cmd.exe", "/c", playScript.toString())
+        } else {
+            listOf(playScript.toString())
         }
     }
 

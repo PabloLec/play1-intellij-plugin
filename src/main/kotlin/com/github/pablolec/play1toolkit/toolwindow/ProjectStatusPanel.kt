@@ -109,7 +109,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         if (playHome.isBlank()) {
             playHomeLabel.text = "Play Home: not configured"
             playVersionLabel.text = "Version: —"
-            cliRuntimeLabel.text = "CLI Runtime: —"
+            cliRuntimeLabel.text = "Python runtime: —"
             depsModeLabel.text = "Dependencies: configure Play Home first"
             configureButton.isVisible = true
         } else {
@@ -120,9 +120,9 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                 "Version: invalid — ${validation?.error ?: "unknown error"}"
             }
             cliRuntimeLabel.text = if (validation?.valid == true) {
-                "CLI Runtime: ${Play1CliRunner.describeRuntime(playHome)}"
+                "Python runtime: ${Play1CliRunner.describeRuntime(playHome)}"
             } else {
-                "CLI Runtime: unavailable"
+                "Python runtime: unavailable"
             }
             configureButton.isVisible = validation?.valid != true
         }

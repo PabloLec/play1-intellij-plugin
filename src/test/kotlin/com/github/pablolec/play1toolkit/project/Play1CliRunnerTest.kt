@@ -166,7 +166,7 @@ class Play1CliRunnerTest {
         )
 
         assertTrue(plan.available)
-        assertEquals("native play script", plan.runtimeDescription)
+        assertEquals("Native launcher", plan.runtimeDescription)
     }
 
     private fun createProjectDir(withDependenciesFile: Boolean): File {

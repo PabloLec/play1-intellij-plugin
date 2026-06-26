@@ -22,6 +22,7 @@ object Play1ManagedPythonRuntime {
         val url: String,
         val sha256: String,
         val executableRelativePath: String,
+        val displayName: String,
     )
 
     data class RuntimeProvisionResult(
@@ -37,6 +38,7 @@ object Play1ManagedPythonRuntime {
         url = "https://downloads.python.org/pypy/pypy2.7-v$PYPY_VERSION-linux64.tar.bz2",
         sha256 = "d38445508c2eaf14ebb380d9c1ded321c5ebeae31c7e66800173d83cb8ddf423",
         executableRelativePath = "bin/pypy",
+        displayName = "PyPy 2.7",
     )
 
     private val linuxArm64 = RuntimeArtifact(
@@ -45,6 +47,7 @@ object Play1ManagedPythonRuntime {
         url = "https://downloads.python.org/pypy/pypy2.7-v$PYPY_VERSION-aarch64.tar.bz2",
         sha256 = "fe89d4fd4af13f76dfe7315975003518cf176520e3ccec1544a88d174f50910e",
         executableRelativePath = "bin/pypy",
+        displayName = "PyPy 2.7",
     )
 
     private val macX64 = RuntimeArtifact(
@@ -53,6 +56,7 @@ object Play1ManagedPythonRuntime {
         url = "https://downloads.python.org/pypy/pypy2.7-v$PYPY_VERSION-macos_x86_64.tar.bz2",
         sha256 = "6be28d448d8e64fffc586d9b0ae4d09064a83ccaeb5b8060c651c5cd9ae06878",
         executableRelativePath = "bin/pypy",
+        displayName = "PyPy 2.7",
     )
 
     private val macArm64 = RuntimeArtifact(
@@ -61,6 +65,7 @@ object Play1ManagedPythonRuntime {
         url = "https://downloads.python.org/pypy/pypy2.7-v$PYPY_VERSION-macos_arm64.tar.bz2",
         sha256 = "28780e0b908ad6db4b4e096f4237124be79ecc9731946d840d9c8749eb67a759",
         executableRelativePath = "bin/pypy",
+        displayName = "PyPy 2.7",
     )
 
     private val windowsX64 = RuntimeArtifact(
@@ -69,22 +74,75 @@ object Play1ManagedPythonRuntime {
         url = "https://downloads.python.org/pypy/pypy2.7-v$PYPY_VERSION-win64.zip",
         sha256 = "fbdcd4fe681981c020a25c1a35225209dc3d651f6117ebe9e4d212b66a2b46ec",
         executableRelativePath = "pypy.exe",
+        displayName = "PyPy 2.7",
+    )
+
+    private val py3LinuxX64 = RuntimeArtifact(
+        cacheKey = "pypy3.11-v$PYPY_VERSION-linux64",
+        fileName = "pypy3.11-v$PYPY_VERSION-linux64.tar.bz2",
+        url = "https://downloads.python.org/pypy/pypy3.11-v$PYPY_VERSION-linux64.tar.bz2",
+        sha256 = "9177d9e0bb91b05f921c642cb0ff71a0f3653b5d29a42d40d6a078c15b75720f",
+        executableRelativePath = "bin/pypy",
+        displayName = "PyPy 3.11",
+    )
+
+    private val py3LinuxArm64 = RuntimeArtifact(
+        cacheKey = "pypy3.11-v$PYPY_VERSION-aarch64",
+        fileName = "pypy3.11-v$PYPY_VERSION-aarch64.tar.bz2",
+        url = "https://downloads.python.org/pypy/pypy3.11-v$PYPY_VERSION-aarch64.tar.bz2",
+        sha256 = "13207dbf81ce24e96da760b1b863627b77bb20b1fb4c95191e02a0b72383df74",
+        executableRelativePath = "bin/pypy",
+        displayName = "PyPy 3.11",
+    )
+
+    private val py3MacX64 = RuntimeArtifact(
+        cacheKey = "pypy3.11-v$PYPY_VERSION-macos_x86_64",
+        fileName = "pypy3.11-v$PYPY_VERSION-macos_x86_64.tar.bz2",
+        url = "https://downloads.python.org/pypy/pypy3.11-v$PYPY_VERSION-macos_x86_64.tar.bz2",
+        sha256 = "a2439f9d30dfdae96a5e9101c7dc54a8a68b56c9d7314ea399b0a25d3e87ebb2",
+        executableRelativePath = "bin/pypy",
+        displayName = "PyPy 3.11",
+    )
+
+    private val py3MacArm64 = RuntimeArtifact(
+        cacheKey = "pypy3.11-v$PYPY_VERSION-macos_arm64",
+        fileName = "pypy3.11-v$PYPY_VERSION-macos_arm64.tar.bz2",
+        url = "https://downloads.python.org/pypy/pypy3.11-v$PYPY_VERSION-macos_arm64.tar.bz2",
+        sha256 = "7704e0d5302e53920d32dcfe9afeeb10436d4c94233e8830cf603aa955a861c1",
+        executableRelativePath = "bin/pypy",
+        displayName = "PyPy 3.11",
+    )
+
+    private val py3WindowsX64 = RuntimeArtifact(
+        cacheKey = "pypy3.11-v$PYPY_VERSION-win64",
+        fileName = "pypy3.11-v$PYPY_VERSION-win64.zip",
+        url = "https://downloads.python.org/pypy/pypy3.11-v$PYPY_VERSION-win64.zip",
+        sha256 = "b61c7c1dbf879eda6f779c374bfbbeecd3f618ada08404705a1a19d39df48dbd",
+        executableRelativePath = "pypy.exe",
+        displayName = "PyPy 3.11",
     )
 
     fun cacheDir(): Path = Paths.get(System.getProperty("user.home"), ".play1toolkit", "runtimes")
 
     fun detectArtifactForCurrentPlatform(): RuntimeArtifact? =
-        detectArtifact(osName = System.getProperty("os.name"), archName = System.getProperty("os.arch"))
+        detectArtifactForCurrentPlatform(pythonMajor = 2)
 
-    internal fun detectArtifact(osName: String, archName: String): RuntimeArtifact? {
+    fun detectArtifactForCurrentPlatform(pythonMajor: Int): RuntimeArtifact? =
+        detectArtifact(
+            osName = System.getProperty("os.name"),
+            archName = System.getProperty("os.arch"),
+            pythonMajor = pythonMajor,
+        )
+
+    internal fun detectArtifact(osName: String, archName: String, pythonMajor: Int = 2): RuntimeArtifact? {
         val os = osName.lowercase(Locale.ROOT)
         val arch = archName.lowercase(Locale.ROOT)
         return when {
-            os.contains("linux") && arch in setOf("x86_64", "amd64") -> linuxX64
-            os.contains("linux") && arch in setOf("aarch64", "arm64") -> linuxArm64
-            os.contains("mac") && arch in setOf("x86_64", "amd64") -> macX64
-            os.contains("mac") && arch in setOf("aarch64", "arm64") -> macArm64
-            os.contains("win") && arch in setOf("x86_64", "amd64") -> windowsX64
+            os.contains("linux") && arch in setOf("x86_64", "amd64") -> if (pythonMajor == 3) py3LinuxX64 else linuxX64
+            os.contains("linux") && arch in setOf("aarch64", "arm64") -> if (pythonMajor == 3) py3LinuxArm64 else linuxArm64
+            os.contains("mac") && arch in setOf("x86_64", "amd64") -> if (pythonMajor == 3) py3MacX64 else macX64
+            os.contains("mac") && arch in setOf("aarch64", "arm64") -> if (pythonMajor == 3) py3MacArm64 else macArm64
+            os.contains("win") && arch in setOf("x86_64", "amd64") -> if (pythonMajor == 3) py3WindowsX64 else windowsX64
             else -> null
         }
     }
@@ -92,8 +150,19 @@ object Play1ManagedPythonRuntime {
     fun ensurePyPy2(
         indicator: ProgressIndicator?,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
+    ): RuntimeProvisionResult = ensurePyPy(2, indicator, onLine)
+
+    fun ensurePyPy3(
+        indicator: ProgressIndicator?,
+        onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
+    ): RuntimeProvisionResult = ensurePyPy(3, indicator, onLine)
+
+    private fun ensurePyPy(
+        pythonMajor: Int,
+        indicator: ProgressIndicator?,
+        onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
     ): RuntimeProvisionResult {
-        val artifact = detectArtifactForCurrentPlatform()
+        val artifact = detectArtifactForCurrentPlatform(pythonMajor)
             ?: return RuntimeProvisionResult(
                 executable = null,
                 errorMessage = "unsupported platform: os=${System.getProperty("os.name")}, arch=${System.getProperty("os.arch")}",
@@ -107,14 +176,14 @@ object Play1ManagedPythonRuntime {
         val tempExtractDir = cacheDir().resolve("${artifact.cacheKey}.tmp")
 
         try {
-            indicator?.text = "Downloading managed PyPy 2.7 runtime..."
-            onLine("~ Python 2 not found. Downloading managed PyPy 2.7 runtime for ${artifact.cacheKey}.", false)
+            indicator?.text = "Downloading managed ${artifact.displayName} runtime..."
+            onLine("~ Python $pythonMajor not found. Downloading managed ${artifact.displayName} runtime for ${artifact.cacheKey}.", false)
             downloadFile(artifact.url, tempArchive, indicator)
             verifySha256(tempArchive, artifact.sha256)
 
             tempExtractDir.toFile().deleteRecursively()
             Files.createDirectories(tempExtractDir)
-            indicator?.text = "Extracting managed PyPy 2.7 runtime..."
+            indicator?.text = "Extracting managed ${artifact.displayName} runtime..."
             extractArchive(tempArchive, tempExtractDir, artifact)
 
             val extractedRoot = tempExtractDir.resolve(artifact.cacheKey)
@@ -129,7 +198,7 @@ object Play1ManagedPythonRuntime {
 
             val executable = findExecutable(installDir, artifact)
                 ?: throw IOException("PyPy executable not found after extraction")
-            onLine("~ Managed PyPy ready: $executable", false)
+            onLine("~ Managed ${artifact.displayName} ready: $executable", false)
             return RuntimeProvisionResult(executable)
         } catch (e: ProcessCanceledException) {
             tempArchive.toFile().delete()

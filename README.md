@@ -76,7 +76,7 @@ That sounds simple, but old Play installations are not always simple to execute 
 - Windows `play.bat` launchers
 - Play versions that expect either Python 2 or Python 3
 - local Python discovery through `py`, `python3`, `python2`, and `python`
-- fallback to a managed **PyPy 2.7** runtime when a Python 2 launcher has no local interpreter
+- fallback to managed **PyPy 2.7** or **PyPy 3.11** runtimes when no compatible local interpreter is available
 - fallback to a separate **Play 1.2+ home just for `play deps`** when the target project runs on Play 1.1.x
 - download of a recommended Play distribution for dependency resolution
 

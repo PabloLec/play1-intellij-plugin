@@ -27,15 +27,20 @@ object Play1PythonRuntimeResolver {
         if (local != null) return local.description ?: local.commandPrefix?.joinToString(" ").orEmpty()
         return when (requirement) {
             Requirement.PYTHON_2 ->
-                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform() != null) {
+                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 2) != null) {
                     "Managed PyPy 2.7 fallback"
                 } else {
                     "Python 2 unavailable"
                 }
-            Requirement.PYTHON_3 -> "Python 3 unavailable"
+            Requirement.PYTHON_3 ->
+                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 3) != null) {
+                    "Managed PyPy 3.11 fallback"
+                } else {
+                    "Python 3 unavailable"
+                }
             Requirement.ANY_PYTHON ->
-                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform() != null) {
-                    "Python unavailable; managed PyPy 2.7 fallback available"
+                if (Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform(pythonMajor = 3) != null) {
+                    "Python unavailable; managed PyPy 3.11 fallback available"
                 } else {
                     "Python unavailable"
                 }
@@ -51,22 +56,19 @@ object Play1PythonRuntimeResolver {
         val local = resolveLocal(requirement)
         if (local != null) return local
 
-        if (requirement == Requirement.PYTHON_3) {
-            return Resolution(
-                commandPrefix = null,
-                requiredMajor = 3,
-                description = "Python 3 unavailable",
-                reason = Play1CliResultReason.PYTHON_INTERPRETER_MISSING,
-                detail = "The Play launcher requires Python 3, but no Python 3 interpreter was found.",
-            )
+        val fallbackMajor = if (requirement == Requirement.PYTHON_2) 2 else 3
+        val managedRuntime = if (fallbackMajor == 2) {
+            Play1ManagedPythonRuntime.ensurePyPy2(indicator, onLine)
+        } else {
+            Play1ManagedPythonRuntime.ensurePyPy3(indicator, onLine)
         }
-
-        val managedRuntime = Play1ManagedPythonRuntime.ensurePyPy2(indicator, onLine)
         val executable = managedRuntime.executable?.toAbsolutePath()?.toString()
         return Resolution(
             commandPrefix = executable?.let { listOf(it) },
-            requiredMajor = 2,
-            description = managedRuntime.executable?.let { "Managed PyPy 2.7 ($it)" },
+            requiredMajor = fallbackMajor,
+            description = managedRuntime.executable?.let {
+                if (fallbackMajor == 2) "Managed PyPy 2.7 ($it)" else "Managed PyPy 3.11 ($it)"
+            },
             reason = if (executable == null) Play1CliResultReason.MANAGED_RUNTIME_UNAVAILABLE else Play1CliResultReason.NONE,
             detail = managedRuntime.errorMessage,
         )

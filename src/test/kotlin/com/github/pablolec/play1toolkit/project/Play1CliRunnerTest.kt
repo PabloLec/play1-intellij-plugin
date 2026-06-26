@@ -91,6 +91,84 @@ class Play1CliRunnerTest {
         assertTrue(plan.runtimeDescription?.contains("Managed PyPy 2.7") == true || plan.runtimeDescription?.contains("Python 2") == true)
     }
 
+    @Test
+    fun `python 3 play launcher is detected from shebang`() {
+        val playHome = createPlayHome(
+            name = "python3-play-home",
+            jarName = "play-1.5.3.jar",
+            version = "1.5.3",
+            commands = listOf("clean"),
+            launcher = """
+                #!/usr/bin/env python3
+                from __future__ import print_function
+                print("~")
+            """.trimIndent(),
+        )
+        val projectDir = createProjectDir(withDependenciesFile = false)
+
+        val plan = Play1CliRunner.plan(
+            request = Play1CliRequest(Play1CliCommandId.CLEAN),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            depsPlayHome = "",
+        )
+
+        assertTrue(plan.available)
+        assertEquals(3, plan.requiredPythonMajor)
+        assertFalse(plan.runtimeDescription.orEmpty().contains("Managed PyPy 2.7"))
+    }
+
+    @Test
+    fun `python 2 play launcher is detected from legacy print syntax`() {
+        val playHome = createPlayHome(
+            name = "python2-play-home",
+            jarName = "play-1.5.3.jar",
+            version = "1.5.3",
+            commands = listOf("clean"),
+            launcher = """
+                #!/usr/bin/env python
+                print r"~"
+            """.trimIndent(),
+        )
+        val projectDir = createProjectDir(withDependenciesFile = false)
+
+        val plan = Play1CliRunner.plan(
+            request = Play1CliRequest(Play1CliCommandId.CLEAN),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            depsPlayHome = "",
+        )
+
+        assertTrue(plan.available)
+        assertEquals(2, plan.requiredPythonMajor)
+    }
+
+    @Test
+    fun `windows play bat launcher is accepted when python script is missing`() {
+        val playHome = createPlayHome(
+            name = "windows-play-home",
+            jarName = "play-1.5.3.jar",
+            version = "1.5.3",
+            commands = listOf("clean"),
+            launcher = null,
+        )
+        File(playHome, "play.bat").writeText("@echo off\r\n")
+        val projectDir = createProjectDir(withDependenciesFile = false)
+
+        val plan = Play1CliRunner.plan(
+            request = Play1CliRequest(Play1CliCommandId.CLEAN),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            depsPlayHome = "",
+        )
+
+        assertTrue(plan.available)
+        assertEquals("native play script", plan.runtimeDescription)
+    }
+
     private fun createProjectDir(withDependenciesFile: Boolean): File {
         val projectDir = tempDir.newFolder("project-${System.nanoTime()}")
         File(projectDir, "conf").mkdirs()
@@ -101,7 +179,16 @@ class Play1CliRunnerTest {
         return projectDir
     }
 
-    private fun createPlayHome(name: String, jarName: String, version: String, commands: List<String>): File {
+    private fun createPlayHome(
+        name: String,
+        jarName: String,
+        version: String,
+        commands: List<String>,
+        launcher: String? = """
+            #!/usr/bin/env python
+            print r"~"
+        """.trimIndent(),
+    ): File {
         val playHome = tempDir.newFolder(name)
         val frameworkDir = File(playHome, "framework").apply { mkdirs() }
         val playJar = File(frameworkDir, jarName)
@@ -113,13 +200,10 @@ class Play1CliRunnerTest {
             // Version hint is passed separately for Play 1.1-style homes in tests.
         }
 
-        File(playHome, "play").writeText(
-            """
-            #!/usr/bin/env python
-            print r"~"
-            """.trimIndent()
-        )
-        File(playHome, "play").setExecutable(true)
+        if (launcher != null) {
+            File(playHome, "play").writeText(launcher)
+            File(playHome, "play").setExecutable(true)
+        }
 
         val commandsDir = File(playHome, "framework/pym/play/commands").apply { mkdirs() }
         File(commandsDir, "commands.py").writeText(

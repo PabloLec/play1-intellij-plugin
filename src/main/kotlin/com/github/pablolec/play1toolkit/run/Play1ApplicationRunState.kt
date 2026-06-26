@@ -41,14 +41,12 @@ class Play1ApplicationRunState(
             throw ExecutionException(validation.error ?: "Invalid Play Home: $playHome")
         }
 
-        val playScript = playHomePath.resolve("play")
-        if (!Files.isRegularFile(playScript)) {
-            throw ExecutionException("play script not found: $playScript")
-        }
+        val playScript = findPlayLauncher(playHomePath)
+            ?: throw ExecutionException("play script not found in: $playHomePath")
 
         val applicationPath = Paths.get(config.applicationPath).toAbsolutePath().normalize()
         val debug = Play1RunConfigurationSupport.isDebugExecutor(environment)
-        val command = GeneralCommandLine(buildCommand(playScript.toString(), applicationPath, debug))
+        val command = GeneralCommandLine(buildCommand(playScript, applicationPath, debug))
             .withWorkDirectory(applicationPath.parent?.toString() ?: config.applicationPath)
             .withEnvironment(config.envVars)
             .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
@@ -68,8 +66,12 @@ class Play1ApplicationRunState(
         return handler
     }
 
-    private fun buildCommand(playScript: String, applicationPath: Path, debug: Boolean): List<String> = buildList {
-        add(playScript)
+    private fun buildCommand(playScript: Path, applicationPath: Path, debug: Boolean): List<String> = buildList {
+        if (isWindowsBatch(playScript)) {
+            add("cmd.exe")
+            add("/c")
+        }
+        add(playScript.toString())
         add("run")
         add(applicationPath.fileName?.toString() ?: applicationPath.toString())
         config.getActiveProfile()?.let { add("--%$it") }
@@ -77,6 +79,22 @@ class Play1ApplicationRunState(
         if (debug) {
             add("--jpda.port=${config.debugPort}")
         }
+    }
+
+    private fun findPlayLauncher(playHome: Path): Path? {
+        val unixScript = playHome.resolve("play")
+        if (Files.isRegularFile(unixScript)) return unixScript
+        val windowsScript = playHome.resolve("play.bat")
+        if (Files.isRegularFile(windowsScript)) return windowsScript
+        val windowsCommandScript = playHome.resolve("play.cmd")
+        if (Files.isRegularFile(windowsCommandScript)) return windowsCommandScript
+        return null
+    }
+
+    private fun isWindowsBatch(script: Path): Boolean {
+        val name = script.fileName.toString().lowercase()
+        return System.getProperty("os.name").lowercase().contains("win") &&
+            (name.endsWith(".bat") || name.endsWith(".cmd"))
     }
 
     override fun createRemoteConnection(environment: ExecutionEnvironment): RemoteConnection =

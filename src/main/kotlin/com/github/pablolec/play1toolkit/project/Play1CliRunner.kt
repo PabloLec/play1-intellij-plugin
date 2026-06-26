@@ -12,20 +12,10 @@ import java.util.concurrent.TimeUnit
 object Play1CliRunner {
 
     fun describeRuntime(playHome: String): String {
-        val script = Paths.get(playHome, "play").toFile()
-        if (!script.exists()) return "play script not found"
+        val script = findPlayLauncher(Paths.get(playHome))
+        if (script == null) return "play script not found"
         return if (isPythonScript(script)) {
-            if (requiresPython2(script)) {
-                findPython2()?.let { "Python 2 ($it)" }
-                    ?: Play1ManagedPythonRuntime.detectArtifactForCurrentPlatform()?.let {
-                        "Managed PyPy 2.7 fallback"
-                    }
-                    ?: "Python 2 unavailable"
-            } else {
-                findPython3()?.let { "Python 3 ($it)" }
-                    ?: findPython()?.let { "python ($it)" }
-                    ?: "Python 3 unavailable"
-            }
+            Play1PythonRuntimeResolver.describe(script)
         } else {
             "native play script"
         }
@@ -142,9 +132,22 @@ object Play1CliRunner {
         }
 
         val args = buildArgs(request, commandName)
-        val playScript = Paths.get(effectiveHome, "play").toFile()
+        val playScript = findPlayLauncher(Paths.get(effectiveHome))
+            ?: return Play1CliCommandPlan(
+                request = request,
+                available = false,
+                message = "play script not found",
+                reason = Play1CliResultReason.PLAY_HOME_INVALID,
+                effectivePlayHome = effectiveHome,
+                effectivePlayVersion = effectiveVersion,
+                runtimeDescription = "play script not found",
+            )
         return if (isPythonScript(playScript)) {
-            val requiredPythonMajor = if (requiresPython2(playScript)) 2 else 3
+            val requiredPythonMajor = when (Play1PythonRuntimeResolver.detectRequirement(playScript)) {
+                Play1PythonRuntimeResolver.Requirement.PYTHON_2 -> 2
+                Play1PythonRuntimeResolver.Requirement.PYTHON_3 -> 3
+                Play1PythonRuntimeResolver.Requirement.ANY_PYTHON -> null
+            }
             val runtime = describeRuntime(effectiveHome)
             Play1CliCommandPlan(
                 request = request,
@@ -216,7 +219,18 @@ object Play1CliRunner {
             )
         }
 
-        val playScript = Paths.get(plan.effectivePlayHome!!, "play").toFile()
+        val playScript = findPlayLauncher(Paths.get(plan.effectivePlayHome!!))
+            ?: return Play1CliResult(
+                request = request,
+                success = false,
+                skipped = true,
+                message = "play script not found",
+                reason = Play1CliResultReason.PLAY_HOME_INVALID,
+                effectivePlayHome = plan.effectivePlayHome,
+                effectivePlayVersion = plan.effectivePlayVersion,
+                runtimeDescription = plan.runtimeDescription,
+                requiredPythonMajor = plan.requiredPythonMajor,
+            )
         val commandResult = buildBaseCommand(playScript, indicator, onLine)
         val baseCommand = commandResult.command ?: return Play1CliResult(
             request = request,
@@ -225,7 +239,7 @@ object Play1CliRunner {
             message = when (commandResult.reason) {
                 Play1CliResultReason.MANAGED_RUNTIME_UNAVAILABLE ->
                     "could not provision a managed PyPy 2.7 runtime for the play script"
-                else -> "could not find a Python interpreter for the play script"
+                else -> "could not find a compatible Python interpreter for the play script"
             },
             reason = commandResult.reason,
             effectivePlayHome = plan.effectivePlayHome,
@@ -397,33 +411,17 @@ object Play1CliRunner {
     ): CommandBuildResult {
         if (!playScript.exists()) return CommandBuildResult(null, null, Play1CliResultReason.PLAY_HOME_INVALID)
         return if (isPythonScript(playScript)) {
-            if (requiresPython2(playScript)) {
-                val systemPython2 = findPython2()
-                val managedRuntime = if (systemPython2 == null) {
-                    Play1ManagedPythonRuntime.ensurePyPy2(indicator, onLine)
-                } else {
-                    Play1ManagedPythonRuntime.RuntimeProvisionResult(executable = null)
-                }
-                val interpreter = systemPython2 ?: managedRuntime.executable?.toAbsolutePath()?.toString()
-                CommandBuildResult(
-                    command = interpreter?.let { listOf(it, playScript.absolutePath) },
-                    requiredPythonMajor = 2,
-                    reason = if (interpreter == null) Play1CliResultReason.MANAGED_RUNTIME_UNAVAILABLE else Play1CliResultReason.NONE,
-                    detail = managedRuntime.errorMessage,
-                    runtimeDescription = if (systemPython2 != null) "Python 2 ($systemPython2)" else managedRuntime.executable?.let { "Managed PyPy 2.7 ($it)" },
-                )
-            } else {
-                val interpreter = findPython3() ?: findPython()
-                CommandBuildResult(
-                    command = interpreter?.let { listOf(it, playScript.absolutePath) },
-                    requiredPythonMajor = 3,
-                    reason = if (interpreter == null) Play1CliResultReason.PYTHON_INTERPRETER_MISSING else Play1CliResultReason.NONE,
-                    runtimeDescription = interpreter?.let { if (it.startsWith("python3")) "Python 3 ($it)" else "python ($it)" },
-                )
-            }
+            val resolution = Play1PythonRuntimeResolver.resolve(playScript, indicator, onLine)
+            CommandBuildResult(
+                command = resolution.commandPrefix?.let { it + playScript.absolutePath },
+                requiredPythonMajor = resolution.requiredMajor,
+                reason = resolution.reason,
+                detail = resolution.detail,
+                runtimeDescription = resolution.description,
+            )
         } else {
             CommandBuildResult(
-                command = listOf(playScript.absolutePath),
+                command = nativeLauncherCommand(playScript),
                 requiredPythonMajor = null,
                 runtimeDescription = "native play script",
             )
@@ -445,34 +443,37 @@ object Play1CliRunner {
     }
 
     private fun isPythonScript(script: File): Boolean {
+        if (!script.exists() || !script.isFile) return false
+        if (script.extension.equals("bat", ignoreCase = true) || script.extension.equals("cmd", ignoreCase = true)) {
+            return false
+        }
         val first = script.bufferedReader().use { it.readLine() } ?: return false
         return first.startsWith("#!") && first.contains("python")
     }
 
-    private fun requiresPython2(script: File): Boolean {
-        script.bufferedReader().use { reader ->
-            repeat(60) {
-                val line = reader.readLine() ?: return false
-                if (line.matches(Regex(""".*\bprint\s+[^\(].*"""))) return true
-                if (line.contains("print r\"") || line.contains("print u\"")) return true
-            }
+    private fun findPlayLauncher(playHome: Path): File? {
+        val pythonScript = playHome.resolve("play").toFile()
+        if (pythonScript.isFile) return pythonScript
+        val windowsScript = playHome.resolve("play.bat").toFile()
+        if (windowsScript.isFile) return windowsScript
+        val windowsCommandScript = playHome.resolve("play.cmd").toFile()
+        if (windowsCommandScript.isFile) return windowsCommandScript
+        return null
+    }
+
+    private fun nativeLauncherCommand(script: File): List<String> {
+        return if (isWindowsBatch(script)) {
+            listOf("cmd.exe", "/c", script.absolutePath)
+        } else {
+            listOf(script.absolutePath)
         }
-        return false
     }
 
-    private fun findPython2(): String? =
-        listOf("python2", "python2.7", "python2.6").firstOrNull { available(it) }
+    private fun isWindowsBatch(script: File): Boolean =
+        isWindows() && (script.extension.equals("bat", ignoreCase = true) || script.extension.equals("cmd", ignoreCase = true))
 
-    private fun findPython3(): String? =
-        listOf("python3", "python3.12", "python3.11", "python3.10").firstOrNull { available(it) }
-
-    private fun findPython(): String? = "python".takeIf { available(it) }
-
-    private fun available(name: String) = try {
-        ProcessBuilder(name, "--version").redirectErrorStream(true).start().waitFor() == 0
-    } catch (_: Exception) {
-        false
-    }
+    private fun isWindows(): Boolean =
+        System.getProperty("os.name").lowercase().contains("win")
 
     private fun isParentOf(projectPath: String, candidatePath: String): Boolean {
         val projectDir = Paths.get(projectPath).toAbsolutePath().normalize()

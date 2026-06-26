@@ -5,14 +5,16 @@ import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.project.Play1VersionDownloader
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.progress.ProgressManager
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.*
+import javax.swing.event.DocumentEvent
+import javax.swing.event.DocumentListener
 import java.nio.file.Paths
 import javax.swing.JComponent
 
@@ -48,12 +50,11 @@ class Play1SettingsPanel {
                     val detected = Play1HomeDetector.detect()
                     if (detected != null) {
                         playHomeField.text = detected.toString()
-                        updateStatus(detected.toString())
                     } else {
-                        statusLabel.text = "Play Home not found automatically."
+                        statusLabel.text = "⚠ Play Home not found automatically. Select your Play 1 installation directory."
                     }
                 }
-                button("Validate") {
+                button("Validate now") {
                     updateStatus(playHomeField.text)
                 }
             }
@@ -106,20 +107,25 @@ class Play1SettingsPanel {
     }
 
     init {
+        playHomeField.textField.document.addDocumentListener(object : DocumentListener {
+            override fun insertUpdate(e: DocumentEvent) = updateStatus(playHomeField.text)
+            override fun removeUpdate(e: DocumentEvent) = updateStatus(playHomeField.text)
+            override fun changedUpdate(e: DocumentEvent) = updateStatus(playHomeField.text)
+        })
         reset()
         refreshDepsInstalledLabel()
     }
 
     private fun updateStatus(path: String) {
         if (path.isBlank()) {
-            statusLabel.text = ""
+            statusLabel.text = "⚠ Play Home is required. Select the root directory of your Play 1 installation."
             return
         }
         val result = Play1HomeValidator.validate(Paths.get(path))
         statusLabel.text = if (result.valid) {
             "✓ Play ${result.playVersion ?: "1.x"} — valid installation"
         } else {
-            "✗ ${result.error}"
+            "✗ Invalid Play Home — ${result.error}. Select a directory containing framework/ and a Play JAR."
         }
     }
 
@@ -159,12 +165,15 @@ class Play1SettingsPanel {
     }
 
     fun apply() {
-        settings.playHome = playHomeField.text
-        settings.depsPlayHome = depsPlayHomeField.text
+        val playHome = playHomeField.text.trim()
+        val validation = validatePlayHome(playHome)
+        settings.playHome = playHome
+        settings.depsPlayHome = depsPlayHomeField.text.trim()
         settings.defaultPlayId = playIdField.text
         settings.defaultHttpPort = httpPortField.text.toIntOrNull() ?: 9000
         settings.defaultDebugPort = debugPortField.text.toIntOrNull() ?: 5005
         settings.autoRepairOnOpen = autoRepairCheckBox.isSelected
+        statusLabel.text = "✓ Play ${validation.playVersion ?: "1.x"} — valid installation"
     }
 
     fun reset() {
@@ -174,6 +183,24 @@ class Play1SettingsPanel {
         httpPortField.text = settings.defaultHttpPort.toString()
         debugPortField.text = settings.defaultDebugPort.toString()
         autoRepairCheckBox.isSelected = settings.autoRepairOnOpen
+        updateStatus(playHomeField.text)
         refreshDepsInstalledLabel()
+    }
+
+    private fun validatePlayHome(path: String): Play1HomeValidator.ValidationResult {
+        if (path.isBlank()) {
+            updateStatus(path)
+            throw ConfigurationException(
+                "Play Home is required. Select the root directory of your Play 1 installation."
+            )
+        }
+        val validation = Play1HomeValidator.validate(Paths.get(path))
+        if (!validation.valid) {
+            updateStatus(path)
+            throw ConfigurationException(
+                "Invalid Play Home: ${validation.error ?: "unknown error"}"
+            )
+        }
+        return validation
     }
 }

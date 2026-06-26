@@ -151,12 +151,13 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         val canLaunch = isPlay1 && !commandRunning
         runAppButton.isEnabled = canLaunch
         debugAppButton.isEnabled = canLaunch
-        runStatusLabel.text = if (playConfig != null) "Launch the IntelliJ run configuration" else "Run configuration missing — click to repair"
-        debugStatusLabel.text = if (playConfig != null) "Launch the IntelliJ debug configuration" else "Run configuration missing — click to repair"
+        runStatusLabel.text = launchStatusText(playConfig != null, validation)
+        debugStatusLabel.text = launchStatusText(playConfig != null, validation)
 
         Play1CliCommandId.entries.forEach { commandId ->
             val button = commandButtons.getValue(commandId)
             val statusLabel = commandStatusLabels.getValue(commandId)
+            val playHomeInvalid = validation?.valid != true
             val plan = if (isPlay1 && validation?.valid == true) {
                 Play1CliRunner.plan(
                     request = Play1CliRequest(commandId),
@@ -167,10 +168,10 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             } else null
 
             val commandRunningHere = runningCommandId == commandId
-            button.isEnabled = isPlay1 && validation?.valid == true && !commandRunning && plan?.available == true
+            button.isEnabled = isPlay1 && !commandRunning && (playHomeInvalid || plan?.available == true)
             statusLabel.text = when {
                 !isPlay1 -> "Play 1 project required"
-                validation?.valid != true -> validation?.error ?: "Configure a valid Play Home"
+                validation?.valid != true -> "Configure a valid Play Home to enable this command"
                 commandRunningHere -> "Command in progress…"
                 plan == null -> "Unavailable"
                 plan.available -> commandId.description
@@ -328,6 +329,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     }
 
     private fun triggerCommand(commandId: Play1CliCommandId) {
+        if (!ensureValidPlayHomeConfigured()) return
         val request = when (commandId) {
             Play1CliCommandId.WAR -> {
                 val dialog = Play1WarCommandDialog(project)
@@ -350,6 +352,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     }
 
     private fun launchRunConfiguration(debug: Boolean) {
+        if (!ensureValidPlayHomeConfigured()) return
         val settings = findPlayConfiguration()
         if (settings == null) {
             val result = Messages.showOkCancelDialog(
@@ -372,6 +375,39 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             DefaultRunExecutor.getRunExecutorInstance()
         }
         ProgramRunnerUtil.executeConfiguration(settings, executor)
+    }
+
+    private fun launchStatusText(hasRunConfig: Boolean, validation: Play1HomeValidator.ValidationResult?): String {
+        return when {
+            validation == null -> "Configure Play Home before launching"
+            !validation.valid -> "Fix Play Home before launching"
+            hasRunConfig -> "Launch the IntelliJ run configuration"
+            else -> "Run configuration missing — click to repair"
+        }
+    }
+
+    private fun ensureValidPlayHomeConfigured(): Boolean {
+        val playHome = Play1Settings.getInstance().playHome.trim()
+        val validation = if (playHome.isBlank()) null else Play1HomeValidator.validate(Paths.get(playHome))
+        if (validation?.valid == true) return true
+
+        val message = if (playHome.isBlank()) {
+            "Play Home is not configured.\nSelect the root directory of your Play 1 installation."
+        } else {
+            "Play Home is invalid:\n${validation?.error ?: "unknown error"}\n\nSelect a valid Play 1 installation directory."
+        }
+        val result = Messages.showOkCancelDialog(
+            project,
+            message,
+            "Play Home Required",
+            "Open Settings",
+            "Cancel",
+            Messages.getWarningIcon(),
+        )
+        if (result == Messages.OK) {
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, "Play v1 Toolkit")
+        }
+        return false
     }
 
     private fun findPlayConfiguration() =

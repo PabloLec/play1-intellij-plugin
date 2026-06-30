@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.run.Play1ApplicationRunConfiguration
 import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.execution.RunManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -29,6 +30,12 @@ class PlayConfigService(private val project: Project) {
     }
 
     fun getConfigFile(): PlayConfigFile? {
+        return ApplicationManager.getApplication().runReadAction<PlayConfigFile?> {
+            getConfigFileUnderReadAction()
+        }
+    }
+
+    private fun getConfigFileUnderReadAction(): PlayConfigFile? {
         if (DumbService.isDumb(project)) return null
         val baseDir = Play1ProjectPaths.applicationPath(project)
             ?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
@@ -39,12 +46,14 @@ class PlayConfigService(private val project: Project) {
     }
 
     fun allKeys(): List<PlayConfigKey> {
-        val configFile = getConfigFile() ?: return emptyList()
-        return CachedValuesManager.getCachedValue(configFile) {
-            CachedValueProvider.Result.create(
-                buildKeys(configFile),
-                PsiModificationTracker.MODIFICATION_COUNT
-            )
+        return ApplicationManager.getApplication().runReadAction<List<PlayConfigKey>> {
+            val configFile = getConfigFileUnderReadAction() ?: return@runReadAction emptyList()
+            CachedValuesManager.getCachedValue(configFile) {
+                CachedValueProvider.Result.create(
+                    buildKeys(configFile),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
         }
     }
 

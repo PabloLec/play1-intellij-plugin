@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.project
 
 import com.github.pablolec.play1toolkit.detection.Play1HomeValidator
 import com.github.pablolec.play1toolkit.model.RepairReport
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
@@ -35,7 +36,10 @@ object Play1LibraryManager {
             return
         }
         report.ok("IntelliJ module", module.name)
-        report.ok("IntelliJ module root", ModuleUtilCore.getModuleDirPath(module))
+        val moduleDirPath = ApplicationManager.getApplication().runReadAction<String> {
+            ModuleUtilCore.getModuleDirPath(module)
+        }
+        report.ok("IntelliJ module root", moduleDirPath)
 
         val frameworkDir = playHome.resolve("framework")
         val playJar = Play1HomeValidator.findPlayJar(frameworkDir)

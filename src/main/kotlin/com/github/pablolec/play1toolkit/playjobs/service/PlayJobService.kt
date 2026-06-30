@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInfo
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInvocation
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInvocationKind
 import com.github.pablolec.play1toolkit.playjobs.util.PlayJobUtils
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -29,19 +30,21 @@ class PlayJobService(private val project: Project) {
     }
 
     fun getAllJobs(): List<PlayJobInfo> {
-        if (DumbService.isDumb(project)) return emptyList()
-        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
-        return javaFiles.flatMap { vf ->
-            val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-            CachedValuesManager.getCachedValue(psiFile) {
-                val javaFile = psiFile as? PsiJavaFile
-                if (javaFile == null) {
-                    CachedValueProvider.Result.create(emptyList<PlayJobInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
-                } else {
-                    CachedValueProvider.Result.create(
-                        buildJobsFromFile(javaFile),
-                        PsiModificationTracker.MODIFICATION_COUNT
-                    )
+        return ApplicationManager.getApplication().runReadAction<List<PlayJobInfo>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
+            javaFiles.flatMap { vf ->
+                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                CachedValuesManager.getCachedValue(psiFile) {
+                    val javaFile = psiFile as? PsiJavaFile
+                    if (javaFile == null) {
+                        CachedValueProvider.Result.create(emptyList<PlayJobInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
+                    } else {
+                        CachedValueProvider.Result.create(
+                            buildJobsFromFile(javaFile),
+                            PsiModificationTracker.MODIFICATION_COUNT
+                        )
+                    }
                 }
             }
         }
@@ -63,12 +66,14 @@ class PlayJobService(private val project: Project) {
     fun findInvocations(job: PlayJobInfo): List<PlayJobInvocation> = findInvocations(job.psiClass)
 
     fun findInvocations(jobClass: PsiClass): List<PlayJobInvocation> {
-        if (DumbService.isDumb(project)) return emptyList()
-        return CachedValuesManager.getCachedValue(jobClass) {
-            CachedValueProvider.Result.create(
-                computeInvocations(jobClass),
-                PsiModificationTracker.MODIFICATION_COUNT
-            )
+        return ApplicationManager.getApplication().runReadAction<List<PlayJobInvocation>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            CachedValuesManager.getCachedValue(jobClass) {
+                CachedValueProvider.Result.create(
+                    computeInvocations(jobClass),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
         }
     }
 

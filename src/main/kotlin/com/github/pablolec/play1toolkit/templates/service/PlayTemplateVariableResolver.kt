@@ -5,6 +5,7 @@ import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -47,48 +48,60 @@ class PlayTemplateVariableResolver(private val project: Project) {
     }
 
     fun resolveVariables(file: PsiFile): Set<String> {
-        if (DumbService.isDumb(project)) return IMPLICIT_VARS
-        return resolveVariableInfos(file).keys
+        return ApplicationManager.getApplication().runReadAction<Set<String>> {
+            if (DumbService.isDumb(project)) return@runReadAction IMPLICIT_VARS
+            resolveVariableInfos(file).keys
+        }
     }
 
     fun resolveVariableDeclarations(file: PsiFile): Map<String, PsiElement> {
-        if (DumbService.isDumb(project)) return emptyMap()
-        return resolveVariableInfos(file).mapValues { it.value.declaration }
+        return ApplicationManager.getApplication().runReadAction<Map<String, PsiElement>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyMap()
+            resolveVariableInfos(file).mapValues { it.value.declaration }
+        }
     }
 
     fun resolveVariableType(file: PsiFile, variableName: String): PsiType? {
-        return resolveVariableInfo(file, variableName)?.type
+        return ApplicationManager.getApplication().runReadAction<PsiType?> {
+            resolveVariableInfo(file, variableName)?.type
+        }
     }
 
     fun resolveVariableInfo(file: PsiFile, variableName: String): VariableInfo? {
-        return resolveVariableInfos(file)[variableName]
-            ?: resolveRenderArgVariableInfo(file, variableName)
+        return ApplicationManager.getApplication().runReadAction<VariableInfo?> {
+            resolveVariableInfos(file)[variableName]
+                ?: resolveRenderArgVariableInfo(file, variableName)
+        }
     }
 
     fun resolveMember(element: PsiElement, qualifierType: PsiType?, memberName: String, methodCall: Boolean): PsiElement? {
-        val classType = qualifierType as? PsiClassType ?: return null
-        val psiClass = classType.resolve() ?: return null
-        if (methodCall) {
-            psiClass.findMethodsByName(memberName, true).firstOrNull()?.let { return it }
-        } else {
-            psiClass.findFieldByName(memberName, true)?.let { return it }
-            val accessorNames = listOf(
-                "get${memberName.replaceFirstChar { it.uppercase() }}",
-                "is${memberName.replaceFirstChar { it.uppercase() }}"
-            )
-            accessorNames.forEach { accessor ->
-                psiClass.findMethodsByName(accessor, true).firstOrNull()?.let { return it }
+        return ApplicationManager.getApplication().runReadAction<PsiElement?> {
+            val classType = qualifierType as? PsiClassType ?: return@runReadAction null
+            val psiClass = classType.resolve() ?: return@runReadAction null
+            if (methodCall) {
+                psiClass.findMethodsByName(memberName, true).firstOrNull()?.let { return@runReadAction it }
+            } else {
+                psiClass.findFieldByName(memberName, true)?.let { return@runReadAction it }
+                val accessorNames = listOf(
+                    "get${memberName.replaceFirstChar { it.uppercase() }}",
+                    "is${memberName.replaceFirstChar { it.uppercase() }}"
+                )
+                accessorNames.forEach { accessor ->
+                    psiClass.findMethodsByName(accessor, true).firstOrNull()?.let { return@runReadAction it }
+                }
             }
+            null
         }
-        return null
     }
 
     fun resolveMemberType(element: PsiElement, qualifierType: PsiType?, memberName: String, methodCall: Boolean): PsiType? {
-        val resolved = resolveMember(element, qualifierType, memberName, methodCall) ?: return null
-        return when (resolved) {
-            is PsiField -> resolved.type
-            is PsiMethod -> resolved.returnType
-            else -> null
+        return ApplicationManager.getApplication().runReadAction<PsiType?> {
+            val resolved = resolveMember(element, qualifierType, memberName, methodCall) ?: return@runReadAction null
+            when (resolved) {
+                is PsiField -> resolved.type
+                is PsiMethod -> resolved.returnType
+                else -> null
+            }
         }
     }
 

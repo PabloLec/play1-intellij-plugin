@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.routes
 
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -23,6 +24,12 @@ import com.intellij.psi.search.PsiShortNamesCache
 object RoutesControllerResolver {
 
     fun resolveClass(project: Project, controllerName: String): PsiClass? {
+        return ApplicationManager.getApplication().runReadAction<PsiClass?> {
+            resolveClassUnderReadAction(project, controllerName)
+        }
+    }
+
+    private fun resolveClassUnderReadAction(project: Project, controllerName: String): PsiClass? {
         if (controllerName.isEmpty() || controllerName.contains('{')) return null
         val psiFacade = JavaPsiFacade.getInstance(project)
         val shortName = controllerName.substringAfterLast('.')
@@ -37,9 +44,11 @@ object RoutesControllerResolver {
     }
 
     fun resolveMethod(project: Project, controllerName: String, actionName: String): PsiMethod? {
-        if (actionName.isEmpty()) return null
-        val psiClass = resolveClass(project, controllerName) ?: return null
-        return psiClass.findMethodsByName(actionName, true).firstOrNull()
+        return ApplicationManager.getApplication().runReadAction<PsiMethod?> {
+            if (actionName.isEmpty()) return@runReadAction null
+            val psiClass = resolveClassUnderReadAction(project, controllerName) ?: return@runReadAction null
+            psiClass.findMethodsByName(actionName, true).firstOrNull()
+        }
     }
 
     private fun scopes(project: Project) = listOf(

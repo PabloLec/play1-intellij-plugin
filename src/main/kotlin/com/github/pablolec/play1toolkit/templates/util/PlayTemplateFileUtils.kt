@@ -1,6 +1,7 @@
 package com.github.pablolec.play1toolkit.templates.util
 
 import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
@@ -13,7 +14,9 @@ object PlayTemplateFileUtils {
     private val TEMPLATE_EXTENSIONS = setOf("html", "xml", "json", "txt")
 
     fun isInViewsDirectory(element: PsiElement): Boolean =
-        element.containingFile?.virtualFile?.path?.contains("/app/views/") == true
+        ApplicationManager.getApplication().runReadAction<Boolean> {
+            element.containingFile?.virtualFile?.path?.contains("/app/views/") == true
+        }
 
     fun isInViewsDirectory(file: VirtualFile): Boolean =
         file.path.contains("/app/views/")
@@ -52,27 +55,31 @@ object PlayTemplateFileUtils {
     fun normalizeTemplatePath(path: String): String = path.removePrefix("/").removePrefix("app/views/")
 
     fun resolveTemplatePath(project: Project, logicalPath: String): VirtualFile? {
-        val normalized = normalizeTemplatePath(logicalPath)
-        val basePath = Play1ProjectPaths.applicationPath(project)
-        if (basePath != null) {
-            return com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                .findFileByPath(Paths.get(basePath, "app", "views", normalized).toString())
+        return ApplicationManager.getApplication().runReadAction<VirtualFile?> {
+            val normalized = normalizeTemplatePath(logicalPath)
+            val basePath = Play1ProjectPaths.applicationPath(project)
+            if (basePath != null) {
+                return@runReadAction com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .findFileByPath(Paths.get(basePath, "app", "views", normalized).toString())
+            }
+            val fileName = normalized.substringAfterLast('/')
+            FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
+                .firstOrNull { logicalPath(project, it) == normalized }
         }
-        val fileName = normalized.substringAfterLast('/')
-        return FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
-            .firstOrNull { logicalPath(project, it) == normalized }
     }
 
     fun resolvePublicAsset(project: Project, publicPath: String): VirtualFile? {
-        val relative = publicPath.removePrefix("/")
-        val basePath = Play1ProjectPaths.applicationPath(project)
-        if (basePath != null) {
-            return com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                .findFileByPath(Paths.get(basePath, relative).toString())
+        return ApplicationManager.getApplication().runReadAction<VirtualFile?> {
+            val relative = publicPath.removePrefix("/")
+            val basePath = Play1ProjectPaths.applicationPath(project)
+            if (basePath != null) {
+                return@runReadAction com.intellij.openapi.vfs.LocalFileSystem.getInstance()
+                    .findFileByPath(Paths.get(basePath, relative).toString())
+            }
+            val fileName = relative.substringAfterLast('/')
+            FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
+                .firstOrNull { it.path.replace('\\', '/').endsWith("/$relative") }
         }
-        val fileName = relative.substringAfterLast('/')
-        return FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
-            .firstOrNull { it.path.replace('\\', '/').endsWith("/$relative") }
     }
 
     fun controllerNameFromLogicalPath(logicalPath: String): String? {

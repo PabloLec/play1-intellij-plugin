@@ -10,6 +10,7 @@ import com.github.pablolec.play1toolkit.playcache.util.PlayCacheArgExtractor
 import com.github.pablolec.play1toolkit.playcache.util.PlayCacheTemplateScanner
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.response.PlayActionResponseService
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -45,35 +46,43 @@ class PlayCacheService(private val project: Project) {
     )
 
     fun getAllUsages(): List<PlayCacheUsage> {
-        if (DumbService.isDumb(project)) return emptyList()
-        return javaUsages() + templateUsages()
+        return ApplicationManager.getApplication().runReadAction<List<PlayCacheUsage>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            javaUsages() + templateUsages()
+        }
     }
 
     fun getUsagesByStaticKey(key: String): List<PlayCacheUsage> =
         getAllUsages().filter { (it.key as? PlayCacheKey.Static)?.value == key }
 
     fun getKnownStaticKeys(): Set<String> {
-        if (DumbService.isDumb(project)) return emptySet()
-        return getAllUsages().mapNotNullTo(sortedSetOf()) { (it.key as? PlayCacheKey.Static)?.value }
+        return ApplicationManager.getApplication().runReadAction<Set<String>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptySet()
+            getAllUsages().mapNotNullTo(sortedSetOf()) { (it.key as? PlayCacheKey.Static)?.value }
+        }
     }
 
     fun getTemplateFragments(): List<PlayCachedTemplateFragment> {
-        if (DumbService.isDumb(project)) return emptyList()
-        return templateFiles().flatMap { vf ->
-            val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-            if (!PlayCacheTemplateScanner.isEligible(psiFile)) return@flatMap emptyList()
-            CachedValuesManager.getCachedValue(psiFile) {
-                CachedValueProvider.Result.create(
-                    PlayCacheTemplateScanner.scan(psiFile),
-                    PsiModificationTracker.MODIFICATION_COUNT
-                )
+        return ApplicationManager.getApplication().runReadAction<List<PlayCachedTemplateFragment>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            templateFiles().flatMap { vf ->
+                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                if (!PlayCacheTemplateScanner.isEligible(psiFile)) return@flatMap emptyList()
+                CachedValuesManager.getCachedValue(psiFile) {
+                    CachedValueProvider.Result.create(
+                        PlayCacheTemplateScanner.scan(psiFile),
+                        PsiModificationTracker.MODIFICATION_COUNT
+                    )
+                }
             }
         }
     }
 
     fun getCachedActions(): List<PlayCachedActionInfo> {
-        if (DumbService.isDumb(project)) return emptyList()
-        return javaFilePasses().flatMap { it.cachedActions }
+        return ApplicationManager.getApplication().runReadAction<List<PlayCachedActionInfo>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            javaFilePasses().flatMap { it.cachedActions }
+        }
     }
 
     fun getDynamicUsages(): List<PlayCacheUsage> =

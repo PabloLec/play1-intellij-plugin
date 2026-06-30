@@ -3,6 +3,7 @@ package com.github.pablolec.play1toolkit.render
 import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.routes.psi.RoutesFile
 import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
@@ -14,7 +15,9 @@ import java.nio.file.Paths
 object Play1ViewUtils {
 
     fun isPlayController(psiClass: PsiClass): Boolean =
-        InheritanceUtil.isInheritor(psiClass, "play.mvc.Controller")
+        ApplicationManager.getApplication().runReadAction<Boolean> {
+            InheritanceUtil.isInheritor(psiClass, "play.mvc.Controller")
+        }
 
     fun implicitViewPath(controllerName: String, actionName: String): String =
         "app/views/$controllerName/$actionName.html"
@@ -40,12 +43,14 @@ object Play1ViewUtils {
         controllerShortName: String,
         actionName: String
     ): List<RoutesRouteElement> {
-        val routesVf = findRoutesFile(project) ?: return emptyList()
-        val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return emptyList()
-        return psiFile.getRoutes().filter { route ->
-            route.isDynamicRoute() &&
-                route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName &&
-                route.getActionName()?.text?.trim() == actionName
+        return ApplicationManager.getApplication().runReadAction<List<RoutesRouteElement>> {
+            val routesVf = findRoutesFile(project) ?: return@runReadAction emptyList()
+            val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return@runReadAction emptyList()
+            psiFile.getRoutes().filter { route ->
+                route.isDynamicRoute() &&
+                    route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName &&
+                    route.getActionName()?.text?.trim() == actionName
+            }
         }
     }
 
@@ -54,15 +59,19 @@ object Play1ViewUtils {
         project: Project,
         controllerShortName: String
     ): List<RoutesRouteElement> {
-        val routesVf = findRoutesFile(project) ?: return emptyList()
-        val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return emptyList()
-        return psiFile.getRoutes().filter { route ->
-            route.isDynamicRoute() &&
-                route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName
+        return ApplicationManager.getApplication().runReadAction<List<RoutesRouteElement>> {
+            val routesVf = findRoutesFile(project) ?: return@runReadAction emptyList()
+            val psiFile = PsiManager.getInstance(project).findFile(routesVf) as? RoutesFile ?: return@runReadAction emptyList()
+            psiFile.getRoutes().filter { route ->
+                route.isDynamicRoute() &&
+                    route.getControllerName()?.text?.trim()?.substringAfterLast('.') == controllerShortName
+            }
         }
     }
 
     /** True if [psiClass] is a Play 1 controller — checks both inheritance and package as fallback. */
     fun isPlayControllerClass(psiClass: PsiClass): Boolean =
-        isPlayController(psiClass) || psiClass.qualifiedName?.startsWith("controllers") == true
+        ApplicationManager.getApplication().runReadAction<Boolean> {
+            isPlayController(psiClass) || psiClass.qualifiedName?.startsWith("controllers") == true
+        }
 }

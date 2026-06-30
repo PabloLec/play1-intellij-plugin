@@ -5,6 +5,7 @@ import com.github.pablolec.play1toolkit.templates.model.PlayTemplateFile
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
 import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -37,32 +38,48 @@ class PlayTemplateService(private val project: Project) {
             project.getService(PlayTemplateService::class.java)
     }
 
-    fun getAllTemplates(): List<PlayTemplateFile> = cachedTemplates()
+    fun getAllTemplates(): List<PlayTemplateFile> =
+        ApplicationManager.getApplication().runReadAction<List<PlayTemplateFile>> {
+            cachedTemplates()
+        }
 
-    fun getAllCustomTags(): List<PlayCustomTagInfo> = cachedTags()
+    fun getAllCustomTags(): List<PlayCustomTagInfo> =
+        ApplicationManager.getApplication().runReadAction<List<PlayCustomTagInfo>> {
+            cachedTags()
+        }
 
     fun findTemplate(logicalPath: String): PlayTemplateFile? =
-        getAllTemplates().firstOrNull { it.logicalPath == PlayTemplateFileUtils.normalizeTemplatePath(logicalPath) }
+        ApplicationManager.getApplication().runReadAction<PlayTemplateFile?> {
+            getAllTemplates().firstOrNull { it.logicalPath == PlayTemplateFileUtils.normalizeTemplatePath(logicalPath) }
+        }
 
     fun findTag(qualifiedName: String): PlayCustomTagInfo? =
-        getAllCustomTags().firstOrNull { it.qualifiedName == qualifiedName }
+        ApplicationManager.getApplication().runReadAction<PlayCustomTagInfo?> {
+            getAllCustomTags().firstOrNull { it.qualifiedName == qualifiedName }
+        }
 
     fun findTagBySimpleName(name: String): PlayCustomTagInfo? =
-        getAllCustomTags().firstOrNull { it.name == name }
+        ApplicationManager.getApplication().runReadAction<PlayCustomTagInfo?> {
+            getAllCustomTags().firstOrNull { it.name == name }
+        }
 
     fun findLikelyRenderingActions(templateFile: VirtualFile) =
-        cachedTemplates()
-            .firstOrNull { it.virtualFile == templateFile }
-            ?.takeIf { it.controllerName != null && it.actionName != null }
+        ApplicationManager.getApplication().runReadAction<PlayTemplateFile?> {
+            cachedTemplates()
+                .firstOrNull { it.virtualFile == templateFile }
+                ?.takeIf { it.controllerName != null && it.actionName != null }
+        }
 
     fun findLikelyRenderingMethods(templateFile: VirtualFile): List<PsiMethod> {
-        val template = cachedTemplates().firstOrNull { it.virtualFile == templateFile } ?: return emptyList()
-        val controllerName = template.controllerName ?: return emptyList()
-        val actionName = template.actionName ?: return emptyList()
-        val method = com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
-            .resolveMethod(project, controllerName, actionName)
-            ?: return emptyList()
-        return listOf(method)
+        return ApplicationManager.getApplication().runReadAction<List<PsiMethod>> {
+            val template = cachedTemplates().firstOrNull { it.virtualFile == templateFile } ?: return@runReadAction emptyList()
+            val controllerName = template.controllerName ?: return@runReadAction emptyList()
+            val actionName = template.actionName ?: return@runReadAction emptyList()
+            val method = com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
+                .resolveMethod(project, controllerName, actionName)
+                ?: return@runReadAction emptyList()
+            listOf(method)
+        }
     }
 
     private fun cachedTemplates(): List<PlayTemplateFile> {

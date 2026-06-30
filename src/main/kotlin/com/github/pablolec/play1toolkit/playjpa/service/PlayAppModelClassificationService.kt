@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.playjpa.service
 
 import com.github.pablolec.play1toolkit.playjpa.model.PlayAppModelEntry
 import com.github.pablolec.play1toolkit.playjpa.util.PlayJpaModelUtils
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -22,24 +23,26 @@ class PlayAppModelClassificationService(private val project: Project) {
     }
 
     fun getAllEntries(): List<PlayAppModelEntry> {
-        if (DumbService.isDumb(project)) return emptyList()
-        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
-        return javaFiles
-            .filter { it.path.contains("/app/models/") }
-            .flatMap { vf ->
-                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-                CachedValuesManager.getCachedValue(psiFile) {
-                    val javaFile = psiFile as? PsiJavaFile
-                    if (javaFile == null) {
-                        CachedValueProvider.Result.create(emptyList<PlayAppModelEntry>(), PsiModificationTracker.MODIFICATION_COUNT)
-                    } else {
-                        CachedValueProvider.Result.create(
-                            buildEntriesFromFile(javaFile),
-                            PsiModificationTracker.MODIFICATION_COUNT
-                        )
+        return ApplicationManager.getApplication().runReadAction<List<PlayAppModelEntry>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
+            javaFiles
+                .filter { it.path.contains("/app/models/") }
+                .flatMap { vf ->
+                    val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                    CachedValuesManager.getCachedValue(psiFile) {
+                        val javaFile = psiFile as? PsiJavaFile
+                        if (javaFile == null) {
+                            CachedValueProvider.Result.create(emptyList<PlayAppModelEntry>(), PsiModificationTracker.MODIFICATION_COUNT)
+                        } else {
+                            CachedValueProvider.Result.create(
+                                buildEntriesFromFile(javaFile),
+                                PsiModificationTracker.MODIFICATION_COUNT
+                            )
+                        }
                     }
                 }
-            }
+        }
     }
 
     private fun buildEntriesFromFile(javaFile: PsiJavaFile): List<PlayAppModelEntry> {

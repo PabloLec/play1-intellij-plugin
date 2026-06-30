@@ -8,13 +8,22 @@ import com.github.pablolec.play1toolkit.run.Play1RunConfigurationSupport
 import com.github.pablolec.play1toolkit.run.Play1RunConfigurationType
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.ConfigurationTypeUtil
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
+import javax.swing.SwingUtilities
 
 object Play1RunConfigManager {
 
     private const val RUN_CONFIG_NAME = "Play v1 App"
 
     fun createRunConfiguration(project: Project, report: RepairReport, applicationPath: String? = project.basePath) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            ApplicationManager.getApplication().invokeAndWait {
+                createRunConfiguration(project, report, applicationPath)
+            }
+            return
+        }
+
         val runManager = RunManager.getInstance(project)
 
         val availableProfiles = availableProfiles(project)

@@ -3,6 +3,7 @@ package com.github.pablolec.play1toolkit.playmessages.service
 import com.github.pablolec.play1toolkit.playmessages.model.PlayMessageEntry
 import com.github.pablolec.play1toolkit.playmessages.psi.PlayMessagesFile
 import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -49,24 +50,28 @@ class PlayMessagesService(private val project: Project) {
     }
 
     fun getMessagesFiles(): List<PlayMessagesFile> {
-        if (DumbService.isDumb(project)) return emptyList()
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return emptyList()
-        val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return emptyList()
-        val confDir = baseDir.findChild("conf") ?: return emptyList()
-        return confDir.children
-            .filter { it.name == "messages" || it.name.startsWith("messages.") }
-            .mapNotNull { PsiManager.getInstance(project).findFile(it) as? PlayMessagesFile }
+        return ApplicationManager.getApplication().runReadAction<List<PlayMessagesFile>> {
+            if (DumbService.isDumb(project)) return@runReadAction emptyList()
+            val basePath = Play1ProjectPaths.applicationPath(project) ?: return@runReadAction emptyList()
+            val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return@runReadAction emptyList()
+            val confDir = baseDir.findChild("conf") ?: return@runReadAction emptyList()
+            confDir.children
+                .filter { it.name == "messages" || it.name.startsWith("messages.") }
+                .mapNotNull { PsiManager.getInstance(project).findFile(it) as? PlayMessagesFile }
+        }
     }
 
     fun allEntries(): List<PlayMessageEntry> {
-        val files = getMessagesFiles()
-        if (files.isEmpty()) return emptyList()
-        return files.flatMap { file ->
-            CachedValuesManager.getCachedValue(file) {
-                CachedValueProvider.Result.create(
-                    buildEntries(file),
-                    PsiModificationTracker.MODIFICATION_COUNT
-                )
+        return ApplicationManager.getApplication().runReadAction<List<PlayMessageEntry>> {
+            val files = getMessagesFiles()
+            if (files.isEmpty()) return@runReadAction emptyList()
+            files.flatMap { file ->
+                CachedValuesManager.getCachedValue(file) {
+                    CachedValueProvider.Result.create(
+                        buildEntries(file),
+                        PsiModificationTracker.MODIFICATION_COUNT
+                    )
+                }
             }
         }
     }

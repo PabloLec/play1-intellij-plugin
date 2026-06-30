@@ -51,7 +51,7 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
     private val listeners = CopyOnWriteArrayList<(State) -> Unit>()
     private val sessionCounter = AtomicLong()
     private val startupWarningMillis = TimeUnit.MINUTES.toMillis(2)
-    private val wakeUpReadTimeoutMillis = TimeUnit.MINUTES.toMillis(10)
+    private val wakeUpReadTimeoutMillis = TimeUnit.SECONDS.toMillis(5)
     private val probeIntervalMillis = TimeUnit.SECONDS.toMillis(2)
 
     @Volatile
@@ -68,6 +68,9 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
     private var wakeUpStarted: Boolean = false
 
     @Volatile
+    private var processMonitor: ProcessMonitor? = null
+
+    @Volatile
     private var readyNotificationShown: Boolean = false
 
     @Synchronized
@@ -76,6 +79,7 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
         activeSessionId = sessionId
         cancelProbe()
         wakeUpStarted = false
+        processMonitor = null
         readyNotificationShown = false
         update(
             State(
@@ -92,11 +96,18 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
     }
 
     @Synchronized
+    fun monitorProcess(sessionId: Long, isRunning: () -> Boolean, exitCode: () -> Int?) {
+        if (activeSessionId != sessionId) return
+        processMonitor = ProcessMonitor(sessionId, isRunning, exitCode)
+    }
+
+    @Synchronized
     fun processTerminated(sessionId: Long, exitCode: Int) {
         if (activeSessionId != sessionId) return
         activeSessionId = null
         cancelProbe()
         wakeUpStarted = false
+        processMonitor = null
         val nextState = state.copy(
             serverStatus = if (exitCode == 0) ServerStatus.STOPPED else ServerStatus.FAILED,
             applicationStatus = ApplicationStatus.UNKNOWN,
@@ -127,18 +138,26 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
         )
     }
 
-    private fun probe(sessionId: Long, httpPort: Int) {
+    internal fun probe(sessionId: Long, httpPort: Int) {
         if (activeSessionId != sessionId) return
+        val monitor = processMonitor
+        if (monitor?.sessionId == sessionId && !monitor.isRunning()) {
+            processTerminated(sessionId, monitor.exitCode() ?: -1)
+            return
+        }
 
         val startedAt = state.startedAt ?: Instant.now()
         val elapsedMillis = Instant.now().toEpochMilli() - startedAt.toEpochMilli()
 
         if (!isPortOpen(httpPort)) {
+            val wasAlreadyOpen = state.serverStatus == ServerStatus.RUNNING || state.applicationStatus == ApplicationStatus.WAKING
             update(
                 state.copy(
                     serverStatus = ServerStatus.STARTING,
                     applicationStatus = ApplicationStatus.WAITING_FOR_SERVER,
-                    message = if (elapsedMillis > startupWarningMillis) {
+                    message = if (wasAlreadyOpen) {
+                        "The Play HTTP server on port $httpPort is not reachable anymore; waiting for it to come back."
+                    } else if (elapsedMillis > startupWarningMillis) {
                         "Still waiting for the Play HTTP server on port $httpPort."
                     } else {
                         "Waiting for the Play HTTP server on port $httpPort."
@@ -161,6 +180,7 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
 
         val wakeUpStartedAt = Instant.now()
         val wakeUpResult = wakeApplication(httpPort)
+        if (activeSessionId != sessionId) return
         if (wakeUpResult.successful) {
             val readyAt = Instant.now()
             cancelProbe()
@@ -175,6 +195,7 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
             update(nextState)
             notifyReady(nextState)
         } else {
+            if (activeSessionId != sessionId) return
             wakeUpStarted = false
             update(
                 state.copy(
@@ -279,6 +300,12 @@ class Play1ApplicationRuntimeService(private val project: Project) : Disposable 
         val successful: Boolean,
         val statusCode: Int?,
         val message: String,
+    )
+
+    private data class ProcessMonitor(
+        val sessionId: Long,
+        val isRunning: () -> Boolean,
+        val exitCode: () -> Int?,
     )
 
     private object DurationFormatter {

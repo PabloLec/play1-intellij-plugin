@@ -60,6 +60,11 @@ class Play1ApplicationRunState(
         handler.addProcessListener(debugEnvironmentReporter(command))
         val runtimeService = Play1ApplicationRuntimeService.getInstance(environment.project)
         val sessionId = runtimeService.processStarted(config.name, config.httpPort)
+        runtimeService.monitorProcess(
+            sessionId = sessionId,
+            isRunning = { !handler.isProcessTerminated && !handler.isProcessTerminating },
+            exitCode = { handler.exitCode },
+        )
         handler.addProcessListener(object : ProcessListener {
             override fun processTerminated(event: ProcessEvent) {
                 runtimeService.processTerminated(sessionId, event.exitCode)

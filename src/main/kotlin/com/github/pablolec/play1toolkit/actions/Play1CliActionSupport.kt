@@ -9,6 +9,7 @@ import com.github.pablolec.play1toolkit.project.Play1CliResult
 import com.github.pablolec.play1toolkit.project.Play1CliResultReason
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
+import com.github.pablolec.play1toolkit.run.Play1JavaEnvironmentResolver
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.execution.filters.TextConsoleBuilderFactory
@@ -65,6 +66,7 @@ object Play1CliActionSupport {
                 }
 
                 val requestedVersion = Play1HomeValidator.validate(Paths.get(playHome)).playVersion
+                val javaEnvironment = Play1JavaEnvironmentResolver.resolve(project, basePath)
                 val plan = Play1CliRunner.plan(
                     request = request,
                     projectPath = basePath,
@@ -80,7 +82,26 @@ object Play1CliActionSupport {
                 }
                 plan.effectivePlayVersion?.let { print("Play Version: $it") }
                 plan.runtimeDescription?.let { print("Runtime: $it") }
+                javaEnvironment?.sdkHomePath?.let { print("Java Home: $it") }
                 print("")
+
+                if (javaEnvironment == null) {
+                    val result = Play1CliResult(
+                        request = request,
+                        success = false,
+                        skipped = true,
+                        message = "No valid Java SDK is configured. Configure a module SDK or a project SDK.",
+                        reason = Play1CliResultReason.START_FAILURE,
+                        effectivePlayHome = plan.effectivePlayHome,
+                        effectivePlayVersion = plan.effectivePlayVersion,
+                        runtimeDescription = plan.runtimeDescription,
+                        requiredPythonMajor = plan.requiredPythonMajor,
+                    )
+                    finish(project, request.commandId, result, { text, type -> print(text, type) }, playHome, basePath)
+                    executionService.finish()
+                    onFinished?.let { callback -> ApplicationManager.getApplication().invokeLater { callback(result) } }
+                    return
+                }
 
                 if (!plan.available) {
                     val result = Play1CliResult(
@@ -111,6 +132,7 @@ object Play1CliActionSupport {
                     projectPath = basePath,
                     playHome = playHome,
                     projectPlayVersion = requestedVersion,
+                    environmentOverrides = javaEnvironment.env,
                     indicator = indicator,
                     onProcessStarted = { executionService.attachProcess(it) },
                     shouldStop = { executionService.stopRequested },

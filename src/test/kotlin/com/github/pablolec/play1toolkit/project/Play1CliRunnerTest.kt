@@ -169,6 +169,39 @@ class Play1CliRunnerTest {
         assertEquals("Native launcher", plan.runtimeDescription)
     }
 
+    @Test
+    fun `run applies java environment overrides to play command process`() {
+        val playHome = createPlayHome(
+            name = "env-play-home",
+            jarName = "play-1.5.3.jar",
+            version = "1.5.3",
+            commands = listOf("clean"),
+            launcher = """
+                #!/bin/sh
+                echo "JAVA_HOME=${'$'}JAVA_HOME"
+                echo "PATH=${'$'}PATH"
+            """.trimIndent(),
+        )
+        val projectDir = createProjectDir(withDependenciesFile = false)
+        val lines = mutableListOf<String>()
+
+        val result = Play1CliRunner.run(
+            request = Play1CliRequest(Play1CliCommandId.CLEAN),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            environmentOverrides = mapOf(
+                "JAVA_HOME" to "/jdks/current",
+                "PATH" to "/jdks/current/bin:/usr/bin",
+            ),
+            onLine = { line, _ -> lines.add(line) },
+        )
+
+        assertTrue(result.success)
+        assertTrue(lines.any { it == "JAVA_HOME=/jdks/current" })
+        assertTrue(lines.any { it == "PATH=/jdks/current/bin:/usr/bin" })
+    }
+
     private fun createProjectDir(withDependenciesFile: Boolean): File {
         val projectDir = tempDir.newFolder("project-${System.nanoTime()}")
         File(projectDir, "conf").mkdirs()

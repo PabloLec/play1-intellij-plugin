@@ -26,6 +26,7 @@ object Play1DepsRunner {
         projectPath: String,
         playHome: String,
         playVersion: String? = null,
+        environmentOverrides: Map<String, String> = emptyMap(),
         indicator: ProgressIndicator? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
     ): DepsResult {
@@ -34,6 +35,7 @@ object Play1DepsRunner {
             projectPath = projectPath,
             playHome = playHome,
             projectPlayVersion = playVersion,
+            environmentOverrides = environmentOverrides,
             indicator = indicator,
             onLine = onLine,
         )

@@ -179,6 +179,7 @@ object Play1CliRunner {
         projectPath: String,
         playHome: String,
         projectPlayVersion: String? = null,
+        environmentOverrides: Map<String, String> = emptyMap(),
         indicator: ProgressIndicator? = null,
         onLine: (line: String, isError: Boolean) -> Unit = { _, _ -> },
         onProcessStarted: (Process) -> Unit = {},
@@ -202,7 +203,13 @@ object Play1CliRunner {
                 depsPlayHome = materialized,
             )
         } else {
-            plan(request, projectPath, playHome, projectPlayVersion)
+            plan(
+                request = request,
+                projectPath = projectPath,
+                playHome = playHome,
+                projectPlayVersion = projectPlayVersion,
+                depsPlayHome = "",
+            )
         }
         if (!plan.available) {
             return Play1CliResult(
@@ -253,9 +260,13 @@ object Play1CliRunner {
         onLine("$ ${fullCommand.joinToString(" ")}", false)
 
         val process = try {
-            ProcessBuilder(fullCommand)
+            val processBuilder = ProcessBuilder(fullCommand)
                 .directory(File(projectPath))
                 .redirectErrorStream(true)
+            if (environmentOverrides.isNotEmpty()) {
+                processBuilder.environment().putAll(environmentOverrides)
+            }
+            processBuilder
                 .start()
         } catch (ex: Exception) {
             return Play1CliResult(

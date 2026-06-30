@@ -8,6 +8,7 @@ import com.github.pablolec.play1toolkit.project.Play1DepsRunner
 import com.github.pablolec.play1toolkit.project.Play1LibraryManager
 import com.github.pablolec.play1toolkit.project.Play1RunConfigManager
 import com.github.pablolec.play1toolkit.project.Play1SourceRootManager
+import com.github.pablolec.play1toolkit.run.Play1JavaEnvironmentResolver
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -98,24 +99,35 @@ class RepairProjectSetupAction : AnAction() {
             report.ok("Play home", playHomePath)
             report.ok("Play version", validation.playVersion ?: "unknown")
 
-            indicator.text = "Resolving dependencies..."
-            val depsResult = Play1DepsRunner.run(
-                projectPath = applicationPath,
-                playHome = playHomePath,
-                playVersion = validation.playVersion,
-                indicator = indicator,
-            )
-
-            when {
-                depsResult.success -> report.ok("play deps", depsResult.message)
-                else -> report.skipped(
-                    "play deps",
-                    listOfNotNull(depsResult.message, depsResult.detail).joinToString(" — ").ifBlank { depsResult.message }
-                )
-            }
-
             indicator.text = "Configuring Project SDK..."
             configureProjectSdk(project, report)
+            val javaEnvironment = Play1JavaEnvironmentResolver.resolve(project, applicationPath)
+            if (javaEnvironment == null) {
+                report.error("Java runtime", "No valid Java SDK configured")
+            } else {
+                report.ok("Java runtime", javaEnvironment.sdkHomePath)
+            }
+
+            indicator.text = "Resolving dependencies..."
+            if (javaEnvironment == null) {
+                report.skipped("play deps", "No valid Java SDK configured")
+            } else {
+                val depsResult = Play1DepsRunner.run(
+                    projectPath = applicationPath,
+                    playHome = playHomePath,
+                    playVersion = validation.playVersion,
+                    environmentOverrides = javaEnvironment.env,
+                    indicator = indicator,
+                )
+
+                when {
+                    depsResult.success -> report.ok("play deps", depsResult.message)
+                    else -> report.skipped(
+                        "play deps",
+                        listOfNotNull(depsResult.message, depsResult.detail).joinToString(" — ").ifBlank { depsResult.message }
+                    )
+                }
+            }
 
             indicator.text = "Attaching Play libraries..."
             Play1LibraryManager.attachLibraries(project, playHome, report, applicationPath)

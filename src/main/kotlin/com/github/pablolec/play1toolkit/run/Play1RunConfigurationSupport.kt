@@ -108,9 +108,12 @@ internal object Play1RunConfigurationSupport {
         configuredEnv: Map<String, String>,
         inheritedPath: String? = System.getenv("PATH"),
         pathSeparator: String = File.pathSeparator,
+        inheritedEnvKeys: Set<String> = System.getenv().keys,
     ): Map<String, String> {
         val javaBinPath = Paths.get(sdkHomePath).resolve("bin").toString()
-        val pathKey = configuredEnv.keys.firstOrNull { it.equals("PATH", ignoreCase = true) } ?: "PATH"
+        val pathKey = configuredEnv.keys.firstOrNull { it.equals("PATH", ignoreCase = true) }
+            ?: inheritedEnvKeys.firstOrNull { it.equals("PATH", ignoreCase = true) }
+            ?: "PATH"
         val configuredPath = configuredEnv[pathKey]?.takeIf { it.isNotBlank() }
         val existingPath = configuredPath ?: inheritedPath.orEmpty()
         val pathEntries = existingPath

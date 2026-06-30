@@ -126,4 +126,30 @@ class Play1RunConfigurationSupportTest {
 
         assertEquals("/jdks/current/bin:/usr/bin", env["PATH"])
     }
+
+    @Test
+    fun `buildJavaSdkEnvironment preserves windows path key and separator`() {
+        val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
+            sdkHomePath = """C:\Java\jdk-21""",
+            configuredEnv = mapOf("Path" to """C:\Tools;C:\Windows\System32"""),
+            inheritedPath = """C:\Ignored""",
+            pathSeparator = ";",
+        )
+
+        assertEquals("""C:\Java\jdk-21""", env["JAVA_HOME"])
+        assertEquals("""C:\Java\jdk-21/bin;C:\Tools;C:\Windows\System32""", env["Path"])
+    }
+
+    @Test
+    fun `buildJavaSdkEnvironment preserves inherited windows path key when no path is configured`() {
+        val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
+            sdkHomePath = """C:\Java\jdk-21""",
+            configuredEnv = emptyMap(),
+            inheritedPath = """C:\Windows\System32""",
+            pathSeparator = ";",
+            inheritedEnvKeys = setOf("Path"),
+        )
+
+        assertEquals("""C:\Java\jdk-21/bin;C:\Windows\System32""", env["Path"])
+    }
 }

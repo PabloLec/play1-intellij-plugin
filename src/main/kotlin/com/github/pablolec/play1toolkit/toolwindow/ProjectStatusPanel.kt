@@ -8,7 +8,9 @@ import com.github.pablolec.play1toolkit.project.Play1CliCommandGroup
 import com.github.pablolec.play1toolkit.project.Play1CliCommandId
 import com.github.pablolec.play1toolkit.project.Play1CliRequest
 import com.github.pablolec.play1toolkit.project.Play1CliRunner
+import com.github.pablolec.play1toolkit.playconfig.service.PlayConfigService
 import com.github.pablolec.play1toolkit.run.Play1RunConfigurationType
+import com.github.pablolec.play1toolkit.run.Play1RunConfigurationSupport
 import com.github.pablolec.play1toolkit.runtime.Play1ApplicationRuntimeService
 import com.github.pablolec.play1toolkit.services.Play1CommandExecutionService
 import com.github.pablolec.play1toolkit.services.Play1ProjectService
@@ -19,6 +21,7 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
@@ -30,6 +33,7 @@ import java.awt.Font
 import java.time.Duration
 import java.nio.file.Paths
 import javax.swing.BoxLayout
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -54,6 +58,8 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val runtimeReadinessLabel = JBLabel()
     private val runtimeTimingLabel = JBLabel()
     private val runtimeUrlLabel = JBLabel()
+    private val testProfileCombo = ComboBox<String>()
+    private val testProfileStatusLabel = JBLabel()
     private val runtimeMessageLabel = JBTextArea().apply {
         isEditable = false
         isFocusable = false
@@ -68,6 +74,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private val commandStatusLabels = linkedMapOf<Play1CliCommandId, JBLabel>()
     private var executionListenerDisposer: (() -> Unit)? = null
     private var runtimeListenerDisposer: (() -> Unit)? = null
+    private var refreshingTestProfiles = false
     private var lastRuntimeState: Play1ApplicationRuntimeService.State = Play1ApplicationRuntimeService.State()
     private val runtimeTimer = Timer(1_000) {
         refreshRuntimeStatus(lastRuntimeState)
@@ -84,6 +91,12 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
         runAppButton.addActionListener { launchRunConfiguration(debug = false) }
         debugAppButton.addActionListener { launchRunConfiguration(debug = true) }
+        testProfileCombo.addActionListener {
+            if (!refreshingTestProfiles) {
+                Play1Settings.getInstance().testPlayId = selectedTestProfile().orEmpty()
+                refresh()
+            }
+        }
         executionListenerDisposer = Play1CommandExecutionService.getInstance(project).addListener {
             com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater { refresh() }
         }
@@ -105,6 +118,8 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         val executionService = Play1CommandExecutionService.getInstance(project)
         val playHome = settings.playHome
         val validation = if (playHome.isBlank()) null else Play1HomeValidator.validate(Paths.get(playHome))
+        val availableProfiles = if (isPlay1) availableProfiles() else emptyList()
+        updateTestProfileCombo(availableProfiles)
 
         if (playHome.isBlank()) {
             playHomeLabel.text = "Play Home: not configured"
@@ -174,7 +189,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                 validation?.valid != true -> "Configure a valid Play Home to enable this command"
                 commandRunningHere -> "Command in progress…"
                 plan == null -> "Unavailable"
-                plan.available -> commandId.description
+                plan.available -> commandDescription(commandId)
                 else -> plan.message
             }
         }
@@ -229,7 +244,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                     commandStatusLabels[commandId] = status
                     Triple(button, status, commandId.displayName)
             }
-            content.add(commandsSection(group.title, rows))
+            content.add(commandsSection(group.title, rows, if (group == Play1CliCommandGroup.BUILD_TEST) testProfileSelector() else null))
         }
 
         content.add(section("Project", playDetectedLabel, playApplicationPathLabel, playHomeLabel, playVersionLabel, cliRuntimeLabel, depsModeLabel, runConfigLabel))
@@ -276,7 +291,11 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         return panel
     }
 
-    private fun commandsSection(title: String, rows: List<Triple<JButton, JBLabel, String>>): JPanel {
+    private fun commandsSection(
+        title: String,
+        rows: List<Triple<JButton, JBLabel, String>>,
+        headerComponent: JComponent? = null,
+    ): JPanel {
         val panel = JPanel().apply {
             layout = BoxLayout(this, BoxLayout.Y_AXIS)
             border = JBUI.Borders.empty(10, 0)
@@ -284,6 +303,7 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
             isOpaque = false
         }
         panel.add(JBLabel(title).apply { border = JBUI.Borders.emptyBottom(6) })
+        headerComponent?.let { panel.add(it) }
         rows.forEach { (button, statusLabel, _) ->
             val row = JPanel(BorderLayout(8, 0)).apply {
                 isOpaque = false
@@ -297,6 +317,21 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         }
         panel.maximumSize = Dimension(Int.MAX_VALUE, Short.MAX_VALUE.toInt())
         return panel
+    }
+
+    private fun testProfileSelector(): JPanel {
+        return JPanel(BorderLayout(8, 0)).apply {
+            isOpaque = false
+            alignmentX = LEFT_ALIGNMENT
+            border = JBUI.Borders.empty(0, 0, 6, 0)
+            add(JBLabel("Test profile:"), BorderLayout.WEST)
+            add(testProfileCombo.apply {
+                preferredSize = Dimension(180, preferredSize.height)
+                minimumSize = Dimension(140, preferredSize.height)
+            }, BorderLayout.CENTER)
+            add(testProfileStatusLabel, BorderLayout.EAST)
+            maximumSize = Dimension(Int.MAX_VALUE, preferredSize.height)
+        }
     }
 
     private fun readinessSection(): JPanel {
@@ -336,6 +371,8 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
                 if (!dialog.showAndGet()) return
                 Play1CliRequest(commandId, warOutputPath = dialog.outputPath, warZip = dialog.zipAsWar)
             }
+            Play1CliCommandId.TEST,
+            Play1CliCommandId.AUTOTEST -> Play1CliRequest(commandId, profile = selectedTestProfile())
             else -> Play1CliRequest(commandId)
         }
 
@@ -413,6 +450,53 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
     private fun findPlayConfiguration() =
         RunManager.getInstance(project).allSettings.firstOrNull { it.type is Play1RunConfigurationType }
 
+    private fun availableProfiles(): List<String> = try {
+        PlayConfigService.getInstance(project).availableProfiles()
+    } catch (_: Exception) {
+        emptyList()
+    }
+
+    private fun updateTestProfileCombo(availableProfiles: List<String>) {
+        val selected = Play1RunConfigurationSupport.selectInitialTestProfile(
+            configuredDefault = Play1Settings.getInstance().testPlayId,
+            availableProfiles = availableProfiles,
+        )
+        refreshingTestProfiles = true
+        try {
+            val values = buildList {
+                add(DEFAULT_TEST_PROFILE_LABEL)
+                addAll(availableProfiles)
+                if (selected.isNotBlank() && selected !in availableProfiles) {
+                    add(selected)
+                }
+            }
+            testProfileCombo.model = DefaultComboBoxModel(values.toTypedArray())
+            testProfileCombo.selectedItem = selected.takeIf { it.isNotBlank() } ?: DEFAULT_TEST_PROFILE_LABEL
+            testProfileCombo.isEnabled = availableProfiles.isNotEmpty()
+            testProfileStatusLabel.text = when {
+                selected.isNotBlank() -> "--%$selected"
+                availableProfiles.isEmpty() -> "No profile detected"
+                else -> "Default"
+            }
+        } finally {
+            refreshingTestProfiles = false
+        }
+    }
+
+    private fun selectedTestProfile(): String? {
+        val selected = testProfileCombo.selectedItem as? String ?: return null
+        return selected.takeIf { it != DEFAULT_TEST_PROFILE_LABEL }?.trim()?.takeIf { it.isNotBlank() }
+    }
+
+    private fun commandDescription(commandId: Play1CliCommandId): String {
+        val profile = selectedTestProfile()
+        return when {
+            commandId in setOf(Play1CliCommandId.TEST, Play1CliCommandId.AUTOTEST) && !profile.isNullOrBlank() ->
+                "${commandId.description} with --%$profile"
+            else -> commandId.description
+        }
+    }
+
     private fun runtimeReadinessText(state: Play1ApplicationRuntimeService.State): String {
         return when (state.applicationStatus) {
             Play1ApplicationRuntimeService.ApplicationStatus.RUNNING ->
@@ -481,5 +565,9 @@ class ProjectStatusPanel(private val project: Project) : JBPanel<ProjectStatusPa
         executionListenerDisposer = null
         runtimeListenerDisposer?.invoke()
         runtimeListenerDisposer = null
+    }
+
+    companion object {
+        private const val DEFAULT_TEST_PROFILE_LABEL = "Default"
     }
 }

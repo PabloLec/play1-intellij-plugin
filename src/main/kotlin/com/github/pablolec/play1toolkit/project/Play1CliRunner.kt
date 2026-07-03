@@ -441,8 +441,11 @@ object Play1CliRunner {
 
     private fun buildArgs(request: Play1CliRequest, commandName: String): List<String> = when (request.commandId) {
         Play1CliCommandId.CLEAN -> listOf(commandName)
-        Play1CliCommandId.TEST -> listOf(commandName)
-        Play1CliCommandId.AUTOTEST -> listOf(commandName)
+        Play1CliCommandId.TEST,
+        Play1CliCommandId.AUTOTEST -> buildList {
+            add(commandName)
+            request.profile?.trim()?.takeIf { it.isNotBlank() }?.let { add("--%$it") }
+        }
         Play1CliCommandId.PRECOMPILE -> listOf(commandName)
         Play1CliCommandId.DEPS -> listOf(commandName)
         Play1CliCommandId.WAR -> buildList {

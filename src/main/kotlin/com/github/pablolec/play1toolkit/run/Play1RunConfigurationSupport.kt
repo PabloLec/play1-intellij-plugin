@@ -69,6 +69,21 @@ internal object Play1RunConfigurationSupport {
         return configured
     }
 
+    fun selectInitialTestProfile(
+        configuredDefault: String,
+        availableProfiles: Collection<String>,
+        osName: String = System.getProperty("os.name"),
+    ): String {
+        val profiles = availableProfiles.mapTo(linkedSetOf()) { it.trim() }.filter { it.isNotBlank() }.toSet()
+        val configured = configuredDefault.trim()
+        if (configured.isNotBlank() && configured in profiles) {
+            return configured
+        }
+
+        testProfileCandidates(osName).firstOrNull { it in profiles }?.let { return it }
+        return configured.takeIf { it.isNotBlank() } ?: profiles.firstOrNull { it.contains("test", ignoreCase = true) }.orEmpty()
+    }
+
     fun resolveModule(project: Project, applicationPath: String): Module? {
         val modules = ModuleManager.getInstance(project).modules
         if (modules.isEmpty()) {
@@ -164,6 +179,16 @@ internal object Play1RunConfigurationSupport {
             "mac" in normalized || "darwin" in normalized -> listOf("macos", "mac", "osx", "darwin")
             "windows" in normalized -> listOf("windows", "win")
             else -> emptyList()
+        }
+    }
+
+    private fun testProfileCandidates(osName: String): List<String> {
+        val osProfiles = currentOsProfileCandidates(osName)
+        return buildList {
+            osProfiles.forEach { add("test-$it") }
+            osProfiles.forEach { add("${it}-test") }
+            add("test")
+            addAll(osProfiles)
         }
     }
 }

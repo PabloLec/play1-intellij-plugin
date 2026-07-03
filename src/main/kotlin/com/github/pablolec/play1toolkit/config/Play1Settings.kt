@@ -14,6 +14,7 @@ class Play1Settings : PersistentStateComponent<Play1Settings.State> {
         var playHome: String = "",
         var depsPlayHome: String = "",
         var defaultPlayId: String = "dev",
+        var testPlayId: String = "",
         var defaultHttpPort: Int = 9000,
         var defaultDebugPort: Int = 5005,
         var autoRepairOnOpen: Boolean = true
@@ -38,6 +39,10 @@ class Play1Settings : PersistentStateComponent<Play1Settings.State> {
     var defaultPlayId: String
         get() = state.defaultPlayId
         set(value) { state.defaultPlayId = value }
+
+    var testPlayId: String
+        get() = state.testPlayId
+        set(value) { state.testPlayId = value }
 
     var defaultHttpPort: Int
         get() = state.defaultHttpPort

@@ -92,6 +92,40 @@ class Play1CliRunnerTest {
     }
 
     @Test
+    fun `test command includes selected profile argument`() {
+        val playHome = createPlayHome("test-play-home", "play-1.5.3.jar", "1.5.3", listOf("test"))
+        val projectDir = createProjectDir(withDependenciesFile = false)
+
+        val plan = Play1CliRunner.plan(
+            request = Play1CliRequest(Play1CliCommandId.TEST, profile = "test-linux"),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            depsPlayHome = "",
+        )
+
+        assertTrue(plan.available)
+        assertEquals(listOf("test", "--%test-linux"), plan.args)
+    }
+
+    @Test
+    fun `autotest command includes selected profile argument`() {
+        val playHome = createPlayHome("autotest-play-home", "play-1.5.3.jar", "1.5.3", listOf("autotest"))
+        val projectDir = createProjectDir(withDependenciesFile = false)
+
+        val plan = Play1CliRunner.plan(
+            request = Play1CliRequest(Play1CliCommandId.AUTOTEST, profile = "test-linux"),
+            projectPath = projectDir.absolutePath,
+            playHome = playHome.absolutePath,
+            projectPlayVersion = "1.5.3",
+            depsPlayHome = "",
+        )
+
+        assertTrue(plan.available)
+        assertEquals(listOf("autotest", "--%test-linux"), plan.args)
+    }
+
+    @Test
     fun `python 3 play launcher is detected from shebang`() {
         val playHome = createPlayHome(
             name = "python3-play-home",

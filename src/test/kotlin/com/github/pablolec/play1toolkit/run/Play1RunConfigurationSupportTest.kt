@@ -91,6 +91,39 @@ class Play1RunConfigurationSupportTest {
     }
 
     @Test
+    fun `selectInitialTestProfile prefers configured test profile when it exists`() {
+        val selected = Play1RunConfigurationSupport.selectInitialTestProfile(
+            configuredDefault = "test-docker",
+            availableProfiles = listOf("test-linux", "test-docker"),
+            osName = "Linux",
+        )
+
+        assertEquals("test-docker", selected)
+    }
+
+    @Test
+    fun `selectInitialTestProfile prefers current os test profile`() {
+        val selected = Play1RunConfigurationSupport.selectInitialTestProfile(
+            configuredDefault = "",
+            availableProfiles = listOf("dev", "test-linux", "test-windows"),
+            osName = "Linux",
+        )
+
+        assertEquals("test-linux", selected)
+    }
+
+    @Test
+    fun `selectInitialTestProfile falls back to generic test profile`() {
+        val selected = Play1RunConfigurationSupport.selectInitialTestProfile(
+            configuredDefault = "",
+            availableProfiles = listOf("dev", "test"),
+            osName = "Linux",
+        )
+
+        assertEquals("test", selected)
+    }
+
+    @Test
     fun `buildJavaSdkEnvironment uses sdk as java home and prepends java bin to configured path`() {
         val env = Play1RunConfigurationSupport.buildJavaSdkEnvironment(
             sdkHomePath = "/jdks/current",

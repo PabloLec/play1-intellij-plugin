@@ -45,6 +45,7 @@ enum class Play1CliCommandId(
 
 data class Play1CliRequest(
     val commandId: Play1CliCommandId,
+    val profile: String? = null,
     val warOutputPath: String? = null,
     val warZip: Boolean = false,
 )

@@ -37,9 +37,7 @@ class PlayConfigService(private val project: Project) {
 
     private fun getConfigFileUnderReadAction(): PlayConfigFile? {
         if (DumbService.isDumb(project)) return null
-        val baseDir = Play1ProjectPaths.applicationPath(project)
-            ?.let { com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath(it) }
-            ?: return null
+        val baseDir = Play1ProjectPaths.applicationRoot(project) ?: return null
         val confFile = baseDir.findFileByRelativePath("conf/application.conf") ?: return null
         val psiFile = PsiManager.getInstance(project).findFile(confFile) ?: return null
         return psiFile as? PlayConfigFile

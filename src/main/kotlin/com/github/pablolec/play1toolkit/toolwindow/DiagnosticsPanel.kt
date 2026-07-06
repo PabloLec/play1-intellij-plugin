@@ -6,7 +6,6 @@ import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.GlobalSearchScope
@@ -17,7 +16,6 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
-import java.nio.file.Paths
 import javax.swing.BoxLayout
 import javax.swing.JPanel
 
@@ -74,7 +72,7 @@ class DiagnosticsPanel(private val project: Project) : JBPanel<DiagnosticsPanel>
         val issues = mutableListOf<String>()
         val routesFile = findRoutesFile() ?: return issues
 
-        val scope = GlobalSearchScope.projectScope(project)
+        val scope = Play1ProjectPaths.applicationScope(project) ?: GlobalSearchScope.projectScope(project)
         val psiFacade = JavaPsiFacade.getInstance(project)
         val cache = PsiShortNamesCache.getInstance(project)
 
@@ -105,9 +103,8 @@ class DiagnosticsPanel(private val project: Project) : JBPanel<DiagnosticsPanel>
     }
 
     private fun findRoutesFile(): RoutesFile? {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
-        val vFile = VirtualFileManager.getInstance()
-            .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return null
+        val vFile = Play1ProjectPaths.applicationRoot(project)
+            ?.findFileByRelativePath("conf/routes") ?: return null
         return PsiManager.getInstance(project).findFile(vFile) as? RoutesFile
     }
 }

@@ -7,6 +7,7 @@ import com.github.pablolec.play1toolkit.playjpa.model.PlayJpaFieldInfo
 import com.github.pablolec.play1toolkit.playjpa.model.PlayJpaRelationInfo
 import com.github.pablolec.play1toolkit.playjpa.references.PlayJpaModelUsageSearcher
 import com.github.pablolec.play1toolkit.playjpa.service.PlayAppModelClassificationService
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
@@ -159,8 +160,11 @@ class PlayJpaModelsPanel(private val project: Project) : JBPanel<PlayJpaModelsPa
     }
 
     private fun buildEntryNode(entry: PlayAppModelEntry, canSearchUsages: Boolean): DefaultMutableTreeNode {
+        val scope = Play1ProjectPaths.applicationScope(project)
         val usages = if (canSearchUsages && entry.persistentModel != null) {
-            runCatching { ReferencesSearch.search(entry.psiClass).findAll().size }.getOrDefault(0)
+            runCatching {
+                if (scope == null) 0 else ReferencesSearch.search(entry.psiClass, scope).findAll().size
+            }.getOrDefault(0)
         } else {
             0
         }

@@ -10,6 +10,7 @@ import com.github.pablolec.play1toolkit.playcache.util.PlayCacheArgExtractor
 import com.github.pablolec.play1toolkit.playcache.util.PlayCacheTemplateScanner
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.response.PlayActionResponseService
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
@@ -23,7 +24,6 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiMethodCallExpression
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
@@ -98,7 +98,8 @@ class PlayCacheService(private val project: Project) {
         javaFilePasses().flatMap { it.usages }
 
     private fun javaFilePasses(): List<JavaFilePass> {
-        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
+        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
         return javaFiles.mapNotNull { vf ->
             val psiFile = PsiManager.getInstance(project).findFile(vf) as? PsiJavaFile ?: return@mapNotNull null
             CachedValuesManager.getCachedValue(psiFile) {
@@ -131,7 +132,7 @@ class PlayCacheService(private val project: Project) {
     }
 
     private fun templateFiles(): List<com.intellij.openapi.vfs.VirtualFile> {
-        val scope = GlobalSearchScope.projectScope(project)
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
         val out = mutableListOf<com.intellij.openapi.vfs.VirtualFile>()
         listOf("html", "xml", "json", "txt").forEach { ext ->
             out += FilenameIndex.getAllFilesByExt(project, ext, scope)

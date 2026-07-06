@@ -2,6 +2,7 @@ package com.github.pablolec.play1toolkit.playjpa.service
 
 import com.github.pablolec.play1toolkit.playjpa.model.PlayAppModelEntry
 import com.github.pablolec.play1toolkit.playjpa.util.PlayJpaModelUtils
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
@@ -9,7 +10,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
@@ -25,7 +25,8 @@ class PlayAppModelClassificationService(private val project: Project) {
     fun getAllEntries(): List<PlayAppModelEntry> {
         return ApplicationManager.getApplication().runReadAction<List<PlayAppModelEntry>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
+            val scope = Play1ProjectPaths.indexingScope(project) ?: return@runReadAction emptyList()
+            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
             javaFiles
                 .filter { it.path.contains("/app/models/") }
                 .flatMap { vf ->

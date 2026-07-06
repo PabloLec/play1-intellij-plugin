@@ -20,8 +20,11 @@ import com.intellij.ui.components.JBTabbedPane
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
+import java.awt.Component
 import java.awt.FlowLayout
 import javax.swing.JButton
+import javax.swing.JComponent
+import javax.swing.JLabel
 import javax.swing.JPanel
 
 class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
@@ -31,36 +34,30 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun isApplicable(project: Project): Boolean = true
 
     override val isDoNotActivateOnStart: Boolean
-        get() = false
+        get() = true
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val statusPanel = ProjectStatusPanel(project)
-        val routesPanel = RoutesTreePanel(project)
-        val templatesPanel = TemplatesTreePanel(project)
-        val modelsPanel = PlayJpaModelsPanel(project)
-        val jobsPanel = PlayJobsPanel(project)
-        val cachePanel = PlayCachePanel(project)
-        val diagnosticsPanel = DiagnosticsPanel(project)
         val uiDisposable = Disposer.newDisposable("Play v1 Toolkit tool window")
+        val tabs = JBTabbedPane()
+        val lazyTabs = linkedMapOf<Int, LazyToolWindowTab>()
 
-        val tabs = JBTabbedPane().apply {
-            addTab("Status", JBScrollPane(statusPanel))
-            addTab("Routes", routesPanel)
-            addTab("Templates", templatesPanel)
-            addTab("Models", modelsPanel)
-            addTab("Jobs", jobsPanel)
-            addTab("Cache", cachePanel)
-            addTab("Diagnostics", diagnosticsPanel)
+        tabs.addTab("Status", JBScrollPane(statusPanel))
+        lazyTabs[tabs.addLazyTab("Routes")] = LazyToolWindowTab { RoutesTreePanel(project) }
+        lazyTabs[tabs.addLazyTab("Templates")] = LazyToolWindowTab { TemplatesTreePanel(project) }
+        lazyTabs[tabs.addLazyTab("Models")] = LazyToolWindowTab { PlayJpaModelsPanel(project) }
+        lazyTabs[tabs.addLazyTab("Jobs")] = LazyToolWindowTab { PlayJobsPanel(project) }
+        lazyTabs[tabs.addLazyTab("Cache")] = LazyToolWindowTab { PlayCachePanel(project) }
+        lazyTabs[tabs.addLazyTab("Diagnostics")] = LazyToolWindowTab { DiagnosticsPanel(project) }
+
+        tabs.addChangeListener {
+            val index = tabs.selectedIndex
+            lazyTabs[index]?.ensureLoaded(tabs, index)
         }
 
         val toolbar = buildToolbar(project, uiDisposable) {
             statusPanel.refresh()
-            routesPanel.refresh()
-            templatesPanel.refresh()
-            modelsPanel.refresh()
-            jobsPanel.refresh()
-            cachePanel.refresh()
-            diagnosticsPanel.refresh()
+            refreshSelectedTab(tabs)
         }
 
         val content = JPanel(BorderLayout()).apply {
@@ -73,6 +70,42 @@ class Play1ToolWindowFactory : ToolWindowFactory, DumbAware {
         twContent.setDisposer(uiDisposable)
         Disposer.register(uiDisposable, statusPanel)
         contentManager.addContent(twContent)
+    }
+
+    private fun JBTabbedPane.addLazyTab(title: String): Int {
+        val index = tabCount
+        addTab(title, JPanel(BorderLayout()).apply {
+            add(JLabel("  Select this tab to load $title."), BorderLayout.NORTH)
+        })
+        return index
+    }
+
+    private fun refreshSelectedTab(tabs: JBTabbedPane) {
+        when (val component = selectedContent(tabs)) {
+            is RoutesTreePanel -> component.refresh()
+            is TemplatesTreePanel -> component.refresh()
+            is PlayJpaModelsPanel -> component.refresh()
+            is PlayJobsPanel -> component.refresh()
+            is PlayCachePanel -> component.refresh()
+            is DiagnosticsPanel -> component.refresh()
+        }
+    }
+
+    private fun selectedContent(tabs: JBTabbedPane): Component? {
+        val selected = tabs.selectedComponent
+        return if (selected is JBScrollPane) selected.viewport.view else selected
+    }
+
+    private class LazyToolWindowTab(private val factory: () -> JComponent) {
+        private var component: JComponent? = null
+
+        fun ensureLoaded(tabs: JBTabbedPane, index: Int): JComponent {
+            component?.let { return it }
+            return factory().also {
+                component = it
+                tabs.setComponentAt(index, it)
+            }
+        }
     }
 
     private fun buildToolbar(project: Project, uiDisposable: com.intellij.openapi.Disposable, onRefresh: () -> Unit): JPanel {

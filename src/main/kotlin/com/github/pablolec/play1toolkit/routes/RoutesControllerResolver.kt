@@ -1,5 +1,6 @@
 package com.github.pablolec.play1toolkit.routes
 
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
@@ -52,7 +53,7 @@ object RoutesControllerResolver {
     }
 
     private fun scopes(project: Project) = listOf(
-        GlobalSearchScope.projectScope(project),
+        Play1ProjectPaths.applicationScope(project) ?: GlobalSearchScope.projectScope(project),
         GlobalSearchScope.allScope(project),
     )
 }

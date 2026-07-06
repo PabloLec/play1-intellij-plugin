@@ -9,12 +9,12 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 
 @Service(Service.Level.PROJECT)
 class PlayTemplateService(private val project: Project) {
@@ -22,14 +22,16 @@ class PlayTemplateService(private val project: Project) {
     private val templatesCache = CachedValuesManager.getManager(project).createCachedValue({
         CachedValueProvider.Result.create(
             buildTemplates(),
-            PlayTemplateModificationTracker.getInstance(project).modificationTracker()
+            PlayTemplateModificationTracker.getInstance(project).modificationTracker(),
+            PsiModificationTracker.MODIFICATION_COUNT,
         )
     }, false)
 
     private val tagsCache = CachedValuesManager.getManager(project).createCachedValue({
         CachedValueProvider.Result.create(
             buildTags(),
-            PlayTemplateModificationTracker.getInstance(project).modificationTracker()
+            PlayTemplateModificationTracker.getInstance(project).modificationTracker(),
+            PsiModificationTracker.MODIFICATION_COUNT,
         )
     }, false)
 
@@ -84,38 +86,34 @@ class PlayTemplateService(private val project: Project) {
 
     private fun cachedTemplates(): List<PlayTemplateFile> {
         if (DumbService.isDumb(project)) return emptyList()
-        return templatesCache.value
+        return templatesCache.value.filter { it.virtualFile.isValid }
     }
 
     private fun cachedTags(): List<PlayCustomTagInfo> {
         if (DumbService.isDumb(project)) return emptyList()
-        return tagsCache.value
+        return tagsCache.value.filter { it.virtualFile.isValid }
     }
 
     private fun buildTemplates(): List<PlayTemplateFile> {
         val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
             val viewsDir = PlayTemplateFileUtils.resolveTemplatePath(project, "") ?: run {
-                val root = com.intellij.openapi.vfs.LocalFileSystem.getInstance().findFileByPath("$basePath/app/views")
+                val root = Play1ProjectPaths.applicationRoot(project)?.findFileByRelativePath("app/views")
                 root ?: return emptyList()
             }
             return collectTemplates(viewsDir)
         }
-        return ProjectRootManager.getInstance(project).contentRoots
-            .mapNotNull { it.findFileByRelativePath("app/views") }
-            .flatMap { collectTemplates(it) }
+        return emptyList()
     }
 
     private fun buildTags(): List<PlayCustomTagInfo> {
         val basePath = Play1ProjectPaths.applicationPath(project)
         if (basePath != null) {
-            val tagsDir = com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                .findFileByPath("$basePath/app/views/tags") ?: return emptyList()
+            val tagsDir = Play1ProjectPaths.applicationRoot(project)
+                ?.findFileByRelativePath("app/views/tags") ?: return emptyList()
             return collectTags(tagsDir)
         }
-        return ProjectRootManager.getInstance(project).contentRoots
-            .mapNotNull { it.findFileByRelativePath("app/views/tags") }
-            .flatMap { collectTags(it) }
+        return emptyList()
     }
 
     private fun collectTemplates(dir: VirtualFile): List<PlayTemplateFile> {

@@ -4,6 +4,7 @@ import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInfo
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInvocation
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInvocationKind
 import com.github.pablolec.play1toolkit.playjobs.util.PlayJobUtils
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
@@ -14,7 +15,6 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethodCallExpression
 import com.intellij.psi.PsiNewExpression
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -32,7 +32,8 @@ class PlayJobService(private val project: Project) {
     fun getAllJobs(): List<PlayJobInfo> {
         return ApplicationManager.getApplication().runReadAction<List<PlayJobInfo>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", GlobalSearchScope.projectScope(project))
+            val scope = Play1ProjectPaths.indexingScope(project) ?: return@runReadAction emptyList()
+            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
             javaFiles.flatMap { vf ->
                 val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
                 CachedValuesManager.getCachedValue(psiFile) {
@@ -78,7 +79,7 @@ class PlayJobService(private val project: Project) {
     }
 
     private fun computeInvocations(jobClass: PsiClass): List<PlayJobInvocation> {
-        val scope = GlobalSearchScope.projectScope(project)
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
         return runCatching {
             ReferencesSearch.search(jobClass, scope).findAll()
                 .asSequence()

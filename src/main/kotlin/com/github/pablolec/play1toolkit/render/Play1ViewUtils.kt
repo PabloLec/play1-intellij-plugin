@@ -6,11 +6,9 @@ import com.github.pablolec.play1toolkit.routes.psi.RoutesRouteElement
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.InheritanceUtil
-import java.nio.file.Paths
 
 object Play1ViewUtils {
 
@@ -23,15 +21,13 @@ object Play1ViewUtils {
         "app/views/$controllerName/$actionName.html"
 
     fun findViewFile(project: Project, controllerName: String, actionName: String): VirtualFile? {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
-        val vfm = VirtualFileManager.getInstance()
-        return vfm.findFileByNioPath(Paths.get(basePath, "app", "views", controllerName, "$actionName.html"))
-            ?: vfm.findFileByNioPath(Paths.get(basePath, "app", "views", controllerName, "$actionName.groovy"))
+        val root = Play1ProjectPaths.applicationRoot(project) ?: return null
+        return root.findFileByRelativePath("app/views/$controllerName/$actionName.html")
+            ?: root.findFileByRelativePath("app/views/$controllerName/$actionName.groovy")
     }
 
     fun findRoutesFile(project: Project): VirtualFile? {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
-        return VirtualFileManager.getInstance().findFileByNioPath(Paths.get(basePath, "conf", "routes"))
+        return Play1ProjectPaths.applicationRoot(project)?.findFileByRelativePath("conf/routes")
     }
 
     /**

@@ -14,7 +14,6 @@ import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.pom.Navigatable
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
@@ -29,7 +28,6 @@ import java.awt.Component
 import java.awt.FlowLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.nio.file.Paths
 import java.util.Locale
 import javax.swing.JButton
 import javax.swing.JPanel
@@ -111,9 +109,8 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
     }
 
     private fun findRoutesFile(): RoutesFile? {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return null
-        val vFile = VirtualFileManager.getInstance()
-            .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return null
+        val vFile = Play1ProjectPaths.applicationRoot(project)
+            ?.findFileByRelativePath("conf/routes") ?: return null
         return PsiManager.getInstance(project).findFile(vFile) as? RoutesFile
     }
 
@@ -238,9 +235,8 @@ class RoutesTreePanel(private val project: Project) : JBPanel<RoutesTreePanel>(B
     }
 
     private fun navigateToRoutesLine(entry: RouteTreeNode.RouteEntry) {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
-        val vFile = VirtualFileManager.getInstance()
-            .findFileByNioPath(Paths.get(basePath, "conf", "routes")) ?: return
+        val vFile = Play1ProjectPaths.applicationRoot(project)
+            ?.findFileByRelativePath("conf/routes") ?: return
         ReadAction.nonBlocking<Int> {
             val psiFile = PsiManager.getInstance(project).findFile(vFile) ?: return@nonBlocking 0
             val doc = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return@nonBlocking 0

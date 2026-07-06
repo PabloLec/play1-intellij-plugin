@@ -7,7 +7,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.CachedValueProvider
@@ -52,8 +51,7 @@ class PlayMessagesService(private val project: Project) {
     fun getMessagesFiles(): List<PlayMessagesFile> {
         return ApplicationManager.getApplication().runReadAction<List<PlayMessagesFile>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val basePath = Play1ProjectPaths.applicationPath(project) ?: return@runReadAction emptyList()
-            val baseDir = LocalFileSystem.getInstance().findFileByPath(basePath) ?: return@runReadAction emptyList()
+            val baseDir = Play1ProjectPaths.applicationRoot(project) ?: return@runReadAction emptyList()
             val confDir = baseDir.findChild("conf") ?: return@runReadAction emptyList()
             confDir.children
                 .filter { it.name == "messages" || it.name.startsWith("messages.") }

@@ -5,9 +5,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
-import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
-import java.nio.file.Paths
 
 object PlayTemplateFileUtils {
 
@@ -40,7 +37,7 @@ object PlayTemplateFileUtils {
 
     fun logicalPath(basePath: String, virtualFile: VirtualFile): String? {
         val path = virtualFile.path
-        val prefix = Paths.get(basePath, "app", "views").toString().replace('\\', '/') + "/"
+        val prefix = basePath.replace('\\', '/').removeSuffix("/") + "/app/views/"
         val normalized = path.replace('\\', '/')
         if (!normalized.startsWith(prefix)) return null
         return normalized.removePrefix(prefix)
@@ -59,12 +56,10 @@ object PlayTemplateFileUtils {
             val normalized = normalizeTemplatePath(logicalPath)
             val basePath = Play1ProjectPaths.applicationPath(project)
             if (basePath != null) {
-                return@runReadAction com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                    .findFileByPath(Paths.get(basePath, "app", "views", normalized).toString())
+                return@runReadAction Play1ProjectPaths.applicationRoot(project)
+                    ?.findFileByRelativePath("app/views/$normalized")
             }
-            val fileName = normalized.substringAfterLast('/')
-            FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
-                .firstOrNull { logicalPath(project, it) == normalized }
+            null
         }
     }
 
@@ -73,12 +68,10 @@ object PlayTemplateFileUtils {
             val relative = publicPath.removePrefix("/")
             val basePath = Play1ProjectPaths.applicationPath(project)
             if (basePath != null) {
-                return@runReadAction com.intellij.openapi.vfs.LocalFileSystem.getInstance()
-                    .findFileByPath(Paths.get(basePath, relative).toString())
+                return@runReadAction Play1ProjectPaths.applicationRoot(project)
+                    ?.findFileByRelativePath(relative)
             }
-            val fileName = relative.substringAfterLast('/')
-            FilenameIndex.getVirtualFilesByName(fileName, true, GlobalSearchScope.projectScope(project))
-                .firstOrNull { it.path.replace('\\', '/').endsWith("/$relative") }
+            null
         }
     }
 

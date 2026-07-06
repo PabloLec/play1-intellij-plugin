@@ -6,6 +6,7 @@ import com.github.pablolec.play1toolkit.playcache.model.PlayCachedTemplateFragme
 import com.github.pablolec.play1toolkit.playconfig.psi.PlayConfigFile
 import com.github.pablolec.play1toolkit.playconfig.service.PlayConfigService
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
 import com.intellij.openapi.project.Project
@@ -34,7 +35,6 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiVariable
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
 
 data class PlayCacheResolvedTemplateValue(
     val displayText: String,
@@ -693,11 +693,12 @@ object PlayCacheTemplateValueResolver {
         PlayConfigService.getInstance(project).keysForLogical(key).firstOrNull()?.value
             ?: run {
                 val psiManager = PsiManager.getInstance(project)
+                val scope = Play1ProjectPaths.indexingScope(project) ?: return@run null
                 var resolved: String? = null
                 FilenameIndex.processFilesByName(
                     "application.conf",
                     true,
-                    GlobalSearchScope.projectScope(project)
+                    scope
                 ) { virtualFile ->
                     if (!virtualFile.path.replace('\\', '/').endsWith("/conf/application.conf")) {
                         return@processFilesByName true

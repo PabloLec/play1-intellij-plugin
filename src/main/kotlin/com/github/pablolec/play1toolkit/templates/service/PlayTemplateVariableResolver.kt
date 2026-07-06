@@ -3,6 +3,7 @@ package com.github.pablolec.play1toolkit.templates.service
 import com.github.pablolec.play1toolkit.playcache.util.PlayCacheTemplateValueResolver
 import com.github.pablolec.play1toolkit.render.Play1ViewUtils
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
+import com.github.pablolec.play1toolkit.services.Play1ProjectPaths
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplateFileUtils
 import com.github.pablolec.play1toolkit.templates.util.PlayTemplatePatterns
 import com.intellij.openapi.application.ApplicationManager
@@ -384,7 +385,7 @@ class PlayTemplateVariableResolver(private val project: Project) {
 
     private fun buildExplicitTemplateBindings(): Map<String, Map<String, VariableInfo>> {
         val result = mutableMapOf<String, MutableMap<String, VariableInfo>>()
-        val scope = GlobalSearchScope.projectScope(project)
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyMap()
         FilenameIndex.getAllFilesByExt(project, "java", scope).forEach { virtualFile ->
             val psiFile = PsiManager.getInstance(project).findFile(virtualFile) ?: return@forEach
             psiFile.accept(object : JavaRecursiveElementWalkingVisitor() {

@@ -118,7 +118,7 @@ jobs:
             "-PpluginChangeNotes=$PLUGIN_CHANGE_NOTES"
 
       - name: Upload published plugin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-release-${{ steps.release_meta.outputs.version }}
           path: build/distributions/*.zip

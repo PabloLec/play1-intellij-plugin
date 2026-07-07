@@ -19,6 +19,7 @@ object Play1ProjectPaths {
         val service = Play1ProjectService.getInstance(project)
         service.playApplicationPath
             ?.takeIf { isDirectPlayProject(project, it) }
+            ?.takeIf { isUnderProject(project, it) }
             ?.let { return findRoot(project, it)?.path ?: it }
 
         val configuredPath = Play1ProjectSettings.getInstance(project).playApplicationPath
@@ -68,6 +69,16 @@ object Play1ProjectPaths {
     private fun isDirectPlayProject(project: Project, path: String): Boolean {
         findRoot(project, path)?.let { return isDirectPlayProject(it) }
         return isDirectPlayProject(Paths.get(path))
+    }
+
+    private fun isUnderProject(project: Project, path: String): Boolean {
+        val normalized = path.replace('\\', '/').removeSuffix("/")
+        val basePath = project.basePath?.replace('\\', '/')?.removeSuffix("/")
+        if (basePath != null && (normalized == basePath || normalized.startsWith("$basePath/"))) return true
+        return ProjectRootManager.getInstance(project).contentRoots.any { root ->
+            val rootPath = root.path.replace('\\', '/').removeSuffix("/")
+            normalized == rootPath || normalized.startsWith("$rootPath/")
+        }
     }
 
     private fun findRoot(project: Project, path: String): VirtualFile? {

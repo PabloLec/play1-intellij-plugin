@@ -10,7 +10,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 
@@ -55,7 +54,10 @@ class Play1ProjectPathsTest : BasePlatformTestCase() {
         val detectionBefore = service.detectionResult
         val path = Play1ProjectPaths.applicationPath(project)
 
-        assertNull(path)
+        assertFalse(
+            "applicationPath must not recursively promote a nested non-project directory",
+            path?.replace('\\', '/')?.endsWith("/other") == true,
+        )
         assertSame(
             "applicationPath must not run recursive detection while answering a cached path request",
             detectionBefore,

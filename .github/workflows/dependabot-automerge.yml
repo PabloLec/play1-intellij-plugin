@@ -1,0 +1,57 @@
+name: Dependabot Auto-merge
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: dependabot-automerge-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  automerge:
+    name: Auto-merge Dependabot PR
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.actor.login == 'dependabot[bot]' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+
+    steps:
+      - name: Resolve Dependabot PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          pr_json="$(gh pr list --repo "$REPOSITORY" --head "$HEAD_BRANCH" --state open --json number,author,baseRefName,url --limit 1)"
+          pr_number="$(printf '%s' "$pr_json" | jq -r '.[0].number // empty')"
+          author="$(printf '%s' "$pr_json" | jq -r '.[0].author.login // empty')"
+          base="$(printf '%s' "$pr_json" | jq -r '.[0].baseRefName // empty')"
+          url="$(printf '%s' "$pr_json" | jq -r '.[0].url // empty')"
+
+          test -n "$pr_number"
+          case "$author" in
+            dependabot|dependabot[bot]|app/dependabot) ;;
+            *) echo "Unexpected PR author: $author" >&2; exit 1 ;;
+          esac
+          test "$base" = "main"
+
+          {
+            echo "url=$url"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Merge Dependabot PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: gh pr merge --merge --delete-branch "$PR_URL"

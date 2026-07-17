@@ -25,7 +25,16 @@ class Play1ProjectDetector {
     )
 
     fun detect(projectRoot: Path): DetectionResult {
-        val candidates = detectCandidates(projectRoot)
+        val candidates = detectCandidates(projectRoot, DEFAULT_SEARCH_DEPTH)
+        return resultFromCandidates(candidates)
+    }
+
+    fun detectDeep(projectRoot: Path): DetectionResult {
+        val candidates = detectCandidates(projectRoot, DEEP_SEARCH_DEPTH)
+        return resultFromCandidates(candidates)
+    }
+
+    private fun resultFromCandidates(candidates: List<Candidate>): DetectionResult {
         return candidates.firstOrNull()?.let { best ->
             DetectionResult(
                 isPlay1 = best.score >= REQUIRED_SCORE,
@@ -54,21 +63,21 @@ class Play1ProjectDetector {
         )
     }
 
-    private fun detectCandidates(projectRoot: Path): List<Candidate> {
+    private fun detectCandidates(projectRoot: Path, maxDepth: Int): List<Candidate> {
         if (!Files.isDirectory(projectRoot)) return emptyList()
-        val roots = collectCandidateRoots(projectRoot)
+        val roots = collectCandidateRoots(projectRoot, maxDepth)
         return roots
             .map(::scoreCandidate)
             .filter { it.score > 0 }
             .sortedWith(compareByDescending<Candidate> { it.score }.thenBy { projectRoot.relativize(it.root).nameCount })
     }
 
-    private fun collectCandidateRoots(root: Path): List<Path> {
+    private fun collectCandidateRoots(root: Path, maxDepth: Int): List<Path> {
         val roots = mutableListOf<Path>()
 
         fun visit(dir: Path, depth: Int) {
             roots.add(dir)
-            if (depth >= MAX_SEARCH_DEPTH) return
+            if (depth >= maxDepth) return
             Files.list(dir).use { stream ->
                 stream
                     .filter { Files.isDirectory(it) }
@@ -107,8 +116,9 @@ class Play1ProjectDetector {
 
     companion object {
         private const val STRONG_WEIGHT = 3
-        private const val REQUIRED_SCORE = 6
-        private const val MAX_SEARCH_DEPTH = 3
+        const val REQUIRED_SCORE = 6
+        private const val DEFAULT_SEARCH_DEPTH = 3
+        private const val DEEP_SEARCH_DEPTH = 10
 
         private data class Criterion(val label: String, val path: String)
 

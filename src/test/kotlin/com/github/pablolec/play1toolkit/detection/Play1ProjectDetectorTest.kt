@@ -86,6 +86,22 @@ class Play1ProjectDetectorTest {
     }
 
     @Test
+    fun `deep detection finds Play 1 application beyond standard auto detection depth`() {
+        val workspaceRoot = tempDir.root.toPath()
+        val nestedRoot = "repositories/customer/platform/services/legacy-app"
+        createFile("$nestedRoot/conf/application.conf")
+        createFile("$nestedRoot/conf/routes")
+        createDir("$nestedRoot/app/controllers")
+
+        val standardResult = detector.detect(workspaceRoot)
+        val deepResult = detector.detectDeep(workspaceRoot)
+
+        assertFalse("Standard detection should stay bounded", standardResult.isPlay1)
+        assertTrue("Manual deep detection should find deeply nested apps", deepResult.isPlay1)
+        assertEquals(workspaceRoot.resolve(nestedRoot), deepResult.projectRoot)
+    }
+
+    @Test
     fun `does not detect project with only 1 criterion`() {
         val root = tempDir.root.toPath()
         createFile("conf/application.conf")

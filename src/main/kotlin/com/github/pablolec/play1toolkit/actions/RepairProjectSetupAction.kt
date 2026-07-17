@@ -82,11 +82,18 @@ class RepairProjectSetupAction : AnAction() {
             val applicationPath = detection.projectRoot?.toString() ?: basePath
             report.ok("Play project", "detected at $applicationPath")
 
+            indicator.text = "Configuring source roots..."
+            Play1SourceRootManager.configureSourceRoots(project, report, applicationPath)
+
             indicator.text = "Validating Play Home..."
             val settings = Play1Settings.getInstance()
             val playHomePath = settings.playHome
 
-            if (playHomePath.isBlank()) return
+            if (playHomePath.isBlank()) {
+                report.error("Play home", "not configured")
+                projectService.refresh()
+                return
+            }
 
             val playHome = Paths.get(playHomePath)
             val validation = Play1HomeValidator.validate(playHome)
@@ -131,9 +138,6 @@ class RepairProjectSetupAction : AnAction() {
 
             indicator.text = "Attaching Play libraries..."
             Play1LibraryManager.attachLibraries(project, playHome, report, applicationPath)
-
-            indicator.text = "Configuring source roots..."
-            Play1SourceRootManager.configureSourceRoots(project, report, applicationPath)
 
             indicator.text = "Creating run configuration..."
             Play1RunConfigManager.createRunConfiguration(project, report, applicationPath)

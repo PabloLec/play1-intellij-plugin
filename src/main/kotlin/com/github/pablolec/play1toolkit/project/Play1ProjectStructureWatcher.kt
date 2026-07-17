@@ -21,23 +21,33 @@ class Play1ProjectStructureWatcher(private val project: Project) : BulkFileListe
     }
 
     override fun after(events: List<VFileEvent>) {
-        val basePath = Play1ProjectPaths.applicationPath(project) ?: return
-        val normalizedBasePath = basePath.replace('\\', '/').removeSuffix("/")
+        val knownApplicationPath = Play1ProjectPaths.applicationPath(project)
+        val normalizedApplicationPath = knownApplicationPath?.replace('\\', '/')?.removeSuffix("/")
+            ?: return
         val shouldRefresh = events.any { event ->
-            val relativePath = event.path.replace('\\', '/')
-                .removePrefix("$normalizedBasePath/")
-            isPlayProjectStructurePath(relativePath)
+            val normalizedPath = event.path.replace('\\', '/')
+            val relativePath = relativePath(normalizedPath, normalizedApplicationPath)
+            relativePath?.let(::isPlayProjectStructurePath) == true
         }
         val shouldInvalidateTemplates = events.any { event ->
-            val relativePath = event.path.replace('\\', '/')
-                .removePrefix("$normalizedBasePath/")
-            isPlayTemplatePath(relativePath)
+            val normalizedPath = event.path.replace('\\', '/')
+            val relativePath = relativePath(normalizedPath, normalizedApplicationPath)
+            relativePath?.let(::isPlayTemplatePath) == true
         }
         if (shouldInvalidateTemplates) {
             PlayTemplateModificationTracker.getInstance(project).incModificationCount()
         }
         if (shouldRefresh) {
             Play1ProjectService.getInstance(project).scheduleRefresh("Play project structure changed")
+        }
+    }
+
+    private fun relativePath(path: String, basePath: String?): String? {
+        if (basePath == null) return null
+        return when {
+            path == basePath -> ""
+            path.startsWith("$basePath/") -> path.removePrefix("$basePath/")
+            else -> null
         }
     }
 

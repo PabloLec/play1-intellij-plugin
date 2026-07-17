@@ -73,6 +73,19 @@ class Play1ProjectDetectorTest {
     }
 
     @Test
+    fun `detects Play 1 application three levels under workspace root`() {
+        val workspaceRoot = tempDir.root.toPath()
+        createFile("workspaces/customer-platform/legacy-app/conf/application.conf")
+        createFile("workspaces/customer-platform/legacy-app/conf/routes")
+        createDir("workspaces/customer-platform/legacy-app/app/controllers")
+
+        val result = detector.detect(workspaceRoot)
+
+        assertTrue("Three-level nested Play 1 app should be detected", result.isPlay1)
+        assertEquals(workspaceRoot.resolve("workspaces/customer-platform/legacy-app"), result.projectRoot)
+    }
+
+    @Test
     fun `does not detect project with only 1 criterion`() {
         val root = tempDir.root.toPath()
         createFile("conf/application.conf")

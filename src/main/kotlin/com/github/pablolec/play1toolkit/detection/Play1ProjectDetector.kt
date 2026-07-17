@@ -108,7 +108,7 @@ class Play1ProjectDetector {
     companion object {
         private const val STRONG_WEIGHT = 3
         private const val REQUIRED_SCORE = 6
-        private const val MAX_SEARCH_DEPTH = 2
+        private const val MAX_SEARCH_DEPTH = 3
 
         private data class Criterion(val label: String, val path: String)
 

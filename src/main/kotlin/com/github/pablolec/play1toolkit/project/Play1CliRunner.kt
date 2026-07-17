@@ -460,20 +460,13 @@ object Play1CliRunner {
         return Play1PythonRuntimeResolver.isPythonLauncher(script)
     }
 
-    internal fun findPlayLauncher(playHome: Path, osName: String = System.getProperty("os.name")): File? {
-        val windows = osName.lowercase().contains("win")
+    private fun findPlayLauncher(playHome: Path): File? {
         val pythonScript = playHome.resolve("play").toFile()
+        if (pythonScript.isFile) return pythonScript
         val windowsScript = playHome.resolve("play.bat").toFile()
+        if (windowsScript.isFile) return windowsScript
         val windowsCommandScript = playHome.resolve("play.cmd").toFile()
-        if (windows) {
-            if (windowsScript.isFile) return windowsScript
-            if (windowsCommandScript.isFile) return windowsCommandScript
-            if (pythonScript.isFile) return pythonScript
-        } else {
-            if (pythonScript.isFile) return pythonScript
-            if (windowsScript.isFile) return windowsScript
-            if (windowsCommandScript.isFile) return windowsCommandScript
-        }
+        if (windowsCommandScript.isFile) return windowsCommandScript
         return null
     }
 

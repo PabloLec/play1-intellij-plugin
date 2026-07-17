@@ -204,6 +204,25 @@ class Play1CliRunnerTest {
     }
 
     @Test
+    fun `windows play bat launcher is preferred over python script`() {
+        val playHome = createPlayHome(
+            name = "windows-play-home-with-python-script",
+            jarName = "play-1.5.3.jar",
+            version = "1.5.3",
+            commands = listOf("clean"),
+            launcher = """
+                #!/usr/bin/env python3
+                print("~")
+            """.trimIndent(),
+        )
+        val batchLauncher = File(playHome, "play.bat").apply { writeText("@echo off\r\n") }
+
+        val launcher = Play1CliRunner.findPlayLauncher(playHome.toPath(), osName = "Windows 11")
+
+        assertEquals(batchLauncher.absoluteFile, launcher?.absoluteFile)
+    }
+
+    @Test
     fun `run applies java environment overrides to play command process`() {
         val playHome = createPlayHome(
             name = "env-play-home",

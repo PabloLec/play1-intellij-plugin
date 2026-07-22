@@ -1,22 +1,22 @@
 package com.github.pablolec.play1toolkit.run
 
 import java.nio.file.Files
-import kotlin.io.path.exists
-import kotlin.io.path.name
+import java.nio.file.Paths
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class Play1OutputLogFileTest {
 
     @Test
-    fun `blank path creates a temporary log file`() {
+    fun `blank path resolves to a stable temporary log file`() {
         val path = Play1OutputLogFile.resolve("", "Sample App")
 
-        assertTrue(path.exists())
-        assertTrue(path.name.startsWith("play-v1-sample-app-"))
-        assertTrue(path.name.endsWith(".log"))
-        Files.deleteIfExists(path)
+        assertEquals(
+            Paths.get(System.getProperty("java.io.tmpdir")).resolve("play-v1-sample-app.log").toAbsolutePath().normalize(),
+            path,
+        )
     }
 
     @Test
@@ -37,6 +37,30 @@ class Play1OutputLogFileTest {
         val path = Play1OutputLogFile.resolve(file.toString(), "Sample App")
 
         assertEquals(file, path)
+        Files.deleteIfExists(directory)
+    }
+
+    @Test
+    fun `creating listener truncates an existing log file`() {
+        val directory = Files.createTempDirectory("play-v1-output-log-test")
+        val file = directory.resolve("custom.log")
+        file.writeText("previous output")
+
+        val listener = Play1OutputLogFileListener.create(file)
+        listener.processTerminated(
+            com.intellij.execution.process.ProcessEvent(
+                object : com.intellij.execution.process.ProcessHandler() {
+                    override fun destroyProcessImpl() = Unit
+                    override fun detachProcessImpl() = Unit
+                    override fun detachIsDefault(): Boolean = false
+                    override fun getProcessInput() = null
+                },
+                0,
+            )
+        )
+
+        assertEquals("", file.readText())
+        Files.deleteIfExists(file)
         Files.deleteIfExists(directory)
     }
 }

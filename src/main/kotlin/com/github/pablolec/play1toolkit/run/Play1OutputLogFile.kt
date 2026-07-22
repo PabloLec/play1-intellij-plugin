@@ -17,7 +17,10 @@ internal object Play1OutputLogFile {
     fun resolve(configuredPath: String, configurationName: String): Path {
         val trimmed = configuredPath.trim()
         if (trimmed.isBlank()) {
-            return Files.createTempFile("play-v1-${configurationName.safeFileStem()}-", ".log")
+            return Paths.get(System.getProperty("java.io.tmpdir"))
+                .resolve("play-v1-${configurationName.safeFileStem()}.log")
+                .toAbsolutePath()
+                .normalize()
         }
 
         val configured = Paths.get(trimmed).toAbsolutePath().normalize()

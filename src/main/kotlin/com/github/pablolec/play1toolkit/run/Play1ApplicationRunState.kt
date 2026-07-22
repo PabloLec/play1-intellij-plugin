@@ -29,6 +29,8 @@ class Play1ApplicationRunState(
     @Suppress("unused") private val targetModule: Module?
 ) : CommandLineState(environment), RemoteConnectionCreator, RemoteState {
 
+    private var appliedJvmOptions: List<String> = emptyList()
+
     override fun startProcess(): ProcessHandler {
         val settings = Play1Settings.getInstance()
         val playHome = settings.playHome.takeIf { it.isNotBlank() }
@@ -54,7 +56,7 @@ class Play1ApplicationRunState(
             .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
 
         command.withEnvironment(Play1RunConfigurationSupport.buildJavaSdkEnvironment(sdkHomePath, command.environment))
-        applyJavaOpts(command, debug)
+        applyJvmOptions(command, debug)
 
         val handler = KillableProcessHandler(command)
         installOutputLogFile(handler)
@@ -176,7 +178,7 @@ class Play1ApplicationRunState(
                         appendLine("  Command=${command.commandLineString}")
                         appendLine("  Debug transport=Play native JPDA (--jpda.port=${config.debugPort})")
                         appendLine("  JAVA_HOME=${command.environment["JAVA_HOME"] ?: "not set"}")
-                        appendLine("  JAVA_OPTS=${command.environment["JAVA_OPTS"] ?: "not set"}")
+                        appendLine("  JVM options=${appliedJvmOptions.joinToString(" ").ifBlank { "not set" }}")
                         appendLine("  IntelliJ debugger attaches to 127.0.0.1:${config.debugPort}")
                     },
                     ProcessOutputTypes.SYSTEM,
@@ -200,30 +202,26 @@ class Play1ApplicationRunState(
         return sdkHomePath
     }
 
-    private fun applyJavaOpts(command: GeneralCommandLine, debug: Boolean) {
-        val parts = mutableListOf<String>()
-        command.environment["JAVA_OPTS"]
-            ?.takeIf { it.isNotBlank() }
-            ?.let { javaOpts ->
-                parts.add(if (debug) Play1RunConfigurationSupport.removeDebugJvmOptions(javaOpts) else javaOpts)
-            }
-        if (!debug && command.environment["JAVA_OPTS"].isNullOrBlank()) {
-            System.getenv("JAVA_OPTS")?.takeIf { it.isNotBlank() }?.let(parts::add)
-        }
-        config.jvmOptions
-            .takeIf { it.isNotBlank() }
-            ?.let { jvmOptions ->
-                parts.add(if (debug) Play1RunConfigurationSupport.removeDebugJvmOptions(jvmOptions) else jvmOptions)
-            }
+    private fun applyJvmOptions(command: GeneralCommandLine, debug: Boolean) {
+        val jvmOptions = effectiveJvmOptions(command, debug)
+        appliedJvmOptions = jvmOptions
+        command.environment.removeJavaOpts()
+        command.addParameters(jvmOptions)
+    }
 
-        val javaOpts = parts
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-        if (javaOpts.isNotBlank()) {
-            command.environment["JAVA_OPTS"] = javaOpts
-        } else {
-            command.environment.remove("JAVA_OPTS")
-        }
+    private fun effectiveJvmOptions(command: GeneralCommandLine, debug: Boolean): List<String> {
+        return Play1RunConfigurationSupport.effectiveJvmOptions(
+            configuredJavaOpts = command.environment.javaOpts(),
+            inheritedJavaOpts = System.getenv("JAVA_OPTS"),
+            configurationJvmOptions = config.jvmOptions,
+            debug = debug,
+        )
+    }
+
+    private fun MutableMap<String, String>.javaOpts(): String? =
+        entries.firstOrNull { it.key.equals("JAVA_OPTS", ignoreCase = true) }?.value
+
+    private fun MutableMap<String, String>.removeJavaOpts() {
+        keys.firstOrNull { it.equals("JAVA_OPTS", ignoreCase = true) }?.let { remove(it) }
     }
 }

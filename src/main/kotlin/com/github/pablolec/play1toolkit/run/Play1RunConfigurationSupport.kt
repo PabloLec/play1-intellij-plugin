@@ -40,6 +40,32 @@ internal object Play1RunConfigurationSupport {
 
     fun parseJvmOptions(jvmOptions: String): List<String> = ParametersListUtil.parse(jvmOptions)
 
+    fun effectiveJvmOptions(
+        configuredJavaOpts: String?,
+        inheritedJavaOpts: String?,
+        configurationJvmOptions: String,
+        debug: Boolean,
+    ): List<String> {
+        val rawOptions = buildList {
+            configuredJavaOpts
+                ?.takeIf { it.isNotBlank() }
+                ?.let { add(it) }
+                ?: inheritedJavaOpts
+                    ?.takeIf { !debug && it.isNotBlank() }
+                    ?.let { add(it) }
+
+            configurationJvmOptions
+                .takeIf { it.isNotBlank() }
+                ?.let { add(it) }
+        }
+
+        return rawOptions
+            .flatMap { options ->
+                parseJvmOptions(if (debug) removeDebugJvmOptions(options) else options)
+            }
+            .filter { it.isNotBlank() }
+    }
+
     fun removeDebugJvmOptions(jvmOptions: String): String {
         if (jvmOptions.isBlank()) {
             return ""

@@ -44,6 +44,45 @@ class Play1RunConfigurationSupportTest {
     }
 
     @Test
+    fun `effectiveJvmOptions combines environment and configuration options as command arguments`() {
+        val options = Play1RunConfigurationSupport.effectiveJvmOptions(
+            configuredJavaOpts = """-Xms512m -Dmessage="hello world"""",
+            inheritedJavaOpts = "-Xmx4g",
+            configurationJvmOptions = "-Dfeature.enabled=true",
+            debug = false,
+        )
+
+        assertEquals(
+            listOf("-Xms512m", "-Dmessage=hello world", "-Dfeature.enabled=true"),
+            options,
+        )
+    }
+
+    @Test
+    fun `effectiveJvmOptions uses inherited java opts only when no configured java opts exist`() {
+        val options = Play1RunConfigurationSupport.effectiveJvmOptions(
+            configuredJavaOpts = "",
+            inheritedJavaOpts = "-Xmx4g",
+            configurationJvmOptions = "-Dfeature.enabled=true",
+            debug = false,
+        )
+
+        assertEquals(listOf("-Xmx4g", "-Dfeature.enabled=true"), options)
+    }
+
+    @Test
+    fun `effectiveJvmOptions removes debug agents in debug mode`() {
+        val options = Play1RunConfigurationSupport.effectiveJvmOptions(
+            configuredJavaOpts = "-Xmx2g -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000",
+            inheritedJavaOpts = "-Xms512m",
+            configurationJvmOptions = "-Xdebug -Dfeature.enabled=true",
+            debug = true,
+        )
+
+        assertEquals(listOf("-Xmx2g", "-Dfeature.enabled=true"), options)
+    }
+
+    @Test
     fun `selectBestRootPath prefers the deepest matching content root`() {
         val selectedRoot = Play1RunConfigurationSupport.selectBestRootPath(
             applicationPath = "/workspace/root/apps/legacy-app",

@@ -1,8 +1,12 @@
 package com.github.pablolec.play1toolkit.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.TextBrowseFolderListener
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.panel
 import javax.swing.DefaultComboBoxModel
@@ -16,6 +20,8 @@ class Play1RunConfigurationEditor : SettingsEditor<Play1ApplicationRunConfigurat
     private val debugPortField = JBTextField()
     private val jvmOptionsField = JBTextField()
     private val envVarsComponent = EnvironmentVariablesComponent()
+    private val mirrorOutputToFileCheckBox = JBCheckBox("Mirror console output to file")
+    private val outputLogPathField = TextFieldWithBrowseButton()
 
     private val form = panel {
         row("Application path:") {
@@ -34,8 +40,30 @@ class Play1RunConfigurationEditor : SettingsEditor<Play1ApplicationRunConfigurat
             cell(jvmOptionsField).resizableColumn()
         }
         row {
+            cell(mirrorOutputToFileCheckBox)
+                .comment("Keeps IntelliJ console output unchanged and also writes stdout/stderr to a log file")
+        }
+        row("Output log file:") {
+            cell(outputLogPathField)
+                .resizableColumn()
+                .comment("Leave empty to create a log file in the operating system temporary directory")
+        }
+        row {
             cell(envVarsComponent.component).resizableColumn().label("Environment variables:")
         }
+    }
+
+    init {
+        outputLogPathField.addBrowseFolderListener(
+            TextBrowseFolderListener(
+                FileChooserDescriptor(true, true, false, false, false, false).apply {
+                    title = "Select Output Log File or Directory"
+                    description = "Choose a log file, or choose a directory to create a Play v1 log file inside it."
+                }
+            )
+        )
+        mirrorOutputToFileCheckBox.addActionListener { updateOutputLogPathEnabled() }
+        updateOutputLogPathEnabled()
     }
 
     override fun resetEditorFrom(config: Play1ApplicationRunConfiguration) {
@@ -57,6 +85,9 @@ class Play1RunConfigurationEditor : SettingsEditor<Play1ApplicationRunConfigurat
         httpPortField.text = config.httpPort.toString()
         debugPortField.text = config.debugPort.toString()
         jvmOptionsField.text = config.jvmOptions
+        mirrorOutputToFileCheckBox.isSelected = config.mirrorOutputToFile
+        outputLogPathField.text = config.outputLogPath
+        updateOutputLogPathEnabled()
         envVarsComponent.envs = config.envVars
     }
 
@@ -66,8 +97,14 @@ class Play1RunConfigurationEditor : SettingsEditor<Play1ApplicationRunConfigurat
         config.httpPort = httpPortField.text.toIntOrNull() ?: 9000
         config.debugPort = debugPortField.text.toIntOrNull() ?: 5005
         config.jvmOptions = jvmOptionsField.text
+        config.mirrorOutputToFile = mirrorOutputToFileCheckBox.isSelected
+        config.outputLogPath = outputLogPathField.text.trim()
         config.envVars = envVarsComponent.envs
     }
 
     override fun createEditor(): JComponent = form
+
+    private fun updateOutputLogPathEnabled() {
+        outputLogPathField.isEnabled = mirrorOutputToFileCheckBox.isSelected
+    }
 }

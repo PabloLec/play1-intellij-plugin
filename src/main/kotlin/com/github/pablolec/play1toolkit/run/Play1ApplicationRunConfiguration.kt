@@ -28,6 +28,8 @@ class Play1ApplicationRunConfiguration(
     var debugPort: Int = Play1Settings.getInstance().defaultDebugPort
     var jvmOptions: String = ""
     var envVars: Map<String, String> = emptyMap()
+    var mirrorOutputToFile: Boolean = true
+    var outputLogPath: String = ""
 
     override fun getConfigurationEditor(): com.intellij.openapi.options.SettingsEditor<out RunConfiguration> =
         Play1RunConfigurationEditor()
@@ -82,6 +84,8 @@ class Play1ApplicationRunConfiguration(
         httpPort = element.getAttributeValue("httpPort")?.toIntOrNull() ?: 9000
         debugPort = element.getAttributeValue("debugPort")?.toIntOrNull() ?: 5005
         jvmOptions = element.getAttributeValue("jvmOptions") ?: ""
+        mirrorOutputToFile = element.getAttributeValue("mirrorOutputToFile")?.toBooleanStrictOrNull() ?: true
+        outputLogPath = element.getAttributeValue("outputLogPath") ?: ""
         // Restore env vars from child elements
         val envElement = element.getChild("envVars")
         if (envElement != null) {
@@ -99,6 +103,8 @@ class Play1ApplicationRunConfiguration(
         element.setAttribute("httpPort", httpPort.toString())
         element.setAttribute("debugPort", debugPort.toString())
         element.setAttribute("jvmOptions", jvmOptions)
+        element.setAttribute("mirrorOutputToFile", mirrorOutputToFile.toString())
+        element.setAttribute("outputLogPath", outputLogPath)
         // Persist env vars as child elements
         if (envVars.isNotEmpty()) {
             val envElement = org.jdom.Element("envVars")

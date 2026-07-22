@@ -57,6 +57,7 @@ class Play1ApplicationRunState(
         applyJavaOpts(command, debug)
 
         val handler = KillableProcessHandler(command)
+        installOutputLogFile(handler)
         handler.addProcessListener(debugEnvironmentReporter(command))
         val runtimeService = Play1ApplicationRuntimeService.getInstance(environment.project)
         val sessionId = runtimeService.processStarted(config.name, config.httpPort)
@@ -71,6 +72,31 @@ class Play1ApplicationRunState(
             }
         })
         return handler
+    }
+
+    private fun installOutputLogFile(handler: ProcessHandler) {
+        if (!config.mirrorOutputToFile) {
+            return
+        }
+
+        val path = try {
+            Play1OutputLogFile.resolve(config.outputLogPath, config.name)
+        } catch (e: Exception) {
+            handler.addProcessListener(startupMessageReporter("Play v1 Toolkit could not resolve output log file: ${e.message}\n"))
+            return
+        }
+
+        val listener = try {
+            Play1OutputLogFileListener.create(path)
+        } catch (e: Exception) {
+            handler.addProcessListener(
+                startupMessageReporter("Play v1 Toolkit could not open output log file $path: ${e.message}\n")
+            )
+            return
+        }
+
+        handler.addProcessListener(listener)
+        handler.addProcessListener(startupMessageReporter("Play v1 Toolkit mirrors console output to $path\n"))
     }
 
     private fun buildCommand(playScript: Path, applicationPath: Path, debug: Boolean): List<String> = buildList {
@@ -155,6 +181,13 @@ class Play1ApplicationRunState(
                     },
                     ProcessOutputTypes.SYSTEM,
                 )
+            }
+        }
+
+    private fun startupMessageReporter(message: String): ProcessListener =
+        object : ProcessListener {
+            override fun startNotified(event: ProcessEvent) {
+                event.processHandler.notifyTextAvailable(message, ProcessOutputTypes.SYSTEM)
             }
         }
 

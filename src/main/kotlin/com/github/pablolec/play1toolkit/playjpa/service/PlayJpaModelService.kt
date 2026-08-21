@@ -27,25 +27,36 @@ class PlayJpaModelService(private val project: Project) {
     fun getAllModels(): List<PlayJpaModelInfo> {
         return ApplicationManager.getApplication().runReadAction<List<PlayJpaModelInfo>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val scope = Play1ProjectPaths.indexingScope(project) ?: return@runReadAction emptyList()
-            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
-            javaFiles
-                .filter { it.path.contains("/app/models/") }
-                .flatMap { vf ->
-                    val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-                    CachedValuesManager.getCachedValue(psiFile) {
-                        val javaFile = psiFile as? PsiJavaFile
-                        if (javaFile == null) {
-                            CachedValueProvider.Result.create(emptyList<PlayJpaModelInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
-                        } else {
-                            CachedValueProvider.Result.create(
-                                buildModelsFromFile(javaFile),
-                                PsiModificationTracker.MODIFICATION_COUNT
-                            )
-                        }
+            // Cached at the project level so repeated calls (line markers, inlay hints, inspections
+            // all query this per PSI element) reuse one scan instead of re-walking every Java file.
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                CachedValueProvider.Result.create(
+                    scanAllModels(),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
+        }
+    }
+
+    private fun scanAllModels(): List<PlayJpaModelInfo> {
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
+        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
+        return javaFiles
+            .filter { it.path.contains("/app/models/") }
+            .flatMap { vf ->
+                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                CachedValuesManager.getCachedValue(psiFile) {
+                    val javaFile = psiFile as? PsiJavaFile
+                    if (javaFile == null) {
+                        CachedValueProvider.Result.create(emptyList<PlayJpaModelInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
+                    } else {
+                        CachedValueProvider.Result.create(
+                            buildModelsFromFile(javaFile),
+                            PsiModificationTracker.MODIFICATION_COUNT
+                        )
                     }
                 }
-        }
+            }
     }
 
     private fun buildModelsFromFile(javaFile: PsiJavaFile): List<PlayJpaModelInfo> {

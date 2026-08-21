@@ -5,6 +5,7 @@ import com.github.pablolec.play1toolkit.playjobs.model.PlayJobConfidence
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobInvocationKind
 import com.github.pablolec.play1toolkit.playjobs.model.PlayJobTriggerKind
 import com.github.pablolec.play1toolkit.playjobs.service.PlayJobService
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class PlayJobsSupportTest : BasePlatformTestCase() {
@@ -295,5 +296,71 @@ class PlayJobsSupportTest : BasePlatformTestCase() {
         val method = info!!.executionMethods.single()
         assertEquals("doJobWithResult", method.name)
         assertTrue(method.returnsResult)
+    }
+
+    fun `test getAllJobs does not rescan the project when nothing changed`() {
+        addProjectFile(
+            "app/jobs/BootstrapJob.java",
+            """
+            package jobs;
+            import play.jobs.Job;
+            import play.jobs.OnApplicationStart;
+
+            @OnApplicationStart
+            public class BootstrapJob extends Job {
+                public void doJob() {}
+            }
+            """
+        )
+
+        val service = PlayJobService.getInstance(project)
+        val first = service.getAllJobs()
+        val second = service.getAllJobs()
+        assertSame("repeated calls with no relevant change must reuse the cached scan", first, second)
+    }
+
+    fun `test getAllJobs picks up a newly added job file and drops it once deleted`() {
+        addProjectFile(
+            "app/jobs/BootstrapJob.java",
+            """
+            package jobs;
+            import play.jobs.Job;
+            import play.jobs.OnApplicationStart;
+
+            @OnApplicationStart
+            public class BootstrapJob extends Job {
+                public void doJob() {}
+            }
+            """
+        )
+
+        val service = PlayJobService.getInstance(project)
+        val before = service.getAllJobs()
+        assertEquals(setOf("BootstrapJob"), before.map { it.className }.toSet())
+
+        val cleanupJob = addProjectFile(
+            "app/jobs/CleanupJob.java",
+            """
+            package jobs;
+            import play.jobs.Job;
+            import play.jobs.OnApplicationStop;
+
+            @OnApplicationStop
+            public class CleanupJob extends Job {
+                public void doJob() {}
+            }
+            """
+        )
+
+        val afterAdd = service.getAllJobs()
+        assertNotSame("adding a job file must invalidate the cached scan", before, afterAdd)
+        assertEquals(setOf("BootstrapJob", "CleanupJob"), afterAdd.map { it.className }.toSet())
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            cleanupJob.virtualFile.delete(null)
+        }
+
+        val afterDelete = service.getAllJobs()
+        assertEquals(setOf("BootstrapJob"), afterDelete.map { it.className }.toSet())
     }
 }

@@ -7,6 +7,8 @@ import com.github.pablolec.play1toolkit.playcache.service.PlayCacheService
 import com.github.pablolec.play1toolkit.playcache.util.PlayCacheTemplateValueResolver
 import com.github.pablolec.play1toolkit.routes.RoutesControllerResolver
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class PlayCacheIntelligenceTest : BasePlatformTestCase() {
@@ -588,6 +590,82 @@ class PlayCacheIntelligenceTest : BasePlatformTestCase() {
         val target = ref!!.resolve()
         assertNotNull(target)
         assertTrue(target!!.text.contains("renderArgs.put(KEY_CACHE_NAME"))
+    }
+
+    fun `test getAllUsages does not rescan the project when nothing changed`() {
+        addProjectFile(
+            "app/controllers/Dashboard.java",
+            """
+            package controllers;
+            import play.cache.Cache;
+            public class Dashboard {
+                public static void show() {
+                    Cache.get("dashboard");
+                }
+            }
+            """
+        )
+
+        val service = PlayCacheService.getInstance(project)
+        val first = service.getAllUsages()
+        val second = service.getAllUsages()
+        assertSame("repeated calls with no relevant change must reuse the cached scan", first, second)
+    }
+
+    fun `test getTemplateFragments does not rescan views when nothing changed`() {
+        addProjectFile(
+            "app/views/Application/cachedFragment.html",
+            """
+            <div>
+            #{cache 'dashboard', for:'10mn'}
+                Content here
+            #{/cache}
+            </div>
+            """
+        )
+
+        val service = PlayCacheService.getInstance(project)
+        val first = service.getTemplateFragments()
+        val second = service.getTemplateFragments()
+        assertSame("repeated calls with no relevant change must reuse the cached scan", first, second)
+    }
+
+    fun `test cache usages are updated after a Cache call is added and removed`() {
+        val controller = addProjectFile(
+            "app/controllers/Dashboard.java",
+            """
+            package controllers;
+            import play.cache.Cache;
+            public class Dashboard {
+                public static void show() {
+                }
+            }
+            """
+        )
+
+        val service = PlayCacheService.getInstance(project)
+        assertTrue(service.getUsagesByStaticKey("dashboard").isEmpty())
+
+        val document = PsiDocumentManager.getInstance(project).getDocument(controller)!!
+        WriteCommandAction.runWriteCommandAction(project) {
+            val withCacheCall = document.text.replace(
+                "public static void show() {\n    }",
+                "public static void show() {\n        Cache.get(\"dashboard\");\n    }"
+            )
+            document.setText(withCacheCall)
+            PsiDocumentManager.getInstance(project).commitDocument(document)
+        }
+
+        val afterAdd = service.getUsagesByStaticKey("dashboard")
+        assertEquals(1, afterAdd.size)
+        assertEquals(PlayCacheUsageKind.JAVA_READ, afterAdd.single().kind)
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.setText(document.text.replace("        Cache.get(\"dashboard\");\n", ""))
+            PsiDocumentManager.getInstance(project).commitDocument(document)
+        }
+
+        assertTrue(service.getUsagesByStaticKey("dashboard").isEmpty())
     }
 
     fun `test methodKind covers all known methods`() {

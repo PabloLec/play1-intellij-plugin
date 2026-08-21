@@ -7,6 +7,7 @@ import com.github.pablolec.play1toolkit.playjpa.util.PlayYamlFixtureUtils
 import com.github.pablolec.play1toolkit.response.PlayActionResponseAnalyzer
 import com.github.pablolec.play1toolkit.response.PlayResponseKind
 import com.github.pablolec.play1toolkit.templates.service.PlayTemplateVariableResolver
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiField
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -403,5 +404,107 @@ class PlayJpaSupportTest : BasePlatformTestCase() {
         val info = PlayActionResponseAnalyzer(project).analyze(method)
         assertEquals(PlayResponseKind.JSON, info.kind)
         assertTrue(info.outcomes.single().details?.contains("JSON<User>") == true)
+    }
+
+    fun `test getAllModels does not rescan the project when nothing changed`() {
+        addProjectFile(
+            "app/models/User.java",
+            """
+            package models;
+            import javax.persistence.Entity;
+            import play.db.jpa.Model;
+
+            @Entity
+            public class User extends Model {
+                public String email;
+            }
+            """.trimIndent()
+        )
+
+        val service = PlayJpaModelService.getInstance(project)
+        val first = service.getAllModels()
+        val second = service.getAllModels()
+        assertSame("repeated calls with no relevant change must reuse the cached scan", first, second)
+    }
+
+    fun `test getAllModels picks up a newly added model file`() {
+        addProjectFile(
+            "app/models/User.java",
+            """
+            package models;
+            import javax.persistence.Entity;
+            import play.db.jpa.Model;
+
+            @Entity
+            public class User extends Model {
+                public String email;
+            }
+            """.trimIndent()
+        )
+
+        val service = PlayJpaModelService.getInstance(project)
+        val before = service.getAllModels()
+        assertEquals(setOf("User"), before.map { it.className }.toSet())
+
+        addProjectFile(
+            "app/models/Order.java",
+            """
+            package models;
+            import javax.persistence.Entity;
+            import play.db.jpa.Model;
+
+            @Entity
+            public class Order extends Model {
+                public String reference;
+            }
+            """.trimIndent()
+        )
+
+        val after = service.getAllModels()
+        assertNotSame("adding a model file must invalidate the cached scan", before, after)
+        assertEquals(setOf("User", "Order"), after.map { it.className }.toSet())
+    }
+
+    fun `test getAllModels drops a model once its file is deleted`() {
+        val userFile = addProjectFile(
+            "app/models/User.java",
+            """
+            package models;
+            import javax.persistence.Entity;
+            import play.db.jpa.Model;
+
+            @Entity
+            public class User extends Model {
+                public String email;
+            }
+            """.trimIndent()
+        )
+
+        val service = PlayJpaModelService.getInstance(project)
+        assertTrue(service.getAllModels().any { it.className == "User" })
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            userFile.virtualFile.delete(null)
+        }
+
+        assertFalse(service.getAllModels().any { it.className == "User" })
+    }
+
+    fun `test getAllEntries does not rescan the project when nothing changed`() {
+        addProjectFile(
+            "app/models/legacy/LegacyFallbackModel.java",
+            """
+            package models.legacy;
+
+            public class LegacyFallbackModel {
+                public String name;
+            }
+            """.trimIndent()
+        )
+
+        val service = PlayAppModelClassificationService.getInstance(project)
+        val first = service.getAllEntries()
+        val second = service.getAllEntries()
+        assertSame("repeated calls with no relevant change must reuse the cached scan", first, second)
     }
 }

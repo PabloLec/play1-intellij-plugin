@@ -15,6 +15,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiExpression
@@ -48,7 +49,15 @@ class PlayCacheService(private val project: Project) {
     fun getAllUsages(): List<PlayCacheUsage> {
         return ApplicationManager.getApplication().runReadAction<List<PlayCacheUsage>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            javaUsages() + templateUsages()
+            // Cached so that getUsagesByStaticKey/getKnownStaticKeys/getDynamicUsages/getGlobalClears
+            // (all called per PSI element from line markers and inspections) reuse one combined list
+            // instead of re-concatenating javaUsages()+templateUsages() on every call.
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                CachedValueProvider.Result.create(
+                    javaUsages() + templateUsages(),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
         }
     }
 
@@ -65,15 +74,21 @@ class PlayCacheService(private val project: Project) {
     fun getTemplateFragments(): List<PlayCachedTemplateFragment> {
         return ApplicationManager.getApplication().runReadAction<List<PlayCachedTemplateFragment>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            templateFiles().flatMap { vf ->
-                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-                if (!PlayCacheTemplateScanner.isEligible(psiFile)) return@flatMap emptyList()
-                CachedValuesManager.getCachedValue(psiFile) {
-                    CachedValueProvider.Result.create(
-                        PlayCacheTemplateScanner.scan(psiFile),
-                        PsiModificationTracker.MODIFICATION_COUNT
-                    )
+            // Cached at the project level: called directly from a line marker provider, an inlay
+            // hints provider and an inspection, each querying per PSI element. Without this cache
+            // every one of those calls re-walks the whole /app/views tree.
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                val fragments = templateFiles().flatMap { vf ->
+                    val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                    if (!PlayCacheTemplateScanner.isEligible(psiFile)) return@flatMap emptyList()
+                    CachedValuesManager.getCachedValue(psiFile) {
+                        CachedValueProvider.Result.create(
+                            PlayCacheTemplateScanner.scan(psiFile),
+                            PsiModificationTracker.MODIFICATION_COUNT
+                        )
+                    }
                 }
+                CachedValueProvider.Result.create(fragments, PsiModificationTracker.MODIFICATION_COUNT)
             }
         }
     }
@@ -81,7 +96,12 @@ class PlayCacheService(private val project: Project) {
     fun getCachedActions(): List<PlayCachedActionInfo> {
         return ApplicationManager.getApplication().runReadAction<List<PlayCachedActionInfo>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            javaFilePasses().flatMap { it.cachedActions }
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                CachedValueProvider.Result.create(
+                    javaFilePasses().flatMap { it.cachedActions },
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
         }
     }
 
@@ -98,16 +118,26 @@ class PlayCacheService(private val project: Project) {
         javaFilePasses().flatMap { it.usages }
 
     private fun javaFilePasses(): List<JavaFilePass> {
-        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
-        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
-        return javaFiles.mapNotNull { vf ->
-            val psiFile = PsiManager.getInstance(project).findFile(vf) as? PsiJavaFile ?: return@mapNotNull null
-            CachedValuesManager.getCachedValue(psiFile) {
-                CachedValueProvider.Result.create(
-                    scanJavaFile(psiFile),
-                    PsiModificationTracker.MODIFICATION_COUNT
-                )
+        // Cached at the project level: getAllUsages/getCachedActions/getKnownStaticKeys/etc. all
+        // funnel through here, and are themselves invoked once per PSI element from line markers,
+        // inlay hints and inspections. Without this cache each of those triggers a fresh
+        // FilenameIndex scan of every Java file in the project.
+        return CachedValuesManager.getManager(project).getCachedValue(project) {
+            val scope = Play1ProjectPaths.indexingScope(project)
+            val passes = if (scope == null) {
+                emptyList()
+            } else {
+                FilenameIndex.getAllFilesByExt(project, "java", scope).mapNotNull { vf ->
+                    val psiFile = PsiManager.getInstance(project).findFile(vf) as? PsiJavaFile ?: return@mapNotNull null
+                    CachedValuesManager.getCachedValue(psiFile) {
+                        CachedValueProvider.Result.create(
+                            scanJavaFile(psiFile),
+                            PsiModificationTracker.MODIFICATION_COUNT
+                        )
+                    }
+                }
             }
+            CachedValueProvider.Result.create(passes, PsiModificationTracker.MODIFICATION_COUNT)
         }
     }
 
@@ -131,15 +161,20 @@ class PlayCacheService(private val project: Project) {
         }
     }
 
-    private fun templateFiles(): List<com.intellij.openapi.vfs.VirtualFile> {
-        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
-        val out = mutableListOf<com.intellij.openapi.vfs.VirtualFile>()
-        listOf("html", "xml", "json", "txt").forEach { ext ->
-            out += FilenameIndex.getAllFilesByExt(project, ext, scope)
+    private fun templateFiles(): List<VirtualFile> {
+        return CachedValuesManager.getManager(project).getCachedValue(project) {
+            val scope = Play1ProjectPaths.indexingScope(project)
+            val files = if (scope == null) {
+                emptyList()
+            } else {
+                val out = mutableListOf<VirtualFile>()
+                listOf("html", "xml", "json", "txt").forEach { ext ->
+                    out += FilenameIndex.getAllFilesByExt(project, ext, scope)
+                }
+                out.filter { it.path.contains("/app/views/") }.distinctBy { it.path }
+            }
+            CachedValueProvider.Result.create(files, PsiModificationTracker.MODIFICATION_COUNT)
         }
-        return out
-            .filter { it.path.contains("/app/views/") }
-            .distinctBy { it.path }
     }
 
     private fun scanJavaFile(file: PsiJavaFile): JavaFilePass {

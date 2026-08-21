@@ -32,20 +32,32 @@ class PlayJobService(private val project: Project) {
     fun getAllJobs(): List<PlayJobInfo> {
         return ApplicationManager.getApplication().runReadAction<List<PlayJobInfo>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val scope = Play1ProjectPaths.indexingScope(project) ?: return@runReadAction emptyList()
-            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
-            javaFiles.flatMap { vf ->
-                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-                CachedValuesManager.getCachedValue(psiFile) {
-                    val javaFile = psiFile as? PsiJavaFile
-                    if (javaFile == null) {
-                        CachedValueProvider.Result.create(emptyList<PlayJobInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
-                    } else {
-                        CachedValueProvider.Result.create(
-                            buildJobsFromFile(javaFile),
-                            PsiModificationTracker.MODIFICATION_COUNT
-                        )
-                    }
+            // Cached at the project level: line markers and inspections call this once per PSI
+            // element, so without this the whole project's Java files get re-enumerated on every
+            // element.
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                CachedValueProvider.Result.create(
+                    scanAllJobs(),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
+        }
+    }
+
+    private fun scanAllJobs(): List<PlayJobInfo> {
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
+        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
+        return javaFiles.flatMap { vf ->
+            val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+            CachedValuesManager.getCachedValue(psiFile) {
+                val javaFile = psiFile as? PsiJavaFile
+                if (javaFile == null) {
+                    CachedValueProvider.Result.create(emptyList<PlayJobInfo>(), PsiModificationTracker.MODIFICATION_COUNT)
+                } else {
+                    CachedValueProvider.Result.create(
+                        buildJobsFromFile(javaFile),
+                        PsiModificationTracker.MODIFICATION_COUNT
+                    )
                 }
             }
         }

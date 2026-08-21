@@ -25,25 +25,36 @@ class PlayAppModelClassificationService(private val project: Project) {
     fun getAllEntries(): List<PlayAppModelEntry> {
         return ApplicationManager.getApplication().runReadAction<List<PlayAppModelEntry>> {
             if (DumbService.isDumb(project)) return@runReadAction emptyList()
-            val scope = Play1ProjectPaths.indexingScope(project) ?: return@runReadAction emptyList()
-            val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
-            javaFiles
-                .filter { it.path.contains("/app/models/") }
-                .flatMap { vf ->
-                    val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
-                    CachedValuesManager.getCachedValue(psiFile) {
-                        val javaFile = psiFile as? PsiJavaFile
-                        if (javaFile == null) {
-                            CachedValueProvider.Result.create(emptyList<PlayAppModelEntry>(), PsiModificationTracker.MODIFICATION_COUNT)
-                        } else {
-                            CachedValueProvider.Result.create(
-                                buildEntriesFromFile(javaFile),
-                                PsiModificationTracker.MODIFICATION_COUNT
-                            )
-                        }
+            // Cached at the project level, same reasoning as PlayJpaModelService.getAllModels():
+            // avoids a fresh FilenameIndex scan of the whole project on every call.
+            CachedValuesManager.getManager(project).getCachedValue(project) {
+                CachedValueProvider.Result.create(
+                    scanAllEntries(),
+                    PsiModificationTracker.MODIFICATION_COUNT
+                )
+            }
+        }
+    }
+
+    private fun scanAllEntries(): List<PlayAppModelEntry> {
+        val scope = Play1ProjectPaths.indexingScope(project) ?: return emptyList()
+        val javaFiles = FilenameIndex.getAllFilesByExt(project, "java", scope)
+        return javaFiles
+            .filter { it.path.contains("/app/models/") }
+            .flatMap { vf ->
+                val psiFile = PsiManager.getInstance(project).findFile(vf) ?: return@flatMap emptyList()
+                CachedValuesManager.getCachedValue(psiFile) {
+                    val javaFile = psiFile as? PsiJavaFile
+                    if (javaFile == null) {
+                        CachedValueProvider.Result.create(emptyList<PlayAppModelEntry>(), PsiModificationTracker.MODIFICATION_COUNT)
+                    } else {
+                        CachedValueProvider.Result.create(
+                            buildEntriesFromFile(javaFile),
+                            PsiModificationTracker.MODIFICATION_COUNT
+                        )
                     }
                 }
-        }
+            }
     }
 
     private fun buildEntriesFromFile(javaFile: PsiJavaFile): List<PlayAppModelEntry> {
